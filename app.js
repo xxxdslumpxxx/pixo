@@ -275,8 +275,6 @@ const hardwareIdDisplay = document.getElementById('hardwareIdDisplay');
 const langSelect = document.getElementById('langSelect');
 const themeSelect = document.getElementById('themeSelect');
 const weatherCityInput = document.getElementById('weatherCityInput');
-const directLinkInput = document.getElementById('directLinkInput');
-const copyLinkBtn = document.getElementById('copyLinkBtn');
 const screensaverToggle = document.getElementById('screensaverToggle');
 const ledToggle = document.getElementById('ledToggle');
 
@@ -435,17 +433,6 @@ function updateGuestLink() {
   url.searchParams.set('key', state.guestKey);
   url.searchParams.set('guest', '1');
   guestLinkInput.value = url.toString();
-}
-
-function updateDirectLink() {
-  if (!directLinkInput) return;
-  const baseUrl = window.location.origin + window.location.pathname;
-  const url = new URL(baseUrl);
-  url.searchParams.set('id', state.deviceId);
-  if (state.devicePin) {
-    url.searchParams.set('pin', state.devicePin);
-  }
-  directLinkInput.value = url.toString();
 }
 
 // ==========================================================================
@@ -1213,7 +1200,7 @@ async function sendLedConfig(enabled) {
   await connectMQTT();
   if (!state.deviceId) return;
   const topic = `pixo/device/${state.deviceId}/led`;
-  const cmd = enabled ? "LED:ON" : "LED:OFF";
+  const cmd = enabled ? "NOTIF:ON" : "NOTIF:OFF";
   if (state.mqttConnected) {
     state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
   }
@@ -1346,7 +1333,7 @@ function connectMQTT() {
 
           // Sincronizza lo stato del LED notifica verso il dispositivo
           if (state.deviceId) {
-            const ledCmd = state.ledEnabled ? "LED:ON" : "LED:OFF";
+            const ledCmd = state.ledEnabled ? "NOTIF:ON" : "NOTIF:OFF";
             const ledTopic = `pixo/device/${state.deviceId}/led`;
             state.mqttClient.publish(ledTopic, ledCmd, { qos: 0, retain: false });
           }
@@ -1722,7 +1709,6 @@ function setupEventListeners() {
       if (newPin && newPin !== state.devicePin) {
         state.devicePin = newPin;
         localStorage.setItem('pixo_device_pin', state.devicePin);
-        updateDirectLink();
         if (state.mqttConnected && state.deviceId) {
           const topic = `pixo/device/${state.deviceId}/setpin`;
           state.mqttClient.publish(topic, state.devicePin, { qos: 0, retain: false });
@@ -1732,18 +1718,6 @@ function setupEventListeners() {
 
     settingsModal.classList.add('hidden');
     showToast(t("toastSettingsSaved"));
-  });
-
-  // Copia Link
-  copyLinkBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(directLinkInput.value);
-      showToast(t("toastLinkCopied"), "success");
-    } catch(e) {
-      directLinkInput.select();
-      document.execCommand('copy');
-      showToast(t("toastLinkCopied"), "success");
-    }
   });
 }
 
