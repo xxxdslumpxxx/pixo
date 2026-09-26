@@ -35,6 +35,7 @@ const TRANSLATIONS = {
     text: "Testo",
     stickers: "Sticker",
     photo: "Foto",
+    video: "Video",
     weather: "Meteo",
     news: "News",
     clock: "Orologio",
@@ -64,8 +65,8 @@ const TRANSLATIONS = {
     shareTitle: "🔗 Condivisione Dispositivo Pixò",
     screensaverLabel: "Screensaver Standby (30 min)",
     screensaverSub: "Torna alla faccina animata dopo 30 min di inattività",
-    ledLabel: "💡 LED Notifica 3.2V (GPIO 5)",
-    ledSub: "Accendi o spegni il LED ausiliario",
+    ledLabel: "💡 Lampeggio LED alla ricezione (GPIO 5)",
+    ledSub: "Fa lampeggiare il LED quando ricevi un nuovo disegno o messaggio",
     allowGuestsTitle: "Consenti Invio da Ospiti",
     guestStatusSub: "Gli invitati possono inviare disegni a Pixò",
     guestLinkLabel: "Link di Invito per Ospiti:",
@@ -73,9 +74,11 @@ const TRANSLATIONS = {
     toastStandby: "Pixò è tornato in Standby!",
     toastTextInserted: "Testo inserito al centro",
     toastStickerReady: "Tocca il canvas per posizionare lo sticker",
-    toastPhotoApplied: "Foto inviata al display!",
+    toastPhotoApplied: "Foto caricata sul canvas!",
+    toastVideoApplied: "Fotogramma video caricato sul canvas!",
     toastWeatherSent: "Meteo di {city} inviato a Pixò!",
     toastNewsSent: "Notizia inviata a Pixò!",
+    toastClockSent: "Orologio Digitale Nativo avviato su Pixò!",
     toastDrawingSaved: "Disegno salvato nei preferiti!",
     toastDrawingLoaded: "Disegno caricato sul canvas!",
     toastDrawingDeleted: "Disegno eliminato dalla galleria!",
@@ -89,8 +92,8 @@ const TRANSLATIONS = {
     confirmClear: "Vuoi davvero cancellare tutto il disegno?",
     feedWeatherActive: "🌦️ Meteo attivo ({city}) • Aggiornamento automatico ogni 15 min",
     feedNewsActive: "📰 Notizia {current} di {total} su Pixò (prossima tra 15s)...",
-    feedClockActive: "⏰ Orologio Smart attivo • Aggiornato ogni 30s",
-    feedStopped: "Feed automatico fermato"
+    feedClockActive: "⏰ Orologio Digitale attivo sul Display (Nativo)",
+    feedStopped: "Modalità automatica fermata"
   },
   en: {
     appTitle: "Pixò",
@@ -100,6 +103,7 @@ const TRANSLATIONS = {
     text: "Text",
     stickers: "Stickers",
     photo: "Photo",
+    video: "Video",
     weather: "Weather",
     news: "News",
     clock: "Clock",
@@ -129,8 +133,8 @@ const TRANSLATIONS = {
     shareTitle: "🔗 Pixò Device Sharing",
     screensaverLabel: "Standby Screensaver (30 min)",
     screensaverSub: "Return to cartoon face after 30 min of inactivity",
-    ledLabel: "💡 Notification LED 3.2V (GPIO 5)",
-    ledSub: "Turn auxiliary LED on or off",
+    ledLabel: "💡 Notification LED Blink (GPIO 5)",
+    ledSub: "Blinks the LED when receiving a new drawing or message",
     allowGuestsTitle: "Allow Guest Submissions",
     guestStatusSub: "Guests can send drawings to Pixò",
     guestLinkLabel: "Guest Invitation Link:",
@@ -138,24 +142,26 @@ const TRANSLATIONS = {
     toastStandby: "Pixò returned to Standby!",
     toastTextInserted: "Text placed in center",
     toastStickerReady: "Tap canvas to place sticker",
-    toastPhotoApplied: "Photo sent to display!",
+    toastPhotoApplied: "Photo applied to canvas!",
+    toastVideoApplied: "Video frame loaded onto canvas!",
     toastWeatherSent: "Weather for {city} sent to Pixò!",
     toastNewsSent: "News story sent to Pixò!",
+    toastClockSent: "Native Digital Clock started on Pixò!",
     toastDrawingSaved: "Drawing saved to favorites!",
-    toastDrawingLoaded: "Drawing loaded onto canvas!",
+    toastDrawingLoaded: "Drawing loaded to canvas!",
     toastDrawingDeleted: "Drawing deleted from gallery!",
     toastGuestDisabled: "Guest access blocked!",
     toastGuestEnabled: "Guest access re-enabled!",
-    toastKeyRevoked: "Key regenerated! Previous links revoked.",
+    toastKeyRevoked: "Key revoked! Old invitation links are now invalid.",
     toastLinkCopied: "Link copied to clipboard!",
     toastSettingsSaved: "Settings saved",
     toastConnected: "Connected to Pixò Cloud",
     toastSentSuccess: "Sent to {name} ({kb} KB in {ms}ms)!",
-    confirmClear: "Do you really want to clear the canvas?",
+    confirmClear: "Do you really want to clear the entire canvas?",
     feedWeatherActive: "🌦️ Weather active ({city}) • Auto-refresh every 15 min",
     feedNewsActive: "📰 Story {current} of {total} on Pixò (next in 15s)...",
-    feedClockActive: "⏰ Smart Clock active • Updated every 30s",
-    feedStopped: "Auto feed stopped"
+    feedClockActive: "⏰ Digital Clock active on Display (Native)",
+    feedStopped: "Mode stopped"
   }
 };
 
@@ -1005,85 +1011,127 @@ function stopAutomaticFeed() {
 }
 
 // ==========================================================================
-//  7b. OROLOGIO DA TAVOLO SMART (SMART DESK CLOCK)
+//  7b. OROLOGIO DIGITALE NATIVO (STILE SMART WEATHER CLOCK)
 // ==========================================================================
 function activateClockMode() {
   stopAutomaticFeed();
   state.activeFeedType = "clock";
-  showToast(state.lang === 'it' ? "Orologio Smart avviato" : "Smart Clock started", "success");
 
-  renderAndSendSmartClock();
+  // Invia il comando nativo CLOCK al display ESP32-C3!
+  sendClockCommand();
 
+  // Avvia l'anteprima animata sul canvas locale con separatore ':' lampeggiante a 1Hz
+  renderClockCanvas();
   state.feedTimer = setInterval(() => {
     if (state.activeFeedType === "clock") {
-      renderAndSendSmartClock();
+      renderClockCanvas();
     }
-  }, 30000);
+  }, 1000);
+
+  feedStatusText.textContent = t("feedClockActive");
+  feedBanner.classList.remove('hidden');
+  showToast(t("toastClockSent"), "success");
 }
 
-function renderAndSendSmartClock() {
+let webColonVisible = true;
+function renderClockCanvas() {
+  webColonVisible = !webColonVisible;
   const now = new Date();
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const seconds = String(now.getSeconds()).padStart(2, '0');
-  const timeStr = `${hours}:${minutes}`;
 
-  const daysIt = ['DOMENICA', 'LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO'];
-  const daysEn = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-  const monthsIt = ['GENNAIO', 'FEBBRAIO', 'MARZO', 'APRILE', 'MAGGIO', 'GIUGNO', 'LUGLIO', 'AGOSTO', 'SETTEMBRE', 'OTTOBRE', 'NOVEMBRE', 'DICEMBRE'];
-  const monthsEn = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  const daysIt = ['DOM', 'LUN', 'MAR', 'MER', 'GIO', 'VEN', 'SAB'];
+  const daysEn = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const monthsIt = ['GEN', 'FEB', 'MAR', 'APR', 'MAG', 'GIU', 'LUG', 'AGO', 'SET', 'OTT', 'NOV', 'DIC'];
+  const monthsEn = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
   const dayName = state.lang === 'it' ? daysIt[now.getDay()] : daysEn[now.getDay()];
   const monthName = state.lang === 'it' ? monthsIt[now.getMonth()] : monthsEn[now.getMonth()];
-  const dateStr = `${dayName}, ${now.getDate()} ${monthName}`;
+  const dateStr = `${now.getDate()} ${monthName} ${now.getFullYear()}`;
+  const headerDate = `${dayName} ${String(now.getDate()).padStart(2, '0')}`;
 
-  // Sfondo scuro moderno
-  ctx.fillStyle = "#0c0e14";
+  // Sfondo nero puro identico all'orologio fisico
+  ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, 240, 240);
 
-  // Cornice neon sottile
-  ctx.strokeStyle = "#4361ee";
-  ctx.lineWidth = 3;
-  ctx.strokeRect(6, 6, 228, 228);
+  // Barra superiore Navy / Dark Cyan
+  ctx.fillStyle = "#0d1b2a";
+  ctx.fillRect(0, 0, 240, 36);
 
-  // Icona giorno/notte
-  const hourNum = now.getHours();
-  const icon = (hourNum >= 6 && hourNum < 20) ? "☀️" : "🌙";
-  ctx.font = "26px sans-serif";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(icon, 120, 36);
-
-  // Orario gigante ultra-nitido
-  ctx.font = "bold 52px monospace, -apple-system, sans-serif";
-  ctx.fillStyle = "#ffffff";
-  ctx.fillText(timeStr, 120, 96);
-
-  // Secondi
-  ctx.font = "bold 15px monospace, sans-serif";
+  ctx.font = "bold 15px -apple-system, sans-serif";
   ctx.fillStyle = "#00b4d8";
-  ctx.fillText(`: ${seconds}s`, 120, 136);
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText("PIXÒ CLOCK", 12, 18);
 
-  // Data
-  ctx.font = "bold 13px sans-serif";
-  ctx.fillStyle = "#fcbf49";
-  ctx.fillText(dateStr, 120, 172);
+  ctx.fillStyle = "#ffd166";
+  ctx.textAlign = "right";
+  ctx.fillText(headerDate, 228, 18);
 
-  // Barra avanzamento minuto
-  const barWidth = Math.round((now.getSeconds() / 60) * 180);
-  ctx.fillStyle = "#202533";
-  ctx.fillRect(30, 204, 180, 8);
-  ctx.fillStyle = "#2a9d8f";
-  ctx.fillRect(30, 204, barWidth, 8);
+  // Linea divisoria sottile
+  ctx.strokeStyle = "#0077b6";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, 36);
+  ctx.lineTo(240, 36);
+  ctx.stroke();
+
+  // Cifre Ore (grandi a sinistra)
+  ctx.font = "bold 56px -apple-system, monospace, sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.fillText(hours, 65, 88);
+
+  // Separatore due punti ':' lampeggiante a 1Hz
+  if (webColonVisible) {
+    ctx.fillStyle = "#f77f00";
+    ctx.fillRect(115, 68, 8, 11);
+    ctx.fillRect(115, 93, 8, 11);
+  }
+
+  // Cifre Minuti (grandi a destra)
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(minutes, 175, 88);
+
+  // Data per esteso centrale
+  ctx.font = "bold 15px sans-serif";
+  ctx.fillStyle = "#06d6a0";
+  ctx.fillText(dateStr, 120, 148);
+
+  // Cornice barra avanzamento secondi
+  ctx.strokeStyle = "#415a77";
+  ctx.strokeRect(18, 178, 204, 10);
+
+  // Barra avanzamento secondi (0-59s)
+  const barW = Math.round((now.getSeconds() / 59) * 200);
+  ctx.fillStyle = "#00b4d8";
+  ctx.fillRect(20, 180, barW, 6);
+
+  // Secondi numerici in basso
+  ctx.font = "bold 16px monospace, sans-serif";
+  ctx.fillStyle = "#00b4d8";
+  ctx.fillText(`:${seconds}`, 120, 212);
 
   saveState();
   updatePayloadPreview();
+}
 
-  // Invio automatico immediato a Pixò
-  sendCanvasMqtt(false);
-
-  feedStatusText.textContent = t("feedClockActive");
-  feedBanner.classList.remove('hidden');
+async function sendClockCommand() {
+  if (!state.deviceId) return;
+  if (!state.mqttConnected) {
+    await connectMQTT();
+    if (!state.mqttConnected) return;
+  }
+  const topic = state.isGuestMode
+    ? `pixo/device/${state.deviceId}/guest/${state.guestKey}/draw`
+    : `pixo/device/${state.deviceId}/${state.devicePin}/draw`;
+  const cmd = new TextEncoder().encode("CLOCK");
+  state.mqttClient.publish(topic, cmd, { qos: 0, retain: false }, (err) => {
+    if (!err) {
+      console.log("[MQTT] Comando CLOCK inviato con successo a Pixò!");
+    }
+  });
 }
 
 // ==========================================================================
@@ -1250,7 +1298,10 @@ function sendLedConfig(enabled) {
   const topic = `pixo/device/${state.deviceId}/led`;
   const cmd = enabled ? "LED:ON" : "LED:OFF";
   state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
-  showToast(enabled ? "LED GPIO 5 ACCESO" : "LED GPIO 5 SPENTO", "success");
+  showToast(enabled 
+    ? (state.lang === 'it' ? "Lampeggio LED notifica ATTIVATO" : "Notification LED blink ENABLED") 
+    : (state.lang === 'it' ? "Lampeggio LED notifica DISATTIVATO" : "Notification LED blink DISABLED"), 
+    "success");
 }
 
 function sendGuestAccessConfig(enabled) {
@@ -1403,7 +1454,13 @@ function connectMQTT() {
 }
 
 async function sendCanvasMqtt() {
-  if (!state.deviceId || !state.mqttConnected) return;
+  if (!state.deviceId) return;
+
+  // Se non siamo ancora connessi al broker (es. appena aperta l'app), attendi la connessione!
+  if (!state.mqttConnected) {
+    await connectMQTT();
+    if (!state.mqttConnected) return;
+  }
 
   // Blocco di concorrenza anti-crash
   if (state.isSending) return;
@@ -1467,11 +1524,15 @@ async function sendToDisplay() {
   await sendCanvasMqtt();
 }
 
-function sendStandbyCommand() {
+async function sendStandbyCommand() {
   stopAutomaticFeed();
+  if (!state.deviceId) return;
   if (!state.mqttConnected) {
-    showToast("Broker non connesso!", "error");
-    return;
+    await connectMQTT();
+    if (!state.mqttConnected) {
+      showToast("Broker non connesso!", "error");
+      return;
+    }
   }
   const topic = state.isGuestMode
     ? `pixo/device/${state.deviceId}/guest/${state.guestKey}/draw`
