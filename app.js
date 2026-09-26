@@ -1,0 +1,1761 @@
+/* ==========================================================================
+   PIXÒ CLOUD - LOGICA APPLICATIVA JAVASCRIPT
+   ========================================================================== */
+
+// --- CONFIGURAZIONE PREDEFINITA BROKER MQTT ---
+const DEFAULT_CONFIG = {
+  brokerUrl: "wss://e58d8ef9b4cb45b9b8250157f6c5b7c2.s1.eu.hivemq.cloud:8884/mqtt",
+  brokerUser: "dslump",
+  brokerPass: "projectLavagna!",
+  defaultDeviceId: "ESP32-A28DCC",
+  defaultDeviceName: "Il mio Pixò",
+  jpegQuality: 0.60, // Ottimizzato: ~4-6 KB per invio istantaneo in meno di 100ms!
+  defaultCity: "Roma",
+  defaultTheme: "dark", // "dark" (Nero/Bianco) oppure "light" (Bianco/Nero)
+  defaultLang: "it",
+  defaultBrightness: 100,
+  defaultPin: "1234"
+};
+
+// 28 Sticker ed Emoji
+const STICKERS = [
+  '☀️', '⛅', '🌧️', '❄️', '⚡', '🌈',
+  '❤️', '😊', '😂', '😎', '🥳', '😴', '💩',
+  '☕', '🍕', '🎂', '🏠', '🔔', '⚠️', '💡', '🚀',
+  '🐱', '🐶', '🌸', '⭐', '🎮', '🎵', '⏰'
+];
+
+// Dizionario Multilingua (i18n)
+const TRANSLATIONS = {
+  it: {
+    appTitle: "Pixò",
+    undo: "Undo",
+    clear: "Pulisci",
+    standby: "Standby",
+    text: "Testo",
+    stickers: "Sticker",
+    photo: "Foto",
+    weather: "Meteo",
+    news: "News",
+    clock: "Orologio",
+    save: "Salva",
+    gallery: "Disegni",
+    share: "Condividi",
+    chooseSticker: "Scegli uno Sticker (28 disponibili)",
+    stickerSize: "Dimensione Sticker:",
+    sendToDisplay: "Invia a Display",
+    settingsTitle: "Impostazioni Pixò",
+    deviceNameLabel: "Nome del tuo Pixò:",
+    brightnessLabel: "☀️ Luminosità Schermo:",
+    cityLabel: "Città Predefinita per il Meteo:",
+    langLabel: "Lingua / Language:",
+    canvasThemeLabel: "Tema Lavagna:",
+    themeDark: "Nero (Scritta Bianca)",
+    themeLight: "Bianco (Scritta Nera)",
+    hardwareId: "ID Hardware:",
+    directLinkLabel: "Link Diretto per Disegnare su questo Pixò:",
+    copy: "Copia",
+    saveSettings: "Salva Impostazioni",
+    addTextTitle: "Aggiungi Testo",
+    textSize: "Dimensione Testo:",
+    quickPresets: "Preset:",
+    insertOnCanvas: "Inserisci sul Canvas",
+    galleryTitle: "📁 I Miei Disegni Salvati",
+    shareTitle: "🔗 Condivisione Dispositivo Pixò",
+    screensaverLabel: "Screensaver Standby (30 min)",
+    screensaverSub: "Torna alla faccina animata dopo 30 min di inattività",
+    ledLabel: "💡 LED Notifica 3.2V (GPIO 5)",
+    ledSub: "Accendi o spegni il LED ausiliario",
+    allowGuestsTitle: "Consenti Invio da Ospiti",
+    guestStatusSub: "Gli invitati possono inviare disegni a Pixò",
+    guestLinkLabel: "Link di Invito per Ospiti:",
+    toastCleared: "Lavagna pulita",
+    toastStandby: "Pixò è tornato in Standby!",
+    toastTextInserted: "Testo inserito al centro",
+    toastStickerReady: "Tocca il canvas per posizionare lo sticker",
+    toastPhotoApplied: "Foto inviata al display!",
+    toastWeatherSent: "Meteo di {city} inviato a Pixò!",
+    toastNewsSent: "Notizia inviata a Pixò!",
+    toastDrawingSaved: "Disegno salvato nei preferiti!",
+    toastDrawingLoaded: "Disegno caricato sul canvas!",
+    toastDrawingDeleted: "Disegno eliminato dalla galleria!",
+    toastGuestDisabled: "Accesso ospiti inibito!",
+    toastGuestEnabled: "Accesso ospiti riabilitato!",
+    toastKeyRevoked: "Chiave rigenerata! I vecchi link sono stati revocati.",
+    toastLinkCopied: "Link copiato negli appunti!",
+    toastSettingsSaved: "Impostazioni salvate",
+    toastConnected: "Connesso a Pixò Cloud",
+    toastSentSuccess: "Inviato a {name} ({kb} KB in {ms}ms)!",
+    confirmClear: "Vuoi davvero cancellare tutto il disegno?",
+    feedWeatherActive: "🌦️ Meteo attivo ({city}) • Aggiornamento automatico ogni 15 min",
+    feedNewsActive: "📰 Notizia {current} di {total} su Pixò (prossima tra 15s)...",
+    feedClockActive: "⏰ Orologio Smart attivo • Aggiornato ogni 30s",
+    feedStopped: "Feed automatico fermato"
+  },
+  en: {
+    appTitle: "Pixò",
+    undo: "Undo",
+    clear: "Clear",
+    standby: "Standby",
+    text: "Text",
+    stickers: "Stickers",
+    photo: "Photo",
+    weather: "Weather",
+    news: "News",
+    clock: "Clock",
+    save: "Save",
+    gallery: "Drawings",
+    share: "Share",
+    chooseSticker: "Choose a Sticker (28 available)",
+    stickerSize: "Sticker Size:",
+    sendToDisplay: "Send to Display",
+    settingsTitle: "Pixò Settings",
+    deviceNameLabel: "Your Pixò Name:",
+    brightnessLabel: "☀️ Screen Brightness:",
+    cityLabel: "Default Weather City:",
+    langLabel: "Language / Lingua:",
+    canvasThemeLabel: "Canvas Theme:",
+    themeDark: "Black (White Pen)",
+    themeLight: "White (Black Pen)",
+    hardwareId: "Hardware ID:",
+    directLinkLabel: "Direct Link to Draw on this Pixò:",
+    copy: "Copy",
+    saveSettings: "Save Settings",
+    addTextTitle: "Add Text",
+    textSize: "Text Size:",
+    quickPresets: "Presets:",
+    insertOnCanvas: "Place on Canvas",
+    galleryTitle: "📁 My Saved Drawings",
+    shareTitle: "🔗 Pixò Device Sharing",
+    screensaverLabel: "Standby Screensaver (30 min)",
+    screensaverSub: "Return to cartoon face after 30 min of inactivity",
+    ledLabel: "💡 Notification LED 3.2V (GPIO 5)",
+    ledSub: "Turn auxiliary LED on or off",
+    allowGuestsTitle: "Allow Guest Submissions",
+    guestStatusSub: "Guests can send drawings to Pixò",
+    guestLinkLabel: "Guest Invitation Link:",
+    toastCleared: "Canvas cleared",
+    toastStandby: "Pixò returned to Standby!",
+    toastTextInserted: "Text placed in center",
+    toastStickerReady: "Tap canvas to place sticker",
+    toastPhotoApplied: "Photo sent to display!",
+    toastWeatherSent: "Weather for {city} sent to Pixò!",
+    toastNewsSent: "News story sent to Pixò!",
+    toastDrawingSaved: "Drawing saved to favorites!",
+    toastDrawingLoaded: "Drawing loaded onto canvas!",
+    toastDrawingDeleted: "Drawing deleted from gallery!",
+    toastGuestDisabled: "Guest access blocked!",
+    toastGuestEnabled: "Guest access re-enabled!",
+    toastKeyRevoked: "Key regenerated! Previous links revoked.",
+    toastLinkCopied: "Link copied to clipboard!",
+    toastSettingsSaved: "Settings saved",
+    toastConnected: "Connected to Pixò Cloud",
+    toastSentSuccess: "Sent to {name} ({kb} KB in {ms}ms)!",
+    confirmClear: "Do you really want to clear the canvas?",
+    feedWeatherActive: "🌦️ Weather active ({city}) • Auto-refresh every 15 min",
+    feedNewsActive: "📰 Story {current} of {total} on Pixò (next in 15s)...",
+    feedClockActive: "⏰ Smart Clock active • Updated every 30s",
+    feedStopped: "Auto feed stopped"
+  }
+};
+
+// --- STATO DELL'APPLICAZIONE ---
+const state = {
+  deviceId: "",
+  deviceName: "",
+  brokerUrl: "",
+  brokerUser: "",
+  brokerPass: "",
+  lang: DEFAULT_CONFIG.defaultLang,
+  canvasTheme: DEFAULT_CONFIG.defaultTheme,
+  weatherCity: DEFAULT_CONFIG.defaultCity,
+  brightness: DEFAULT_CONFIG.defaultBrightness,
+  currentColor: "#ffffff",
+  currentStroke: 2,
+  isEraser: false,
+  isDrawing: false,
+  isSending: false,
+  
+  // Elemento interattivo su schermo (Sticker o Testo con resize live)
+  interactiveElement: {
+    active: false,
+    type: 'sticker', // 'sticker' o 'text'
+    content: '',
+    x: 120,
+    y: 120,
+    size: 44,
+    color: '#ffffff'
+  },
+
+  // Gestione Feed Automatici (Meteo & Rassegna Stampa & Orologio)
+  activeFeedType: null, // "weather", "news", o "clock"
+  feedTimer: null,
+  newsArticles: [],
+  newsIndex: 0,
+
+  // Modalità Ospite & Condivisione
+  isGuestMode: false,
+  guestKey: "pixo123",
+  allowGuests: true,
+
+  // Screensaver & LED
+  screensaverEnabled: true,
+  ledEnabled: false,
+  savedDrawings: [],
+
+  lastX: 0,
+  lastY: 0,
+  undoStack: [],
+  maxUndo: 20,
+  mqttClient: null,
+  mqttConnected: false,
+  mqttConnecting: false,
+  devicePin: DEFAULT_CONFIG.defaultPin,
+  textSize: 24
+};
+
+// --- RIFERIMENTI DOM ---
+const canvas = document.getElementById('paintCanvas');
+const ctx = canvas.getContext('2d', { willReadFrequently: true });
+const statusDot = document.getElementById('statusDot');
+const deviceIdDisplay = document.getElementById('deviceIdDisplay');
+const payloadSizeBadge = document.getElementById('payloadSizeBadge');
+
+// Header
+const openSettingsBtn = document.getElementById('openSettingsBtn');
+const devicePill = document.getElementById('devicePill');
+
+// Elemento Interattivo a Schermo & Toolbar di Ingrandimento
+const elementOverlay = document.getElementById('elementOverlay');
+const floatingElement = document.getElementById('floatingElement');
+const floatingContent = document.getElementById('floatingContent');
+const overlayToolbar = document.getElementById('overlayToolbar');
+const overlaySizeSlider = document.getElementById('overlaySizeSlider');
+const overlaySizeLabel = document.getElementById('overlaySizeLabel');
+const overlayZoomInBtn = document.getElementById('overlayZoomInBtn');
+const overlayZoomOutBtn = document.getElementById('overlayZoomOutBtn');
+const confirmOverlayBtn = document.getElementById('confirmOverlayBtn');
+const cancelOverlayBtn = document.getElementById('cancelOverlayBtn');
+const overlayHintText = document.getElementById('overlayHintText');
+
+// Feed Banner
+const feedBanner = document.getElementById('feedBanner');
+const feedStatusText = document.getElementById('feedStatusText');
+const stopFeedBtn = document.getElementById('stopFeedBtn');
+
+// Top Bar Action Buttons
+const undoBtn = document.getElementById('undoBtn');
+const clearBtn = document.getElementById('clearBtn');
+const standbyBtn = document.getElementById('standbyBtn');
+const textToolBtn = document.getElementById('textToolBtn');
+const stickerToggleBtn = document.getElementById('stickerToggleBtn');
+const photoBtn = document.getElementById('photoBtn');
+const photoInput = document.getElementById('photoInput');
+const weatherBtn = document.getElementById('weatherBtn');
+const newsBtn = document.getElementById('newsBtn');
+const clockBtn = document.getElementById('clockBtn');
+const saveCanvasBtn = document.getElementById('saveCanvasBtn');
+const galleryBtn = document.getElementById('galleryBtn');
+const shareBtn = document.getElementById('shareBtn');
+
+// Modali & Drawers
+const settingsModal = document.getElementById('settingsModal');
+const closeSettingsModal = document.getElementById('closeSettingsModal');
+const saveSettingsBtn = document.getElementById('saveSettingsBtn');
+const deviceNameInput = document.getElementById('deviceNameInput');
+const devicePinInput = document.getElementById('devicePinInput');
+const brightnessSlider = document.getElementById('brightnessSlider');
+const brightnessVal = document.getElementById('brightnessVal');
+const hardwareIdDisplay = document.getElementById('hardwareIdDisplay');
+const langSelect = document.getElementById('langSelect');
+const themeSelect = document.getElementById('themeSelect');
+const weatherCityInput = document.getElementById('weatherCityInput');
+const directLinkInput = document.getElementById('directLinkInput');
+const copyLinkBtn = document.getElementById('copyLinkBtn');
+const screensaverToggle = document.getElementById('screensaverToggle');
+const ledToggle = document.getElementById('ledToggle');
+
+// Galleria Disegni
+const galleryModal = document.getElementById('galleryModal');
+const closeGalleryModal = document.getElementById('closeGalleryModal');
+const saveCurrentFromGalleryBtn = document.getElementById('saveCurrentFromGalleryBtn');
+const galleryCountText = document.getElementById('galleryCountText');
+const galleryGrid = document.getElementById('galleryGrid');
+const galleryEmptyMessage = document.getElementById('galleryEmptyMessage');
+
+// Condivisione & Ospiti
+const shareModal = document.getElementById('shareModal');
+const closeShareModal = document.getElementById('closeShareModal');
+const allowGuestsToggle = document.getElementById('allowGuestsToggle');
+const guestStatusSub = document.getElementById('guestStatusSub');
+const guestLinkInput = document.getElementById('guestLinkInput');
+const copyGuestLinkBtn = document.getElementById('copyGuestLinkBtn');
+const revokeGuestsBtn = document.getElementById('revokeGuestsBtn');
+
+const textModal = document.getElementById('textModal');
+const closeTextModal = document.getElementById('closeTextModal');
+const customTextInput = document.getElementById('customTextInput');
+const textSizeSlider = document.getElementById('textSizeSlider');
+const textSizeVal = document.getElementById('textSizeVal');
+const applyTextBtn = document.getElementById('applyTextBtn');
+
+const stickerDrawer = document.getElementById('stickerDrawer');
+const closeStickerBtn = document.getElementById('closeStickerBtn');
+const stickerSizeSlider = document.getElementById('stickerSizeSlider');
+const stickerSizeVal = document.getElementById('stickerSizeVal');
+const stickerGrid = document.getElementById('stickerGrid');
+
+// Tools & Send
+const eraserBtn = document.getElementById('eraserBtn');
+const sendBtn = document.getElementById('sendBtn');
+const toastContainer = document.getElementById('toastContainer');
+
+// ==========================================================================
+//  1. INTERNAZIONALIZZAZIONE (i18n)
+// ==========================================================================
+function setLanguage(lang) {
+  state.lang = lang;
+  localStorage.setItem('pixo_lang', lang);
+  const dict = TRANSLATIONS[lang] || TRANSLATIONS.it;
+
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (dict[key]) {
+      el.textContent = dict[key];
+    }
+  });
+
+  const themeOptDark = themeSelect.querySelector('option[value="dark"]');
+  const themeOptLight = themeSelect.querySelector('option[value="light"]');
+  if (themeOptDark) themeOptDark.textContent = dict.themeDark;
+  if (themeOptLight) themeOptLight.textContent = dict.themeLight;
+
+  langSelect.value = lang;
+}
+
+function t(key, params = {}) {
+  const dict = TRANSLATIONS[state.lang] || TRANSLATIONS.it;
+  let str = dict[key] || key;
+  for (const [k, v] of Object.entries(params)) {
+    str = str.replace(`{${k}}`, v);
+  }
+  return str;
+}
+
+// ==========================================================================
+//  2. INIZIALIZZAZIONE DISPOSITIVO & IMPOSTAZIONI
+// ==========================================================================
+function initDeviceAndSettings() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlId = urlParams.get('id');
+
+  if (urlId && urlId.trim() !== '') {
+    state.deviceId = urlId.trim().toUpperCase();
+    localStorage.setItem('pixo_device_id', state.deviceId);
+  } else {
+    state.deviceId = localStorage.getItem('pixo_device_id') || 
+                     localStorage.getItem('lavagna_device_id') || 
+                     DEFAULT_CONFIG.defaultDeviceId;
+  }
+
+  // Verifica se l'app è aperta come ospite
+  if (urlParams.get('guest') === '1') {
+    state.isGuestMode = true;
+    state.guestKey = urlParams.get('key') || 'pixo123';
+  } else {
+    state.isGuestMode = false;
+    state.guestKey = localStorage.getItem('pixo_guest_key') || 'pixo123';
+  }
+
+  state.allowGuests = localStorage.getItem('pixo_allow_guests') !== 'false';
+  state.screensaverEnabled = localStorage.getItem('pixo_screensaver') !== 'false';
+  state.ledEnabled = localStorage.getItem('pixo_led') === 'true';
+
+  state.deviceName = localStorage.getItem('pixo_device_name') || DEFAULT_CONFIG.defaultDeviceName;
+  state.brightness = parseInt(localStorage.getItem('pixo_brightness') || DEFAULT_CONFIG.defaultBrightness, 10);
+  
+  const urlPin = urlParams.get('pin');
+  if (urlPin && urlPin.trim() !== '') {
+    state.devicePin = urlPin.trim();
+    localStorage.setItem('pixo_device_pin', state.devicePin);
+  } else {
+    state.devicePin = localStorage.getItem('pixo_device_pin') || DEFAULT_CONFIG.defaultPin;
+  }
+
+  // Broker fisso e sicuro (non esposto agli utenti finali)
+  state.brokerUrl = DEFAULT_CONFIG.brokerUrl;
+  state.brokerUser = DEFAULT_CONFIG.brokerUser;
+  state.brokerPass = DEFAULT_CONFIG.brokerPass;
+
+  state.lang = localStorage.getItem('pixo_lang') || DEFAULT_CONFIG.defaultLang;
+  state.canvasTheme = localStorage.getItem('pixo_canvas_theme') || DEFAULT_CONFIG.defaultTheme;
+  state.weatherCity = localStorage.getItem('pixo_weather_city') || DEFAULT_CONFIG.defaultCity;
+
+  setLanguage(state.lang);
+  updateSettingsUI();
+  updateGuestLink();
+}
+
+function updateSettingsUI() {
+  if (state.isGuestMode) {
+    deviceIdDisplay.textContent = `${state.deviceName || state.deviceId} (Ospite)`;
+    if (openSettingsBtn) openSettingsBtn.style.display = 'none';
+    if (shareBtn) shareBtn.style.display = 'none';
+  } else {
+    deviceIdDisplay.textContent = state.deviceName || state.deviceId;
+    if (openSettingsBtn) openSettingsBtn.style.display = '';
+    if (shareBtn) shareBtn.style.display = '';
+  }
+
+  deviceNameInput.value = state.deviceName;
+  if (devicePinInput) devicePinInput.value = state.devicePin;
+  hardwareIdDisplay.textContent = state.deviceId;
+  brightnessSlider.value = state.brightness;
+  brightnessVal.textContent = `${state.brightness}%`;
+  langSelect.value = state.lang;
+  themeSelect.value = state.canvasTheme;
+  weatherCityInput.value = state.weatherCity;
+
+  if (screensaverToggle) screensaverToggle.checked = state.screensaverEnabled;
+  if (ledToggle) ledToggle.checked = state.ledEnabled;
+  if (allowGuestsToggle) allowGuestsToggle.checked = state.allowGuests;
+}
+
+function updateGuestLink() {
+  if (!guestLinkInput) return;
+  const url = new URL(window.location.href);
+  url.searchParams.set('id', state.deviceId);
+  url.searchParams.set('key', state.guestKey);
+  url.searchParams.set('guest', '1');
+  guestLinkInput.value = url.toString();
+}
+
+function updateDirectLink() {
+  const url = new URL(window.location.href);
+  url.searchParams.set('id', state.deviceId);
+  if (state.devicePin) {
+    url.searchParams.set('pin', state.devicePin);
+  }
+  directLinkInput.value = url.toString();
+}
+
+// ==========================================================================
+//  3. GESTIONE CANVAS & TEMI
+// ==========================================================================
+function getCanvasBgColor() {
+  return state.canvasTheme === "light" ? "#ffffff" : "#000000";
+}
+
+function getDefaultPenColor() {
+  return state.canvasTheme === "light" ? "#000000" : "#ffffff";
+}
+
+function initCanvas() {
+  const bg = getCanvasBgColor();
+  canvas.style.backgroundColor = bg;
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  state.currentColor = getDefaultPenColor();
+  document.querySelectorAll('.color-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.color.toLowerCase() === state.currentColor.toLowerCase());
+  });
+
+  state.undoStack = [];
+  saveState();
+  updatePayloadPreview();
+
+  canvas.addEventListener('pointerdown', startDrawing);
+  canvas.addEventListener('pointermove', draw);
+  canvas.addEventListener('pointerup', stopDrawing);
+  canvas.addEventListener('pointercancel', stopDrawing);
+  canvas.addEventListener('pointerleave', stopDrawing);
+}
+
+function applyThemeChange(newTheme) {
+  state.canvasTheme = newTheme;
+  localStorage.setItem('pixo_canvas_theme', newTheme);
+  const bg = getCanvasBgColor();
+  canvas.style.backgroundColor = bg;
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  state.currentColor = getDefaultPenColor();
+  document.querySelectorAll('.color-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.color.toLowerCase() === state.currentColor.toLowerCase());
+  });
+
+  saveState();
+  updatePayloadPreview();
+}
+
+function getCanvasCoordinates(e) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+
+  return {
+    x: Math.round((e.clientX - rect.left) * scaleX),
+    y: Math.round((e.clientY - rect.top) * scaleY)
+  };
+}
+
+function startDrawing(e) {
+  stopAutomaticFeed(); // Se l'utente disegna, ferma l'eventuale rassegna automatica
+  if (state.interactiveElement.active) return;
+
+  e.preventDefault();
+  canvas.setPointerCapture(e.pointerId);
+
+  const coords = getCanvasCoordinates(e);
+
+  state.isDrawing = true;
+  state.lastX = coords.x;
+  state.lastY = coords.y;
+
+  const bg = getCanvasBgColor();
+  const radius = (state.isEraser ? state.currentStroke * 2.5 : state.currentStroke) / 2;
+
+  ctx.beginPath();
+  ctx.arc(coords.x, coords.y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = state.isEraser ? bg : state.currentColor;
+  ctx.fill();
+}
+
+function draw(e) {
+  if (!state.isDrawing || state.interactiveElement.active) return;
+  e.preventDefault();
+
+  const coords = getCanvasCoordinates(e);
+  const bg = getCanvasBgColor();
+
+  ctx.beginPath();
+  ctx.moveTo(state.lastX, state.lastY);
+  ctx.lineTo(coords.x, coords.y);
+  ctx.strokeStyle = state.isEraser ? bg : state.currentColor;
+  ctx.lineWidth = state.isEraser ? state.currentStroke * 2.5 : state.currentStroke;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  ctx.stroke();
+
+  state.lastX = coords.x;
+  state.lastY = coords.y;
+}
+
+function stopDrawing(e) {
+  if (state.isDrawing) {
+    state.isDrawing = false;
+    saveState();
+    updatePayloadPreview();
+  }
+}
+
+function saveState() {
+  if (state.undoStack.length >= state.maxUndo) {
+    state.undoStack.shift();
+  }
+  state.undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+}
+
+function undo() {
+  stopAutomaticFeed();
+  if (state.undoStack.length > 1) {
+    state.undoStack.pop();
+    const previousState = state.undoStack[state.undoStack.length - 1];
+    ctx.putImageData(previousState, 0, 0);
+    updatePayloadPreview();
+    showToast(t("undo"));
+  }
+}
+
+function clearCanvas() {
+  stopAutomaticFeed();
+  if (confirm(t("confirmClear"))) {
+    const bg = getCanvasBgColor();
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    saveState();
+    updatePayloadPreview();
+    showToast(t("toastCleared"));
+  }
+}
+
+// ==========================================================================
+//  5. SISTEMA DI INGRANDIMENTO & POSIZIONAMENTO INTERATTIVO A SCHERMO
+// ==========================================================================
+let isDraggingOverlay = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let elemStartX = 120;
+let elemStartY = 120;
+
+function startInteractiveOverlay(type, content, initialSize = 44) {
+  stopAutomaticFeed();
+  state.interactiveElement.active = true;
+  state.interactiveElement.type = type;
+  state.interactiveElement.content = content;
+  state.interactiveElement.size = initialSize;
+  state.interactiveElement.x = 120;
+  state.interactiveElement.y = 120;
+  state.interactiveElement.color = state.currentColor;
+
+  floatingContent.textContent = content;
+  if (type === 'text') {
+    const bg = getCanvasBgColor();
+    let col = state.currentColor;
+    if (col.toLowerCase() === bg.toLowerCase()) col = getDefaultPenColor();
+    state.interactiveElement.color = col;
+    floatingContent.style.color = col;
+    floatingContent.style.fontWeight = 'bold';
+    floatingContent.style.fontFamily = '-apple-system, sans-serif';
+    floatingContent.style.whiteSpace = 'pre-wrap';
+    overlayHintText.textContent = "Trascina il testo e regola la grandezza:";
+  } else {
+    floatingContent.style.color = '';
+    floatingContent.style.fontWeight = 'normal';
+    floatingContent.style.fontFamily = 'sans-serif';
+    floatingContent.style.whiteSpace = 'nowrap';
+    overlayHintText.textContent = "Trascina l'icona e regola la grandezza:";
+  }
+
+  overlaySizeSlider.value = initialSize;
+  overlaySizeLabel.textContent = `${initialSize}px`;
+  floatingContent.style.fontSize = `${initialSize}px`;
+
+  updateFloatingElementPosition();
+
+  elementOverlay.classList.remove('hidden');
+  overlayToolbar.classList.remove('hidden');
+}
+
+function updateFloatingElementPosition() {
+  const percentX = (state.interactiveElement.x / 240) * 100;
+  const percentY = (state.interactiveElement.y / 240) * 100;
+  floatingElement.style.left = `${percentX}%`;
+  floatingElement.style.top = `${percentY}%`;
+}
+
+function closeInteractiveOverlay() {
+  state.interactiveElement.active = false;
+  elementOverlay.classList.add('hidden');
+  overlayToolbar.classList.add('hidden');
+}
+
+function confirmInteractiveOverlay() {
+  if (!state.interactiveElement.active) return;
+  const { type, content, x, y, size, color } = state.interactiveElement;
+
+  if (type === 'sticker') {
+    ctx.font = `${size}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(content, x, y);
+  } else if (type === 'text') {
+    ctx.font = `bold ${size}px -apple-system, sans-serif`;
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const lines = wrapText(ctx, content, 220);
+    const lineHeight = Math.round(size * 1.25);
+    const totalH = lines.length * lineHeight;
+    let startY = y - (totalH / 2) + (lineHeight / 2);
+
+    lines.forEach((l) => {
+      ctx.fillText(l, x, startY);
+      startY += lineHeight;
+    });
+  }
+
+  saveState();
+  updatePayloadPreview();
+  closeInteractiveOverlay();
+  showToast(type === 'sticker' ? "Icona inserita sul disegno!" : "Testo inserito sul disegno!", "success");
+}
+
+function setupOverlayInteraction() {
+  let isDragging = false;
+
+  function getOverlayCoords(e) {
+    const rect = elementOverlay.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const scaleX = 240 / rect.width;
+    const scaleY = 240 / rect.height;
+    return {
+      x: Math.round(Math.max(10, Math.min(230, (clientX - rect.left) * scaleX))),
+      y: Math.round(Math.max(10, Math.min(230, (clientY - rect.top) * scaleY)))
+    };
+  }
+
+  function startDrag(e) {
+    if (!state.interactiveElement.active) return;
+    isDragging = true;
+    const coords = getOverlayCoords(e);
+    state.interactiveElement.x = coords.x;
+    state.interactiveElement.y = coords.y;
+    updateFloatingElementPosition();
+    if (e.cancelable && e.type.startsWith('touch')) {
+      e.preventDefault();
+    }
+  }
+
+  function moveDrag(e) {
+    if (!isDragging || !state.interactiveElement.active) return;
+    const coords = getOverlayCoords(e);
+    state.interactiveElement.x = coords.x;
+    state.interactiveElement.y = coords.y;
+    updateFloatingElementPosition();
+    if (e.cancelable) {
+      e.preventDefault();
+    }
+  }
+
+  function endDrag() {
+    isDragging = false;
+  }
+
+  elementOverlay.addEventListener('mousedown', startDrag);
+  window.addEventListener('mousemove', moveDrag);
+  window.addEventListener('mouseup', endDrag);
+
+  elementOverlay.addEventListener('touchstart', startDrag, { passive: false });
+  window.addEventListener('touchmove', moveDrag, { passive: false });
+  window.addEventListener('touchend', endDrag);
+
+  // Resize tramite Slider
+  overlaySizeSlider.addEventListener('input', (e) => {
+    const size = parseInt(e.target.value, 10);
+    state.interactiveElement.size = size;
+    overlaySizeLabel.textContent = `${size}px`;
+    floatingContent.style.fontSize = `${size}px`;
+  });
+
+  // Pulsanti Zoom
+  overlayZoomInBtn.addEventListener('click', () => {
+    let size = Math.min(110, state.interactiveElement.size + 4);
+    state.interactiveElement.size = size;
+    overlaySizeSlider.value = size;
+    overlaySizeLabel.textContent = `${size}px`;
+    floatingContent.style.fontSize = `${size}px`;
+  });
+
+  overlayZoomOutBtn.addEventListener('click', () => {
+    let size = Math.max(16, state.interactiveElement.size - 4);
+    state.interactiveElement.size = size;
+    overlaySizeSlider.value = size;
+    overlaySizeLabel.textContent = `${size}px`;
+    floatingContent.style.fontSize = `${size}px`;
+  });
+
+  // Conferma & Annulla
+  confirmOverlayBtn.addEventListener('click', confirmInteractiveOverlay);
+  cancelOverlayBtn.addEventListener('click', closeInteractiveOverlay);
+}
+
+function initStickers() {
+  stickerGrid.innerHTML = '';
+  STICKERS.forEach(emoji => {
+    const el = document.createElement('button');
+    el.className = 'sticker-item';
+    el.textContent = emoji;
+    el.title = emoji;
+    el.addEventListener('click', () => {
+      stickerDrawer.classList.add('hidden');
+      startInteractiveOverlay('sticker', emoji, 48);
+    });
+    stickerGrid.appendChild(el);
+  });
+}
+
+function wrapText(context, text, maxWidth) {
+  const words = text.split(/\s+/);
+  const lines = [];
+  let currentLine = '';
+
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    const testLine = currentLine.length === 0 ? word : currentLine + ' ' + word;
+    const metrics = context.measureText(testLine);
+    if (metrics.width > maxWidth && currentLine.length > 0) {
+      lines.push(currentLine);
+      currentLine = word;
+    } else {
+      currentLine = testLine;
+    }
+  }
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+  return lines;
+}
+
+function applyCustomText() {
+  stopAutomaticFeed();
+  const text = customTextInput.value.trim();
+  if (!text) return;
+
+  textModal.classList.add('hidden');
+  customTextInput.value = '';
+  startInteractiveOverlay('text', text, state.textSize || 24);
+}
+
+// ==========================================================================
+//  6. METEO AUTOMATICO (INVIO IMMEDIATO + AGGIORNAMENTO OGNI 15 MIN)
+// ==========================================================================
+async function activateWeatherMode() {
+  stopAutomaticFeed();
+  state.activeFeedType = "weather";
+  await fetchAndRenderWeather();
+
+  // Imposta auto-aggiornamento ogni 15 minuti
+  state.feedTimer = setInterval(async () => {
+    if (state.activeFeedType === "weather") {
+      await fetchAndRenderWeather();
+    }
+  }, 15 * 60 * 1000);
+}
+
+async function fetchAndRenderWeather() {
+  const city = state.weatherCity || "Roma";
+
+  try {
+    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(city)}&count=1&language=${state.lang}&format=json`;
+    const geoRes = await fetch(geoUrl);
+    const geoData = await geoRes.json();
+
+    if (!geoData.results || geoData.results.length === 0) {
+      showToast(`Città "${city}" non trovata!`, "error");
+      stopAutomaticFeed();
+      return;
+    }
+
+    const { latitude, longitude, name, country_code } = geoData.results[0];
+    const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min&timezone=auto`;
+    const wRes = await fetch(weatherUrl);
+    const wData = await wRes.json();
+
+    const curr = wData.current;
+    const daily = wData.daily;
+    const temp = Math.round(curr.temperature_2m);
+    const humidity = Math.round(curr.relative_humidity_2m);
+    const wind = Math.round(curr.wind_speed_10m);
+    const tMin = Math.round(daily.temperature_2m_min[0]);
+    const tMax = Math.round(daily.temperature_2m_max[0]);
+    const wCode = curr.weather_code;
+
+    let icon = "☀️";
+    let desc = state.lang === 'it' ? "Sereno" : "Clear";
+    if (wCode === 1 || wCode === 2) { icon = "⛅"; desc = state.lang === 'it' ? "Poco Nuvoloso" : "Partly Cloudy"; }
+    else if (wCode === 3) { icon = "☁️"; desc = state.lang === 'it' ? "Nuvoloso" : "Overcast"; }
+    else if (wCode >= 45 && wCode <= 48) { icon = "🌫️"; desc = state.lang === 'it' ? "Nebbia" : "Fog"; }
+    else if ((wCode >= 51 && wCode <= 67) || (wCode >= 80 && wCode <= 82)) { icon = "🌧️"; desc = state.lang === 'it' ? "Pioggia" : "Rain"; }
+    else if (wCode >= 71 && wCode <= 77) { icon = "❄️"; desc = state.lang === 'it' ? "Neve" : "Snow"; }
+    else if (wCode >= 95) { icon = "⚡"; desc = state.lang === 'it' ? "Temporale" : "Storm"; }
+
+    // Disegno Scheda Meteo
+    ctx.fillStyle = "#0c101c";
+    ctx.fillRect(0, 0, 240, 240);
+
+    ctx.fillStyle = "#4361ee";
+    ctx.fillRect(0, 0, 240, 42);
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`📍 ${name.toUpperCase()} (${country_code})`, 120, 21);
+
+    ctx.font = "58px sans-serif";
+    ctx.fillText(icon, 120, 88);
+
+    ctx.font = "bold 40px sans-serif";
+    ctx.fillStyle = "#f1f3f7";
+    ctx.fillText(`${temp}°C`, 120, 140);
+
+    ctx.font = "bold 16px sans-serif";
+    ctx.fillStyle = "#ffd166";
+    ctx.fillText(desc, 120, 170);
+
+    ctx.font = "14px sans-serif";
+    ctx.fillStyle = "#8c93a0";
+    ctx.fillText(`Min: ${tMin}°C  •  Max: ${tMax}°C`, 120, 196);
+
+    ctx.font = "13px sans-serif";
+    ctx.fillStyle = "#06d6a0";
+    ctx.fillText(`💧 ${humidity}%   💨 ${wind} km/h`, 120, 220);
+
+    saveState();
+    updatePayloadPreview();
+
+    // INVIO IMMEDIATO A PIXÒ!
+    sendCanvasMqtt(false);
+
+    // Mostra banner attivo
+    feedStatusText.textContent = t("feedWeatherActive", { city: name });
+    feedBanner.classList.remove('hidden');
+    showToast(t("toastWeatherSent", { city: name }), "success");
+  } catch (err) {
+    console.error("Errore meteo:", err);
+    showToast("Errore caricamento meteo", "error");
+    stopAutomaticFeed();
+  }
+}
+
+// ==========================================================================
+//  7. RASSEGNA STAMPA IN LOOP (INVIO IMMEDIATO + CICLO SU 10 NOTIZIE OGNI 15S)
+// ==========================================================================
+async function activateNewsFeedMode() {
+  stopAutomaticFeed();
+  state.activeFeedType = "news";
+  showToast(state.lang === 'it' ? "Download ultime notizie..." : "Downloading latest news...");
+
+  try {
+    const feedUrl = state.lang === 'it' 
+      ? 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.ansa.it%2Fsito%2Fansait_rss.xml'
+      : 'https://api.rss2json.com/v1/api.json?rss_url=http%3A%2F%2Ffeeds.bbci.co.uk%2Fnews%2Frss.xml';
+
+    const res = await fetch(feedUrl);
+    const data = await res.json();
+    
+    if (!data.items || data.items.length === 0) {
+      showToast("Nessuna notizia disponibile al momento", "error");
+      stopAutomaticFeed();
+      return;
+    }
+
+    state.newsArticles = data.items.slice(0, 10);
+    state.newsIndex = 0;
+
+    renderAndSendNewsArticle();
+
+    // Ciclo automatico ogni 15 secondi tra le 10 notizie
+    state.feedTimer = setInterval(() => {
+      if (state.activeFeedType === "news") {
+        state.newsIndex = (state.newsIndex + 1) % state.newsArticles.length;
+        renderAndSendNewsArticle();
+      }
+    }, 15000);
+  } catch (err) {
+    console.error("Errore notizie:", err);
+    showToast("Errore download notizie", "error");
+    stopAutomaticFeed();
+  }
+}
+
+function renderAndSendNewsArticle() {
+  if (!state.newsArticles || state.newsArticles.length === 0) return;
+
+  const item = state.newsArticles[state.newsIndex];
+  const title = item.title;
+  const currentNum = state.newsIndex + 1;
+  const totalNum = state.newsArticles.length;
+
+  ctx.fillStyle = "#12141a";
+  ctx.fillRect(0, 0, 240, 240);
+
+  // Banner rosso ULTIM'ORA
+  ctx.fillStyle = "#ef476f";
+  ctx.fillRect(0, 0, 240, 42);
+  ctx.font = "bold 18px sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(state.lang === 'it' ? `🔴 NOTIZIA ${currentNum}/${totalNum}` : `🔴 BREAKING ${currentNum}/${totalNum}`, 120, 21);
+
+  // Titolo Notizia con wrapping
+  ctx.font = "bold 17px -apple-system, sans-serif";
+  ctx.fillStyle = "#f1f3f7";
+  const lines = wrapText(ctx, title, 216);
+  const lineHeight = 23;
+  const totalH = lines.length * lineHeight;
+  let startY = 60 + (140 - totalH) / 2;
+
+  lines.forEach(l => {
+    ctx.fillText(l, 120, startY);
+    startY += lineHeight;
+  });
+
+  // Footer con orario
+  ctx.font = "13px sans-serif";
+  ctx.fillStyle = "#8c93a0";
+  const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  ctx.fillText(`Aggiornato alle ${nowTime}`, 120, 226);
+
+  saveState();
+  updatePayloadPreview();
+
+  // INVIO IMMEDIATO A PIXÒ!
+  sendCanvasMqtt(false);
+
+  // Aggiorna banner
+  feedStatusText.textContent = t("feedNewsActive", { current: currentNum, total: totalNum });
+  feedBanner.classList.remove('hidden');
+}
+
+function stopAutomaticFeed() {
+  if (state.feedTimer) {
+    clearInterval(state.feedTimer);
+    state.feedTimer = null;
+  }
+  if (state.activeFeedType) {
+    state.activeFeedType = null;
+    feedBanner.classList.add('hidden');
+    showToast(t("feedStopped"));
+  }
+}
+
+// ==========================================================================
+//  7b. OROLOGIO DA TAVOLO SMART (SMART DESK CLOCK)
+// ==========================================================================
+function activateClockMode() {
+  stopAutomaticFeed();
+  state.activeFeedType = "clock";
+  showToast(state.lang === 'it' ? "Orologio Smart avviato" : "Smart Clock started", "success");
+
+  renderAndSendSmartClock();
+
+  state.feedTimer = setInterval(() => {
+    if (state.activeFeedType === "clock") {
+      renderAndSendSmartClock();
+    }
+  }, 30000);
+}
+
+function renderAndSendSmartClock() {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  const timeStr = `${hours}:${minutes}`;
+
+  const daysIt = ['DOMENICA', 'LUNEDÌ', 'MARTEDÌ', 'MERCOLEDÌ', 'GIOVEDÌ', 'VENERDÌ', 'SABATO'];
+  const daysEn = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+  const monthsIt = ['GENNAIO', 'FEBBRAIO', 'MARZO', 'APRILE', 'MAGGIO', 'GIUGNO', 'LUGLIO', 'AGOSTO', 'SETTEMBRE', 'OTTOBRE', 'NOVEMBRE', 'DICEMBRE'];
+  const monthsEn = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+
+  const dayName = state.lang === 'it' ? daysIt[now.getDay()] : daysEn[now.getDay()];
+  const monthName = state.lang === 'it' ? monthsIt[now.getMonth()] : monthsEn[now.getMonth()];
+  const dateStr = `${dayName}, ${now.getDate()} ${monthName}`;
+
+  // Sfondo scuro moderno
+  ctx.fillStyle = "#0c0e14";
+  ctx.fillRect(0, 0, 240, 240);
+
+  // Cornice neon sottile
+  ctx.strokeStyle = "#4361ee";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(6, 6, 228, 228);
+
+  // Icona giorno/notte
+  const hourNum = now.getHours();
+  const icon = (hourNum >= 6 && hourNum < 20) ? "☀️" : "🌙";
+  ctx.font = "26px sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(icon, 120, 36);
+
+  // Orario gigante ultra-nitido
+  ctx.font = "bold 52px monospace, -apple-system, sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.fillText(timeStr, 120, 96);
+
+  // Secondi
+  ctx.font = "bold 15px monospace, sans-serif";
+  ctx.fillStyle = "#00b4d8";
+  ctx.fillText(`: ${seconds}s`, 120, 136);
+
+  // Data
+  ctx.font = "bold 13px sans-serif";
+  ctx.fillStyle = "#fcbf49";
+  ctx.fillText(dateStr, 120, 172);
+
+  // Barra avanzamento minuto
+  const barWidth = Math.round((now.getSeconds() / 60) * 180);
+  ctx.fillStyle = "#202533";
+  ctx.fillRect(30, 204, 180, 8);
+  ctx.fillStyle = "#2a9d8f";
+  ctx.fillRect(30, 204, barWidth, 8);
+
+  saveState();
+  updatePayloadPreview();
+
+  // Invio automatico immediato a Pixò
+  sendCanvasMqtt(false);
+
+  feedStatusText.textContent = t("feedClockActive");
+  feedBanner.classList.remove('hidden');
+}
+
+// ==========================================================================
+//  7c. GESTIONE SALVATAGGIO DISEGNI & GALLERIA PERSONALE
+// ==========================================================================
+function getSavedDrawings() {
+  try {
+    return JSON.parse(localStorage.getItem('pixo_saved_drawings')) || [];
+  } catch(e) {
+    return [];
+  }
+}
+
+function saveCurrentCanvas() {
+  const drawings = getSavedDrawings();
+  const now = new Date();
+  const defaultName = `Pixò ${now.toLocaleDateString([], {day:'2-digit', month:'2-digit'})} ${now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
+  const name = prompt(state.lang === 'it' ? "Inserisci un nome per questo disegno:" : "Enter a name for this drawing:", defaultName);
+  if (!name) return;
+
+  const item = {
+    id: Date.now(),
+    name: name.trim(),
+    date: now.toLocaleString(),
+    dataUrl: canvas.toDataURL("image/png")
+  };
+
+  drawings.unshift(item);
+  localStorage.setItem('pixo_saved_drawings', JSON.stringify(drawings));
+  showToast(t("toastDrawingSaved"), "success");
+  if (!galleryModal.classList.contains('hidden')) {
+    renderGallery();
+  }
+}
+
+function renderGallery() {
+  const drawings = getSavedDrawings();
+  galleryCountText.textContent = `${drawings.length} ${state.lang === 'it' ? 'disegni' : 'drawings'}`;
+
+  if (drawings.length === 0) {
+    galleryEmptyMessage.style.display = 'flex';
+    galleryGrid.innerHTML = '';
+    return;
+  }
+
+  galleryEmptyMessage.style.display = 'none';
+  galleryGrid.innerHTML = '';
+
+  drawings.forEach((d) => {
+    const card = document.createElement('div');
+    card.className = 'gallery-card';
+
+    const img = document.createElement('img');
+    img.className = 'gallery-thumb';
+    img.src = d.dataUrl;
+    img.alt = d.name;
+    img.title = state.lang === 'it' ? "Clicca per caricare sulla lavagna" : "Click to load onto canvas";
+    img.onclick = () => loadSavedDrawing(d.id);
+
+    const info = document.createElement('div');
+    info.className = 'gallery-info';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'gallery-name';
+    nameEl.textContent = d.name;
+
+    const dateEl = document.createElement('div');
+    dateEl.className = 'gallery-date';
+    dateEl.textContent = d.date;
+
+    const actions = document.createElement('div');
+    actions.className = 'gallery-card-actions';
+
+    const loadBtn = document.createElement('button');
+    loadBtn.className = 'btn mini-btn';
+    loadBtn.textContent = '✏️ ' + (state.lang === 'it' ? 'Carica' : 'Load');
+    loadBtn.onclick = () => loadSavedDrawing(d.id);
+
+    const sendDirectBtn = document.createElement('button');
+    sendDirectBtn.className = 'btn mini-btn primary-btn';
+    sendDirectBtn.textContent = '🚀 ' + (state.lang === 'it' ? 'Invia' : 'Send');
+    sendDirectBtn.onclick = () => sendSavedDrawingDirect(d.id);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn mini-btn danger';
+    delBtn.textContent = '🗑️';
+    delBtn.title = 'Elimina';
+    delBtn.onclick = () => deleteSavedDrawing(d.id);
+
+    actions.appendChild(loadBtn);
+    actions.appendChild(sendDirectBtn);
+    actions.appendChild(delBtn);
+
+    info.appendChild(nameEl);
+    info.appendChild(dateEl);
+    info.appendChild(actions);
+
+    card.appendChild(img);
+    card.appendChild(info);
+    galleryGrid.appendChild(card);
+  });
+}
+
+function loadSavedDrawing(id) {
+  const drawings = getSavedDrawings();
+  const found = drawings.find(d => d.id === id);
+  if (!found) return;
+
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, 240, 240);
+    saveState();
+    updatePayloadPreview();
+    galleryModal.classList.add('hidden');
+    showToast(t("toastDrawingLoaded"), "success");
+  };
+  img.src = found.dataUrl;
+}
+
+function sendSavedDrawingDirect(id) {
+  const drawings = getSavedDrawings();
+  const found = drawings.find(d => d.id === id);
+  if (!found) return;
+
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0, 240, 240);
+    saveState();
+    updatePayloadPreview();
+    galleryModal.classList.add('hidden');
+    sendCanvasMqtt(false);
+  };
+  img.src = found.dataUrl;
+}
+
+function deleteSavedDrawing(id) {
+  const confirmMsg = state.lang === 'it' ? "Vuoi eliminare questo disegno?" : "Delete this drawing?";
+  if (!confirm(confirmMsg)) return;
+
+  let drawings = getSavedDrawings();
+  drawings = drawings.filter(d => d.id !== id);
+  localStorage.setItem('pixo_saved_drawings', JSON.stringify(drawings));
+  showToast(t("toastDrawingDeleted"), "success");
+  renderGallery();
+}
+
+// ==========================================================================
+//  7d. GESTIONE CONFIGURAZIONI SCREENSAVER, LED E CONTROLLO ACCESSI MQTT
+// ==========================================================================
+function sendScreensaverConfig(enabled) {
+  state.screensaverEnabled = enabled;
+  localStorage.setItem('pixo_screensaver', enabled ? 'true' : 'false');
+  if (!state.mqttConnected || !state.deviceId) return;
+  const topic = `pixo/device/${state.deviceId}/screensaver`;
+  const cmd = enabled ? "SCREENSAVER:ON" : "SCREENSAVER:OFF";
+  state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+  showToast(enabled ? "Screensaver 30m ATTIVATO" : "Screensaver DISATTIVATO", "success");
+}
+
+function sendLedConfig(enabled) {
+  state.ledEnabled = enabled;
+  localStorage.setItem('pixo_led', enabled ? 'true' : 'false');
+  if (!state.mqttConnected || !state.deviceId) return;
+  const topic = `pixo/device/${state.deviceId}/led`;
+  const cmd = enabled ? "LED:ON" : "LED:OFF";
+  state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+  showToast(enabled ? "LED GPIO 5 ACCESO" : "LED GPIO 5 SPENTO", "success");
+}
+
+function sendGuestAccessConfig(enabled) {
+  state.allowGuests = enabled;
+  localStorage.setItem('pixo_allow_guests', enabled ? 'true' : 'false');
+  if (!state.mqttConnected || !state.deviceId) return;
+  const topic = `pixo/device/${state.deviceId}/access`;
+  const cmd = enabled ? "GUEST:ENABLE" : "GUEST:DISABLE";
+  state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+  showToast(enabled ? t("toastGuestEnabled") : t("toastGuestDisabled"), enabled ? "success" : "error");
+}
+
+function revokeAndRegenerateGuestKey() {
+  const newKey = "pixo_" + Math.random().toString(36).substring(2, 8);
+  state.guestKey = newKey;
+  localStorage.setItem('pixo_guest_key', newKey);
+  updateGuestLink();
+
+  if (state.mqttConnected && state.deviceId) {
+    const topic = `pixo/device/${state.deviceId}/access`;
+    const cmd = `GUEST:KEY:${newKey}`;
+    state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+  }
+
+  showToast(t("toastKeyRevoked"), "success");
+}
+
+// ==========================================================================
+//  8. CONTROLLO LUMINOSITÀ HARDWARE (PWM VIA MQTT)
+// ==========================================================================
+function sendBrightness(percent) {
+  state.brightness = percent;
+  localStorage.setItem('pixo_brightness', percent);
+  brightnessVal.textContent = `${percent}%`;
+
+  if (!state.mqttConnected || !state.deviceId) return;
+
+  const topic = `pixo/device/${state.deviceId}/brightness`;
+  const payload = new TextEncoder().encode(percent.toString());
+  state.mqttClient.publish(topic, payload, { qos: 0, retain: false });
+}
+
+// ==========================================================================
+//  9. TRASMISSIONE MQTT (QoS 0 CON LOCK DI CONCORRENZA)
+// ==========================================================================
+function getCanvasJpegBlob() {
+  return new Promise((resolve) => {
+    canvas.toBlob((blob) => {
+      resolve(blob);
+    }, 'image/jpeg', DEFAULT_CONFIG.jpegQuality);
+  });
+}
+
+async function updatePayloadPreview() {
+  const blob = await getCanvasJpegBlob();
+  const kb = (blob.size / 1024).toFixed(1);
+  payloadSizeBadge.textContent = `Payload: ~${kb} KB`;
+}
+
+function connectMQTT() {
+  if (state.mqttConnected) return Promise.resolve(true);
+
+  // Se c'è già un client attivo (anche in riconnessione automatica), aspetta semplicemente
+  // che si connetta — NON distruggerlo e ricominciare da zero!
+  if (state.mqttClient) {
+    if (state.mqttConnecting) {
+      // Connessione in corso esplicitamente: aspetta
+    } else {
+      // Il client MQTT interno sta già gestendo la riconnessione automatica (reconnectPeriod).
+      // Segnaliamo che stiamo aspettando così l'UI mostra "Connessione Cloud..."
+      state.mqttConnecting = true;
+    }
+    return new Promise((resolve) => {
+      const start = Date.now();
+      const interval = setInterval(() => {
+        if (state.mqttConnected) {
+          clearInterval(interval);
+          state.mqttConnecting = false;
+          resolve(true);
+        } else if (Date.now() - start > 8000) {
+          clearInterval(interval);
+          state.mqttConnecting = false;
+          resolve(false);
+        }
+      }, 100);
+    });
+  }
+
+  // Prima connessione: crea il client da zero
+  state.mqttConnecting = true;
+  statusDot.className = "status-dot connecting";
+  statusDot.title = "Connessione a Pixò Cloud...";
+
+  const clientId = "WebPixo_" + Math.random().toString(16).substr(2, 8);
+  const options = {
+    clientId: clientId,
+    clean: true,
+    connectTimeout: 8000,
+    reconnectPeriod: 3000,
+    keepalive: 60,
+    username: state.brokerUser,
+    password: state.brokerPass
+  };
+
+  return new Promise((resolve) => {
+    try {
+      state.mqttClient = mqtt.connect(state.brokerUrl, options);
+
+      state.mqttClient.on('connect', () => {
+        console.log('[MQTT] Connesso via WebSocket a Pixò Cloud!');
+        state.mqttConnected = true;
+        state.mqttConnecting = false;
+        statusDot.className = "status-dot online";
+        statusDot.title = "Connesso a Pixò Cloud";
+        showToast(t("toastConnected"), "success");
+
+        // Invia la luminosità memorizzata all'avvio
+        sendBrightness(state.brightness);
+        resolve(true);
+      });
+
+      state.mqttClient.on('error', (err) => {
+        console.error('[MQTT] Errore MQTT:', err);
+        state.mqttConnected = false;
+        state.mqttConnecting = false;
+        statusDot.className = "status-dot";
+        resolve(false);
+      });
+
+      state.mqttClient.on('offline', () => {
+        state.mqttConnected = false;
+        state.mqttConnecting = false;
+        statusDot.className = "status-dot";
+      });
+
+      state.mqttClient.on('close', () => {
+        state.mqttConnected = false;
+        state.mqttConnecting = false;
+        statusDot.className = "status-dot";
+      });
+    } catch (err) {
+      console.error('[MQTT] Eccezione avvio:', err);
+      state.mqttConnected = false;
+      state.mqttConnecting = false;
+      state.mqttClient = null;
+      statusDot.className = "status-dot";
+      resolve(false);
+    }
+  });
+}
+
+async function sendCanvasMqtt() {
+  if (!state.deviceId || !state.mqttConnected) return;
+
+  // Blocco di concorrenza anti-crash
+  if (state.isSending) return;
+
+  state.isSending = true;
+  const sendStart = performance.now();
+
+  try {
+    const blob = await getCanvasJpegBlob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Inclusione PIN di sicurezza nel topic
+    const topic = state.isGuestMode 
+      ? `pixo/device/${state.deviceId}/guest/${state.guestKey}/draw`
+      : `pixo/device/${state.deviceId}/${state.devicePin}/draw`;
+
+    state.mqttClient.publish(topic, uint8Array, { qos: 0, retain: false }, (err) => {
+      state.isSending = false;
+      sendBtn.disabled = false;
+      sendBtn.querySelector('.send-label').textContent = t("sendToDisplay");
+
+      if (!err) {
+        const elapsed = Math.round(performance.now() - sendStart);
+        const kb = (uint8Array.length / 1024).toFixed(1);
+        showToast(t("toastSentSuccess", { name: state.deviceName || state.deviceId, kb: kb, ms: elapsed }), "success");
+      }
+    });
+  } catch (err) {
+    console.error("Errore compressione/invio:", err);
+    state.isSending = false;
+    sendBtn.disabled = false;
+    sendBtn.querySelector('.send-label').textContent = t("sendToDisplay");
+  }
+}
+
+async function sendToDisplay() {
+  stopAutomaticFeed();
+  if (!state.deviceId) {
+    settingsModal.classList.remove('hidden');
+    return;
+  }
+
+  sendBtn.disabled = true;
+  const labelEl = sendBtn.querySelector('.send-label');
+  const originalLabel = labelEl.textContent;
+
+  // Se non siamo ancora connessi al broker, attendi la connessione in background senza errori!
+  if (!state.mqttConnected) {
+    labelEl.textContent = "Connessione Cloud...";
+    const ok = await connectMQTT();
+    if (!ok && !state.mqttConnected) {
+      showToast("Connessione al Cloud in corso... Riprova tra poco.", "info");
+      sendBtn.disabled = false;
+      labelEl.textContent = originalLabel;
+      return;
+    }
+  }
+
+  labelEl.textContent = "...";
+  await sendCanvasMqtt();
+}
+
+function sendStandbyCommand() {
+  stopAutomaticFeed();
+  if (!state.mqttConnected) {
+    showToast("Broker non connesso!", "error");
+    return;
+  }
+  const topic = state.isGuestMode
+    ? `pixo/device/${state.deviceId}/guest/${state.guestKey}/draw`
+    : `pixo/device/${state.deviceId}/${state.devicePin}/draw`;
+  const clearCmd = new TextEncoder().encode("CLEAR");
+  state.mqttClient.publish(topic, clearCmd, { qos: 0, retain: false }, (err) => {
+    if (!err) {
+      showToast(t("toastStandby"), "success");
+    }
+  });
+}
+
+function showToast(message, type = "info") {
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  toastContainer.appendChild(toast);
+  setTimeout(() => {
+    toast.remove();
+  }, 2800);
+}
+
+// ==========================================================================
+//  10. EVENT LISTENERS
+// ==========================================================================
+function setupEventListeners() {
+  // Configura interazione touch & drag per overlay ingrandimento
+  setupOverlayInteraction();
+
+  // Ferma Feed
+  stopFeedBtn.addEventListener('click', stopAutomaticFeed);
+
+  // Palette Colori
+  document.querySelectorAll('.color-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.currentColor = btn.dataset.color;
+      state.isEraser = false;
+      eraserBtn.classList.remove('active');
+    });
+  });
+
+  // Spessori
+  document.querySelectorAll('.stroke-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.stroke-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.currentStroke = parseInt(btn.dataset.size, 10);
+      state.isEraser = false;
+      eraserBtn.classList.remove('active');
+    });
+  });
+
+  // Gomma
+  eraserBtn.addEventListener('click', () => {
+    state.isEraser = !state.isEraser;
+    eraserBtn.classList.toggle('active', state.isEraser);
+    if (!state.isEraser) {
+      document.querySelector(`[data-color="${state.currentColor}"]`)?.classList.add('active');
+    }
+  });
+
+  // Top Bar
+  undoBtn.addEventListener('click', undo);
+  clearBtn.addEventListener('click', clearCanvas);
+  standbyBtn.addEventListener('click', sendStandbyCommand);
+  sendBtn.addEventListener('click', sendToDisplay);
+
+  // METEO: Invio automatico immediato + refresh
+  weatherBtn.addEventListener('click', activateWeatherMode);
+
+  // NEWS: Invio automatico immediato + ciclo sulle 10 notizie
+  newsBtn.addEventListener('click', activateNewsFeedMode);
+
+  // OROLOGIO SMART: Invio automatico immediato + refresh continuo
+  clockBtn.addEventListener('click', activateClockMode);
+
+  // SALVATAGGIO & GALLERIA DISEGNI
+  saveCanvasBtn.addEventListener('click', saveCurrentCanvas);
+  galleryBtn.addEventListener('click', () => {
+    galleryModal.classList.remove('hidden');
+    renderGallery();
+  });
+  closeGalleryModal.addEventListener('click', () => galleryModal.classList.add('hidden'));
+  saveCurrentFromGalleryBtn.addEventListener('click', saveCurrentCanvas);
+
+  // CONDIVISIONE & GESTIONE OSPITI
+  shareBtn.addEventListener('click', () => {
+    shareModal.classList.remove('hidden');
+    updateGuestLink();
+  });
+  closeShareModal.addEventListener('click', () => shareModal.classList.add('hidden'));
+  allowGuestsToggle.addEventListener('change', (e) => sendGuestAccessConfig(e.target.checked));
+  copyGuestLinkBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(guestLinkInput.value);
+      showToast(t("toastLinkCopied"), "success");
+    } catch(e) {
+      guestLinkInput.select();
+      document.execCommand('copy');
+      showToast(t("toastLinkCopied"), "success");
+    }
+  });
+  revokeGuestsBtn.addEventListener('click', revokeAndRegenerateGuestKey);
+
+  // SCREENSAVER (30 min) & LED (GPIO 5)
+  screensaverToggle.addEventListener('change', (e) => sendScreensaverConfig(e.target.checked));
+  ledToggle.addEventListener('change', (e) => sendLedConfig(e.target.checked));
+
+  // Stop Feed Button
+  stopFeedBtn.addEventListener('click', stopAutomaticFeed);
+
+  // Foto
+  photoBtn.addEventListener('click', () => photoInput.click());
+  photoInput.addEventListener('change', (e) => {
+    stopAutomaticFeed();
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const bg = getCanvasBgColor();
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const canvasRatio = canvas.width / canvas.height;
+        const imgRatio = img.width / img.height;
+        let drawW, drawH, offsetX, offsetY;
+
+        if (imgRatio > canvasRatio) {
+          drawW = canvas.width;
+          drawH = canvas.width / imgRatio;
+          offsetX = 0;
+          offsetY = (canvas.height - drawH) / 2;
+        } else {
+          drawH = canvas.height;
+          drawW = canvas.height * imgRatio;
+          offsetX = (canvas.width - drawW) / 2;
+          offsetY = 0;
+        }
+
+        ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
+        saveState();
+        updatePayloadPreview();
+        sendCanvasMqtt(false); // Invia subito la foto a Pixò!
+        showToast(t("toastPhotoApplied"), "success");
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+    photoInput.value = '';
+  });
+
+  // Sticker Drawer & Slider
+  stickerToggleBtn.addEventListener('click', () => {
+    stickerDrawer.classList.toggle('hidden');
+  });
+  closeStickerBtn.addEventListener('click', () => stickerDrawer.classList.add('hidden'));
+
+  stickerSizeSlider.addEventListener('input', (e) => {
+    state.stickerSize = parseInt(e.target.value, 10);
+    stickerSizeVal.textContent = `${state.stickerSize}px`;
+  });
+
+  // Modal Testo
+  textToolBtn.addEventListener('click', () => {
+    textModal.classList.remove('hidden');
+    customTextInput.focus();
+  });
+  closeTextModal.addEventListener('click', () => textModal.classList.add('hidden'));
+  applyTextBtn.addEventListener('click', applyCustomText);
+
+  textSizeSlider.addEventListener('input', (e) => {
+    state.textSize = parseInt(e.target.value, 10);
+    textSizeVal.textContent = `${state.textSize}px`;
+    document.querySelectorAll('.font-size-picker .size-pill').forEach(b => {
+      b.classList.toggle('active', parseInt(b.dataset.size, 10) === state.textSize);
+    });
+  });
+
+  document.querySelectorAll('.font-size-picker .size-pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.font-size-picker .size-pill').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.textSize = parseInt(btn.dataset.size, 10);
+      textSizeSlider.value = state.textSize;
+      textSizeVal.textContent = `${state.textSize}px`;
+    });
+  });
+
+  // Slider Luminosità (Hardware PWM in tempo reale)
+  brightnessSlider.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value, 10);
+    sendBrightness(val);
+  });
+
+  // Modal Impostazioni
+  const openSettings = () => settingsModal.classList.remove('hidden');
+  openSettingsBtn.addEventListener('click', openSettings);
+  devicePill.addEventListener('click', openSettings);
+  closeSettingsModal.addEventListener('click', () => settingsModal.classList.add('hidden'));
+
+  // Cambio Lingua
+  langSelect.addEventListener('change', (e) => {
+    setLanguage(e.target.value);
+  });
+
+  // Salvataggio Impostazioni
+  saveSettingsBtn.addEventListener('click', () => {
+    const newName = deviceNameInput.value.trim();
+    if (newName) {
+      state.deviceName = newName;
+      localStorage.setItem('pixo_device_name', state.deviceName);
+      deviceIdDisplay.textContent = state.deviceName;
+    }
+
+    const newLang = langSelect.value;
+    setLanguage(newLang);
+
+    const newTheme = themeSelect.value;
+    if (newTheme !== state.canvasTheme) {
+      applyThemeChange(newTheme);
+    }
+
+    const newCity = weatherCityInput.value.trim();
+    if (newCity) {
+      state.weatherCity = newCity;
+      localStorage.setItem('pixo_weather_city', state.weatherCity);
+    }
+
+    if (devicePinInput) {
+      const newPin = devicePinInput.value.trim();
+      if (newPin && newPin !== state.devicePin) {
+        state.devicePin = newPin;
+        localStorage.setItem('pixo_device_pin', state.devicePin);
+        updateDirectLink();
+        if (state.mqttConnected && state.deviceId) {
+          const topic = `pixo/device/${state.deviceId}/setpin`;
+          state.mqttClient.publish(topic, state.devicePin, { qos: 0, retain: false });
+        }
+      }
+    }
+
+    settingsModal.classList.add('hidden');
+    showToast(t("toastSettingsSaved"));
+  });
+
+  // Copia Link
+  copyLinkBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(directLinkInput.value);
+      showToast(t("toastLinkCopied"), "success");
+    } catch(e) {
+      directLinkInput.select();
+      document.execCommand('copy');
+      showToast(t("toastLinkCopied"), "success");
+    }
+  });
+}
+
+// ==========================================================================
+//  11. SERVICE WORKER (PWA)
+// ==========================================================================
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js')
+        .then(reg => console.log('[PWA] Service Worker Pixò registrato:', reg.scope))
+        .catch(err => console.log('[PWA] Service Worker fallito:', err));
+    });
+  }
+}
+
+// ==========================================================================
+//  BOOTSTRAP
+// ==========================================================================
+document.addEventListener('DOMContentLoaded', () => {
+  initDeviceAndSettings();
+  initCanvas();
+  initStickers();
+  setupEventListeners();
+  connectMQTT();
+  registerServiceWorker();
+});

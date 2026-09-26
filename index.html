@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pixò - Smart Canvas</title>
+  
+  <!-- Configurazione PWA & Meta Tags Mobile -->
+  <meta name="theme-color" content="#12141a">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Pixò">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- Stili -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- MQTT.js via CDN affidabile -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header con Nome Dispositivo e Indicatore Connessione -->
+    <header class="app-header">
+      <div class="brand">
+        <span class="logo-icon">👾</span>
+        <h1 id="appTitleDisplay" data-i18n="appTitle">Pixò</h1>
+      </div>
+      
+      <div class="header-right">
+        <!-- Device Pill -->
+        <div class="device-pill" id="devicePill" title="Clicca per aprire le impostazioni">
+          <span class="status-dot" id="statusDot"></span>
+          <span class="device-id-text" id="deviceIdDisplay">Nessun ID</span>
+          <button class="settings-btn" id="openSettingsBtn" aria-label="Impostazioni">⚙️</button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Barra delle Azioni Rapide -->
+    <section class="action-bar top-actions">
+      <button id="undoBtn" class="btn icon-btn" title="Annulla ultimo tratto (Undo)">↩️ <span data-i18n="undo">Undo</span></button>
+      <button id="clearBtn" class="btn icon-btn danger" title="Pulisci lavagna">🗑️ <span data-i18n="clear">Pulisci</span></button>
+      <button id="standbyBtn" class="btn icon-btn" title="Ripristina faccina animata di standby">😴 <span data-i18n="standby">Standby</span></button>
+      <button id="textToolBtn" class="btn icon-btn" title="Aggiungi Testo">🔤 <span data-i18n="text">Testo</span></button>
+      <button id="stickerToggleBtn" class="btn icon-btn" title="Mostra Sticker">⭐ <span data-i18n="stickers">Sticker</span></button>
+      <button id="photoBtn" class="btn icon-btn" title="Carica o Scatta Foto">📷 <span data-i18n="photo">Foto</span></button>
+      <button id="weatherBtn" class="btn icon-btn" title="Genera e invia meteo in tempo reale">🌦️ <span data-i18n="weather">Meteo</span></button>
+      <button id="newsBtn" class="btn icon-btn" title="Avvia rassegna ultime notizie su Pixò">📰 <span data-i18n="news">News</span></button>
+      <button id="clockBtn" class="btn icon-btn" title="Orologio da tavolo digitale">⏰ <span data-i18n="clock">Orologio</span></button>
+      <button id="saveCanvasBtn" class="btn icon-btn" title="Salva questo disegno nei preferiti">💾 <span data-i18n="save">Salva</span></button>
+      <button id="galleryBtn" class="btn icon-btn" title="I miei disegni salvati">📁 <span data-i18n="gallery">Disegni</span></button>
+      <button id="shareBtn" class="btn icon-btn" title="Condivisione e gestione ospiti">🔗 <span data-i18n="share">Condividi</span></button>
+      <input type="file" id="photoInput" accept="image/*" style="display: none;">
+    </section>
+
+    <!-- Banner Notizie / Meteo in Loop Attivo -->
+    <div class="feed-banner hidden" id="feedBanner">
+      <div class="feed-info">
+        <span class="feed-pulse">🔴</span>
+        <span id="feedStatusText">Rassegna Stampa attiva...</span>
+      </div>
+      <button id="stopFeedBtn" class="btn mini-btn danger">⏹️ Ferma</button>
+    </div>
+
+    <!-- Area Canvas (Risoluzione logica nativa 240x240, scalata ergonomicamente) -->
+    <main class="canvas-wrapper">
+      <!-- Barra di Controllo Ingrandimento & Posizionamento a Schermo (Visibile quando si posiziona testo/sticker) -->
+      <div class="overlay-toolbar hidden" id="overlayToolbar">
+        <div class="overlay-ctrl-group">
+          <span class="overlay-hint" id="overlayHintText">Trascina per posizionare:</span>
+          <div class="overlay-size-control">
+            <button id="overlayZoomOutBtn" class="btn mini-btn" title="Rimpicciolisci">➖</button>
+            <input type="range" id="overlaySizeSlider" min="16" max="110" value="40" step="2">
+            <button id="overlayZoomInBtn" class="btn mini-btn" title="Ingrandisci">➕</button>
+            <strong id="overlaySizeLabel">40px</strong>
+          </div>
+        </div>
+        <div class="overlay-actions">
+          <button id="confirmOverlayBtn" class="btn mini-btn primary-btn">✅ Inserisci</button>
+          <button id="cancelOverlayBtn" class="btn mini-btn danger">❌ Annulla</button>
+        </div>
+      </div>
+
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="paintCanvas" width="240" height="240"></canvas>
+        
+        <!-- Livello Interattivo di Anteprima & Ridimensionamento a Schermo -->
+        <div class="element-overlay hidden" id="elementOverlay">
+          <div class="floating-element" id="floatingElement">
+            <span id="floatingContent"></span>
+          </div>
+        </div>
+      </div>
+      <div class="canvas-meta">
+        <span class="badge">Pixò ST7789 • 240x240 px</span>
+        <span class="badge" id="payloadSizeBadge">Payload: ~0 KB</span>
+      </div>
+    </main>
+
+    <!-- Pannello Sticker & Emoji con Slider di Ridimensionamento -->
+    <section class="sticker-drawer hidden" id="stickerDrawer">
+      <div class="drawer-header">
+        <span data-i18n="chooseSticker">Scegli uno Sticker (28 disponibili)</span>
+        <button id="closeStickerBtn" class="close-btn">&times;</button>
+      </div>
+      <div class="slider-control">
+        <label><span data-i18n="stickerSize">Dimensione Sticker:</span> <strong id="stickerSizeVal">38px</strong></label>
+        <input type="range" id="stickerSizeSlider" min="20" max="72" value="38" step="2">
+      </div>
+      <div class="sticker-grid" id="stickerGrid">
+        <!-- Generati dinamicamente -->
+      </div>
+    </section>
+
+    <!-- Barra degli Strumenti (Colori & Spessori) -->
+    <section class="toolbar">
+      <!-- 9 Colori ad alto contrasto -->
+      <div class="palette-container">
+        <div class="palette" id="palette">
+          <button class="color-btn" data-color="#000000" style="--c: #000000;" aria-label="Nero"></button>
+          <button class="color-btn active" data-color="#ffffff" style="--c: #ffffff;" aria-label="Bianco"></button>
+          <button class="color-btn" data-color="#e63946" style="--c: #e63946;" aria-label="Rosso"></button>
+          <button class="color-btn" data-color="#f77f00" style="--c: #f77f00;" aria-label="Arancione"></button>
+          <button class="color-btn" data-color="#fcbf49" style="--c: #fcbf49;" aria-label="Giallo"></button>
+          <button class="color-btn" data-color="#2a9d8f" style="--c: #2a9d8f;" aria-label="Verde"></button>
+          <button class="color-btn" data-color="#00b4d8" style="--c: #00b4d8;" aria-label="Ciano"></button>
+          <button class="color-btn" data-color="#1d3557" style="--c: #1d3557;" aria-label="Blu"></button>
+          <button class="color-btn" data-color="#7209b7" style="--c: #7209b7;" aria-label="Viola"></button>
+        </div>
+      </div>
+
+      <!-- 4 Spessori di tratto e gomma -->
+      <div class="stroke-container">
+        <button class="stroke-btn active" data-size="2" title="Tratto Fine (2px)"><span style="width: 4px; height: 4px;"></span></button>
+        <button class="stroke-btn" data-size="4" title="Tratto Medio (4px)"><span style="width: 8px; height: 8px;"></span></button>
+        <button class="stroke-btn" data-size="8" title="Tratto Spesso (8px)"><span style="width: 14px; height: 14px;"></span></button>
+        <button class="stroke-btn" data-size="16" title="Pennarello Largo (16px)"><span style="width: 20px; height: 20px;"></span></button>
+        <button class="tool-btn" id="eraserBtn" title="Gomma per cancellare">🧹</button>
+      </div>
+    </section>
+
+    <!-- Tasto Principale di Invio -->
+    <footer class="app-footer">
+      <button id="sendBtn" class="btn send-btn">
+        <span class="send-icon">🚀</span>
+        <span class="send-label" data-i18n="sendToDisplay">Invia a Display</span>
+      </button>
+    </footer>
+  </div>
+
+  <!-- Modal Impostazioni / Pulito, Intuitivo & Senza dati tecnici visibili -->
+  <div class="modal-overlay hidden" id="settingsModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 data-i18n="settingsTitle">Impostazioni Pixò</h3>
+        <button id="closeSettingsModal" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        
+        <!-- Nome Personalizzato Pixò -->
+        <div class="form-group">
+          <label for="deviceNameInput" data-i18n="deviceNameLabel">Nome del tuo Pixò:</label>
+          <input type="text" id="deviceNameInput" placeholder="es. Pixò Salotto, Pixò Studio, Pixò Cucina">
+        </div>
+
+        <!-- Slider Luminosità Display (Hardware PWM) -->
+        <div class="slider-control">
+          <label>
+            <span data-i18n="brightnessLabel">☀️ Luminosità Schermo:</span> 
+            <strong id="brightnessVal">100%</strong>
+          </label>
+          <input type="range" id="brightnessSlider" min="10" max="100" value="100" step="5">
+        </div>
+
+        <!-- Città per Meteo -->
+        <div class="form-group">
+          <label for="weatherCityInput" data-i18n="cityLabel">Città Predefinita per il Meteo:</label>
+          <input type="text" id="weatherCityInput" placeholder="es. Roma, Milano, Napoli...">
+        </div>
+
+        <!-- Riga Tema e Lingua -->
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="langSelect" data-i18n="langLabel">Lingua / Language:</label>
+            <select id="langSelect" class="form-select">
+              <option value="it">Italiano 🇮🇹</option>
+              <option value="en">English 🇬🇧</option>
+            </select>
+          </div>
+
+          <div class="form-group flex-1">
+            <label for="themeSelect" data-i18n="canvasThemeLabel">Tema Lavagna:</label>
+            <select id="themeSelect" class="form-select">
+              <option value="dark">Nero (Scritta Bianca)</option>
+              <option value="light">Bianco (Scritta Nera)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Screensaver Standby 30 Minuti -->
+        <div class="setting-toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-title" data-i18n="screensaverLabel">Screensaver Standby (30 min)</span>
+            <span class="toggle-sub" data-i18n="screensaverSub">Torna alla faccina animata dopo 30 min di inattività</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="screensaverToggle" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <!-- LED Notifica Ausiliario (GPIO 5) -->
+        <div class="setting-toggle-row">
+          <div class="toggle-info">
+            <span class="toggle-title" data-i18n="ledLabel">💡 LED Notifica 3.2V (GPIO 5)</span>
+            <span class="toggle-sub" data-i18n="ledSub">Accendi o spegni il LED ausiliario</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="ledToggle">
+            <span class="slider round"></span>
+          </label>
+        </div>
+
+        <!-- PIN di Sicurezza Personale -->
+        <div class="form-group">
+          <label for="devicePinInput">
+            <span>🔒 PIN Sicurezza Pixò:</span>
+            <small style="display:block; color:var(--text-muted); font-size:0.75rem;">Protegge il display da messaggi anonimi o non autorizzati</small>
+          </label>
+          <input type="text" id="devicePinInput" maxlength="8" placeholder="es. 1234" value="1234" style="letter-spacing: 2px; font-weight: bold; font-family: monospace;">
+        </div>
+
+        <!-- ID Hardware (Informativo) -->
+        <div class="hardware-info-box">
+          <div class="hardware-badge">
+            <span data-i18n="hardwareId">ID Hardware:</span>
+            <strong id="hardwareIdDisplay">ESP32-A28DCC</strong>
+          </div>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button id="saveSettingsBtn" class="btn primary-btn" data-i18n="saveSettings">Salva Impostazioni</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Inserimento Testo con Auto-Wrap e Slider Dimensione -->
+  <div class="modal-overlay hidden" id="textModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 data-i18n="addTextTitle">Aggiungi Testo</h3>
+        <button id="closeTextModal" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <textarea id="customTextInput" rows="3" placeholder="Scrivi qui il messaggio... (va a capo automaticamente)" maxlength="120"></textarea>
+        
+        <div class="slider-control">
+          <label><span data-i18n="textSize">Dimensione Testo:</span> <strong id="textSizeVal">22px</strong></label>
+          <input type="range" id="textSizeSlider" min="14" max="44" value="22" step="2">
+        </div>
+
+        <div class="font-size-picker">
+          <label data-i18n="quickPresets">Preset:</label>
+          <button class="size-pill" data-size="16">16px</button>
+          <button class="size-pill active" data-size="22">22px</button>
+          <button class="size-pill" data-size="30">30px</button>
+          <button class="size-pill" data-size="40">40px</button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="applyTextBtn" class="btn primary-btn" data-i18n="insertOnCanvas">Inserisci sul Canvas</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Galleria Disegni Salvati -->
+  <div class="modal-overlay hidden" id="galleryModal">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 data-i18n="galleryTitle">📁 I Miei Disegni Salvati</h3>
+        <button id="closeGalleryModal" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="gallery-toolbar">
+          <button id="saveCurrentFromGalleryBtn" class="btn mini-btn primary-btn">➕ Salva disegno attuale</button>
+          <span id="galleryCountText" class="badge">0 disegni</span>
+        </div>
+        <div class="gallery-grid" id="galleryGrid">
+          <!-- Miniature generate dinamicamente -->
+        </div>
+        <div id="galleryEmptyMessage" class="empty-state">
+          <span style="font-size: 3rem;">🎨</span>
+          <p>Nessun disegno salvato. Disegna qualcosa e salvalo nei preferiti per riutilizzarlo o inviarlo in qualsiasi momento!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal Gestione Condivisione & Ospiti -->
+  <div class="modal-overlay hidden" id="shareModal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 data-i18n="shareTitle">🔗 Condivisione Dispositivo Pixò</h3>
+        <button id="closeShareModal" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Switch Permesso Invio Ospiti -->
+        <div class="share-status-card">
+          <div class="setting-toggle-row">
+            <div class="toggle-info">
+              <strong class="toggle-title" data-i18n="allowGuestsTitle">Consenti Invio da Ospiti</strong>
+              <span class="toggle-sub" id="guestStatusSub">Gli invitati possono inviare disegni a Pixò</span>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="allowGuestsToggle" checked>
+              <span class="slider round"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Link Invito per Ospiti -->
+        <div class="form-group" style="margin-top: 15px;">
+          <label data-i18n="guestLinkLabel">Link di Invito per Ospiti:</label>
+          <div class="input-with-button">
+            <input type="text" id="guestLinkInput" readonly>
+            <button id="copyGuestLinkBtn" class="btn mini-btn">📋 Copia</button>
+          </div>
+          <small class="help-text">Chi apre questo link potrà inviare disegni e scritte ma non vedrà le impostazioni né i dati sensibili.</small>
+        </div>
+
+        <!-- Sezione Revoca e Rigenerazione Chiave -->
+        <div class="danger-zone-box">
+          <div class="danger-header">
+            <span>🛡️ Controllo e Revoca Accessi</span>
+          </div>
+          <p style="font-size: 0.85rem; color: #a0aec0; margin: 6px 0 12px 0;">Se vuoi revocare l'accesso a tutti coloro a cui avevi dato il link in passato, premi il tasto sotto per rigenerare una nuova chiave segreta:</p>
+          <button id="revokeGuestsBtn" class="btn danger-btn mini-btn">🔄 Revoca Tutti & Cambia Chiave</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notifiche -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Script Applicativo -->
+  <script src="app.js"></script>
+</body>
+</html>
