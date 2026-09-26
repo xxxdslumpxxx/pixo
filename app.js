@@ -368,9 +368,18 @@ function initDeviceAndSettings() {
   if (urlParams.get('guest') === '1') {
     state.isGuestMode = true;
     state.guestKey = urlParams.get('key') || 'pixo123';
+    state.devicePin = ""; // L'ospite NON ha e NON vede il PIN proprietario
   } else {
     state.isGuestMode = false;
     state.guestKey = localStorage.getItem('pixo_guest_key') || 'pixo123';
+    
+    const urlPin = urlParams.get('pin');
+    if (urlPin && urlPin.trim() !== '') {
+      state.devicePin = urlPin.trim();
+      localStorage.setItem('pixo_device_pin', state.devicePin);
+    } else {
+      state.devicePin = localStorage.getItem('pixo_device_pin') || DEFAULT_CONFIG.defaultPin;
+    }
   }
 
   state.allowGuests = localStorage.getItem('pixo_allow_guests') !== 'false';
@@ -379,14 +388,6 @@ function initDeviceAndSettings() {
 
   state.deviceName = localStorage.getItem('pixo_device_name') || DEFAULT_CONFIG.defaultDeviceName;
   state.brightness = parseInt(localStorage.getItem('pixo_brightness') || DEFAULT_CONFIG.defaultBrightness, 10);
-  
-  const urlPin = urlParams.get('pin');
-  if (urlPin && urlPin.trim() !== '') {
-    state.devicePin = urlPin.trim();
-    localStorage.setItem('pixo_device_pin', state.devicePin);
-  } else {
-    state.devicePin = localStorage.getItem('pixo_device_pin') || DEFAULT_CONFIG.defaultPin;
-  }
 
   // Broker fisso e sicuro (non esposto agli utenti finali)
   state.brokerUrl = DEFAULT_CONFIG.brokerUrl;
@@ -429,7 +430,8 @@ function updateSettingsUI() {
 
 function updateGuestLink() {
   if (!guestLinkInput) return;
-  const url = new URL(window.location.href);
+  const baseUrl = window.location.origin + window.location.pathname;
+  const url = new URL(baseUrl);
   url.searchParams.set('id', state.deviceId);
   url.searchParams.set('key', state.guestKey);
   url.searchParams.set('guest', '1');
@@ -437,7 +439,9 @@ function updateGuestLink() {
 }
 
 function updateDirectLink() {
-  const url = new URL(window.location.href);
+  if (!directLinkInput) return;
+  const baseUrl = window.location.origin + window.location.pathname;
+  const url = new URL(baseUrl);
   url.searchParams.set('id', state.deviceId);
   if (state.devicePin) {
     url.searchParams.set('pin', state.devicePin);
