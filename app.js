@@ -1509,13 +1509,6 @@ function connectMQTT() {
           // Invia la luminosità memorizzata all'avvio
           sendBrightness(state.brightness);
 
-          // Sincronizza lo stato del LED notifica verso il dispositivo
-          if (state.deviceId) {
-            const ledCmd = state.ledEnabled ? "NOTIF:ON" : "NOTIF:OFF";
-            const ledTopic = `pixo/device/${state.deviceId}/led`;
-            state.mqttClient.publish(ledTopic, ledCmd, { qos: 0, retain: false });
-          }
-
           // Sincronizza la chiave ospiti dal proprietario al dispositivo
           if (state.deviceId && !state.isGuestMode && state.guestKey) {
             const accTopic = `pixo/device/${state.deviceId}/access`;
