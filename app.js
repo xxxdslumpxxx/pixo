@@ -344,9 +344,26 @@ function t(key, params = {}) {
   return str;
 }
 
-// ==========================================================================
-//  2. INIZIALIZZAZIONE DISPOSITIVO & IMPOSTAZIONI
-// ==========================================================================
+// Generatore token casuale per condivisione sicura
+function generateRandomGuestKey() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let token = 'g_';
+  for (let i = 0; i < 6; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
+
+// Restituisce il topic corretto per l'invio al display (gestisce Ospite vs Proprietario con PIN)
+function getDrawTopic() {
+  if (state.isGuestMode) {
+    const key = state.guestKey || 'pixo123';
+    return `pixo/device/${state.deviceId}/guest/${key}/draw`;
+  }
+  const pin = state.devicePin || localStorage.getItem('pixo_device_pin') || DEFAULT_CONFIG.defaultPin || "1234";
+  return `pixo/device/${state.deviceId}/${pin}/draw`;
+}
+
 function initDeviceAndSettings() {
   const urlParams = new URLSearchParams(window.location.search);
   const urlId = urlParams.get('id');
@@ -360,35 +377,22 @@ function initDeviceAndSettings() {
                      DEFAULT_CONFIG.defaultDeviceId;
   }
 
-function generateRandomGuestKey() {
-  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
-  let token = 'g_';
-  for (let i = 0; i < 6; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return token;
-}
-
   // Verifica se l'app è aperta come ospite
   if (urlParams.get('guest') === '1') {
     state.isGuestMode = true;
-    state.guestKey = urlParams.get('key') || generateRandomGuestKey();
+    state.guestKey = urlParams.get('key') || 'pixo123';
     state.devicePin = ""; // L'ospite NON ha e NON vede il PIN proprietario
   } else {
     state.isGuestMode = false;
-    let storedKey = localStorage.getItem('pixo_guest_key');
-    if (!storedKey || storedKey === 'pixo123') {
-      storedKey = generateRandomGuestKey();
-      localStorage.setItem('pixo_guest_key', storedKey);
-    }
-    state.guestKey = storedKey;
+    // Mantiene la chiave ospite memorizzata o il default pixo123
+    state.guestKey = localStorage.getItem('pixo_guest_key') || 'pixo123';
     
     const urlPin = urlParams.get('pin');
     if (urlPin && urlPin.trim() !== '') {
       state.devicePin = urlPin.trim();
       localStorage.setItem('pixo_device_pin', state.devicePin);
     } else {
-      state.devicePin = localStorage.getItem('pixo_device_pin') || DEFAULT_CONFIG.defaultPin;
+      state.devicePin = localStorage.getItem('pixo_device_pin') || DEFAULT_CONFIG.defaultPin || "1234";
     }
   }
 
@@ -1204,9 +1208,7 @@ async function sendClockCommand() {
     await connectMQTT();
     if (!state.mqttConnected) return;
   }
-  const topic = state.isGuestMode
-    ? `pixo/device/${state.deviceId}/guest/${state.guestKey}/draw`
-    : `pixo/device/${state.deviceId}/${state.devicePin}/draw`;
+  const topic = getDrawTopic();
   const cmd = new TextEncoder().encode("CLOCK");
   state.mqttClient.publish(topic, cmd, { qos: 0, retain: false }, (err) => {
     if (!err) {
@@ -1586,9 +1588,7 @@ async function sendCanvasMqtt() {
     const uint8Array = new Uint8Array(arrayBuffer);
     
     // Inclusione PIN di sicurezza nel topic
-    const topic = state.isGuestMode 
-      ? `pixo/device/${state.deviceId}/guest/${state.guestKey}/draw`
-      : `pixo/device/${state.deviceId}/${state.devicePin}/draw`;
+    const topic = getDrawTopic();
 
     state.mqttClient.publish(topic, uint8Array, { qos: 0, retain: false }, (err) => {
       state.isSending = false;
@@ -1646,9 +1646,7 @@ async function sendStandbyCommand() {
       return;
     }
   }
-  const topic = state.isGuestMode
-    ? `pixo/device/${state.deviceId}/guest/${state.guestKey}/draw`
-    : `pixo/device/${state.deviceId}/${state.devicePin}/draw`;
+  const topic = getDrawTopic();
   const clearCmd = new TextEncoder().encode("CLEAR");
   state.mqttClient.publish(topic, clearCmd, { qos: 0, retain: false }, (err) => {
     if (!err) {
