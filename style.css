@@ -184,6 +184,13 @@ body {
   color: var(--danger);
 }
 
+.btn.light-btn.active {
+  background: rgba(255, 209, 102, 0.22);
+  border-color: #ffd166;
+  color: #ffd166;
+  box-shadow: 0 0 10px rgba(255, 209, 102, 0.45);
+}
+
 .primary-btn {
   background: var(--primary);
   border-color: var(--primary);

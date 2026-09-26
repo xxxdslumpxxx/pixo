@@ -35,10 +35,10 @@ const TRANSLATIONS = {
     text: "Testo",
     stickers: "Sticker",
     photo: "Foto",
-    video: "Video",
     weather: "Meteo",
     news: "News",
     clock: "Orologio",
+    light: "Luce",
     save: "Salva",
     gallery: "Disegni",
     share: "Condividi",
@@ -103,10 +103,10 @@ const TRANSLATIONS = {
     text: "Text",
     stickers: "Stickers",
     photo: "Photo",
-    video: "Video",
     weather: "Weather",
     news: "News",
     clock: "Clock",
+    light: "Light",
     save: "Save",
     gallery: "Drawings",
     share: "Share",
@@ -193,11 +193,9 @@ const state = {
     color: '#ffffff'
   },
 
-  // Gestione Feed Automatici (Meteo & Rassegna Stampa & Orologio)
-  activeFeedType: null, // "weather", "news", o "clock"
+  // Gestione Feed Automatici (Meteo & Orologio)
+  activeFeedType: null, // "weather" o "clock"
   feedTimer: null,
-  newsArticles: [],
-  newsIndex: 0,
 
   // Modalità Ospite & Condivisione
   isGuestMode: false,
@@ -206,7 +204,8 @@ const state = {
 
   // Screensaver & LED
   screensaverEnabled: true,
-  ledEnabled: false,
+  ledEnabled: true,
+  lightOn: false,
   savedDrawings: [],
 
   lastX: 0,
@@ -258,8 +257,8 @@ const stickerToggleBtn = document.getElementById('stickerToggleBtn');
 const photoBtn = document.getElementById('photoBtn');
 const photoInput = document.getElementById('photoInput');
 const weatherBtn = document.getElementById('weatherBtn');
-const newsBtn = document.getElementById('newsBtn');
 const clockBtn = document.getElementById('clockBtn');
+const lightToggleBtn = document.getElementById('lightToggleBtn');
 const saveCanvasBtn = document.getElementById('saveCanvasBtn');
 const galleryBtn = document.getElementById('galleryBtn');
 const shareBtn = document.getElementById('shareBtn');
@@ -384,7 +383,7 @@ function initDeviceAndSettings() {
 
   state.allowGuests = localStorage.getItem('pixo_allow_guests') !== 'false';
   state.screensaverEnabled = localStorage.getItem('pixo_screensaver') !== 'false';
-  state.ledEnabled = localStorage.getItem('pixo_led') === 'true';
+  state.ledEnabled = localStorage.getItem('pixo_led') !== 'false';
 
   state.deviceName = localStorage.getItem('pixo_device_name') || DEFAULT_CONFIG.defaultDeviceName;
   state.brightness = parseInt(localStorage.getItem('pixo_brightness') || DEFAULT_CONFIG.defaultBrightness, 10);
@@ -816,6 +815,7 @@ function applyCustomText() {
 async function activateWeatherMode() {
   stopAutomaticFeed();
   state.activeFeedType = "weather";
+  await connectMQTT();
   await fetchAndRenderWeather();
 
   // Imposta auto-aggiornamento ogni 15 minuti
@@ -898,7 +898,7 @@ async function fetchAndRenderWeather() {
     updatePayloadPreview();
 
     // INVIO IMMEDIATO A PIXÒ!
-    sendCanvasMqtt(false);
+    await sendCanvasMqtt(false);
 
     // Mostra banner attivo
     feedStatusText.textContent = t("feedWeatherActive", { city: name });
@@ -911,96 +911,7 @@ async function fetchAndRenderWeather() {
   }
 }
 
-// ==========================================================================
-//  7. RASSEGNA STAMPA IN LOOP (INVIO IMMEDIATO + CICLO SU 10 NOTIZIE OGNI 15S)
-// ==========================================================================
-async function activateNewsFeedMode() {
-  stopAutomaticFeed();
-  state.activeFeedType = "news";
-  showToast(state.lang === 'it' ? "Download ultime notizie..." : "Downloading latest news...");
 
-  try {
-    const feedUrl = state.lang === 'it' 
-      ? 'https://api.rss2json.com/v1/api.json?rss_url=https%3A%2F%2Fwww.ansa.it%2Fsito%2Fansait_rss.xml'
-      : 'https://api.rss2json.com/v1/api.json?rss_url=http%3A%2F%2Ffeeds.bbci.co.uk%2Fnews%2Frss.xml';
-
-    const res = await fetch(feedUrl);
-    const data = await res.json();
-    
-    if (!data.items || data.items.length === 0) {
-      showToast("Nessuna notizia disponibile al momento", "error");
-      stopAutomaticFeed();
-      return;
-    }
-
-    state.newsArticles = data.items.slice(0, 10);
-    state.newsIndex = 0;
-
-    renderAndSendNewsArticle();
-
-    // Ciclo automatico ogni 15 secondi tra le 10 notizie
-    state.feedTimer = setInterval(() => {
-      if (state.activeFeedType === "news") {
-        state.newsIndex = (state.newsIndex + 1) % state.newsArticles.length;
-        renderAndSendNewsArticle();
-      }
-    }, 15000);
-  } catch (err) {
-    console.error("Errore notizie:", err);
-    showToast("Errore download notizie", "error");
-    stopAutomaticFeed();
-  }
-}
-
-function renderAndSendNewsArticle() {
-  if (!state.newsArticles || state.newsArticles.length === 0) return;
-
-  const item = state.newsArticles[state.newsIndex];
-  const title = item.title;
-  const currentNum = state.newsIndex + 1;
-  const totalNum = state.newsArticles.length;
-
-  ctx.fillStyle = "#12141a";
-  ctx.fillRect(0, 0, 240, 240);
-
-  // Banner rosso ULTIM'ORA
-  ctx.fillStyle = "#ef476f";
-  ctx.fillRect(0, 0, 240, 42);
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillStyle = "#ffffff";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(state.lang === 'it' ? `🔴 NOTIZIA ${currentNum}/${totalNum}` : `🔴 BREAKING ${currentNum}/${totalNum}`, 120, 21);
-
-  // Titolo Notizia con wrapping
-  ctx.font = "bold 17px -apple-system, sans-serif";
-  ctx.fillStyle = "#f1f3f7";
-  const lines = wrapText(ctx, title, 216);
-  const lineHeight = 23;
-  const totalH = lines.length * lineHeight;
-  let startY = 60 + (140 - totalH) / 2;
-
-  lines.forEach(l => {
-    ctx.fillText(l, 120, startY);
-    startY += lineHeight;
-  });
-
-  // Footer con orario
-  ctx.font = "13px sans-serif";
-  ctx.fillStyle = "#8c93a0";
-  const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  ctx.fillText(`Aggiornato alle ${nowTime}`, 120, 226);
-
-  saveState();
-  updatePayloadPreview();
-
-  // INVIO IMMEDIATO A PIXÒ!
-  sendCanvasMqtt(false);
-
-  // Aggiorna banner
-  feedStatusText.textContent = t("feedNewsActive", { current: currentNum, total: totalNum });
-  feedBanner.classList.remove('hidden');
-}
 
 function stopAutomaticFeed() {
   if (state.feedTimer) {
@@ -1017,12 +928,13 @@ function stopAutomaticFeed() {
 // ==========================================================================
 //  7b. OROLOGIO DIGITALE NATIVO (STILE SMART WEATHER CLOCK)
 // ==========================================================================
-function activateClockMode() {
+async function activateClockMode() {
   stopAutomaticFeed();
   state.activeFeedType = "clock";
+  await connectMQTT();
 
   // Invia il comando nativo CLOCK al display ESP32-C3!
-  sendClockCommand();
+  await sendClockCommand();
 
   // Avvia l'anteprima animata sul canvas locale con separatore ':' lampeggiante a 1Hz
   renderClockCanvas();
@@ -1295,16 +1207,45 @@ function sendScreensaverConfig(enabled) {
   showToast(enabled ? "Screensaver 30m ATTIVATO" : "Screensaver DISATTIVATO", "success");
 }
 
-function sendLedConfig(enabled) {
+async function sendLedConfig(enabled) {
   state.ledEnabled = enabled;
   localStorage.setItem('pixo_led', enabled ? 'true' : 'false');
-  if (!state.mqttConnected || !state.deviceId) return;
+  await connectMQTT();
+  if (!state.deviceId) return;
   const topic = `pixo/device/${state.deviceId}/led`;
   const cmd = enabled ? "LED:ON" : "LED:OFF";
-  state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+  if (state.mqttConnected) {
+    state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+  }
   showToast(enabled 
     ? (state.lang === 'it' ? "Lampeggio LED notifica ATTIVATO" : "Notification LED blink ENABLED") 
     : (state.lang === 'it' ? "Lampeggio LED notifica DISATTIVATO" : "Notification LED blink DISABLED"), 
+    "success");
+}
+
+async function toggleContinuousLight() {
+  await connectMQTT();
+  state.lightOn = !state.lightOn;
+  if (!state.deviceId) return;
+
+  const topic = `pixo/device/${state.deviceId}/led`;
+  const cmd = state.lightOn ? "LIGHT:ON" : "LIGHT:OFF";
+  if (state.mqttConnected) {
+    state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+  }
+
+  const btn = document.getElementById('lightToggleBtn');
+  if (btn) {
+    if (state.lightOn) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  }
+
+  showToast(state.lightOn 
+    ? (state.lang === 'it' ? "Luce continua ACCESA 💡" : "Continuous Light ON 💡") 
+    : (state.lang === 'it' ? "Luce continua SPENTA 🌑" : "Continuous Light OFF 🌑"), 
     "success");
 }
 
@@ -1365,36 +1306,12 @@ async function updatePayloadPreview() {
   payloadSizeBadge.textContent = `Payload: ~${kb} KB`;
 }
 
+let mqttConnectPromise = null;
+
 function connectMQTT() {
   if (state.mqttConnected) return Promise.resolve(true);
+  if (mqttConnectPromise) return mqttConnectPromise;
 
-  // Se c'è già un client attivo (anche in riconnessione automatica), aspetta semplicemente
-  // che si connetta — NON distruggerlo e ricominciare da zero!
-  if (state.mqttClient) {
-    if (state.mqttConnecting) {
-      // Connessione in corso esplicitamente: aspetta
-    } else {
-      // Il client MQTT interno sta già gestendo la riconnessione automatica (reconnectPeriod).
-      // Segnaliamo che stiamo aspettando così l'UI mostra "Connessione Cloud..."
-      state.mqttConnecting = true;
-    }
-    return new Promise((resolve) => {
-      const start = Date.now();
-      const interval = setInterval(() => {
-        if (state.mqttConnected) {
-          clearInterval(interval);
-          state.mqttConnecting = false;
-          resolve(true);
-        } else if (Date.now() - start > 8000) {
-          clearInterval(interval);
-          state.mqttConnecting = false;
-          resolve(false);
-        }
-      }, 100);
-    });
-  }
-
-  // Prima connessione: crea il client da zero
   state.mqttConnecting = true;
   statusDot.className = "status-dot connecting";
   statusDot.title = "Connessione a Pixò Cloud...";
@@ -1410,51 +1327,78 @@ function connectMQTT() {
     password: state.brokerPass
   };
 
-  return new Promise((resolve) => {
+  mqttConnectPromise = new Promise((resolve) => {
     try {
-      state.mqttClient = mqtt.connect(state.brokerUrl, options);
+      if (!state.mqttClient) {
+        state.mqttClient = mqtt.connect(state.brokerUrl, options);
 
-      state.mqttClient.on('connect', () => {
-        console.log('[MQTT] Connesso via WebSocket a Pixò Cloud!');
-        state.mqttConnected = true;
-        state.mqttConnecting = false;
-        statusDot.className = "status-dot online";
-        statusDot.title = "Connesso a Pixò Cloud";
-        showToast(t("toastConnected"), "success");
+        state.mqttClient.on('connect', () => {
+          console.log('[MQTT] Connesso via WebSocket a Pixò Cloud!');
+          state.mqttConnected = true;
+          state.mqttConnecting = false;
+          mqttConnectPromise = null;
+          statusDot.className = "status-dot online";
+          statusDot.title = "Connesso a Pixò Cloud";
+          showToast(t("toastConnected"), "success");
 
-        // Invia la luminosità memorizzata all'avvio
-        sendBrightness(state.brightness);
-        resolve(true);
-      });
+          // Invia la luminosità memorizzata all'avvio
+          sendBrightness(state.brightness);
 
-      state.mqttClient.on('error', (err) => {
-        console.error('[MQTT] Errore MQTT:', err);
-        state.mqttConnected = false;
-        state.mqttConnecting = false;
-        statusDot.className = "status-dot";
-        resolve(false);
-      });
+          // Sincronizza lo stato del LED notifica verso il dispositivo
+          if (state.deviceId) {
+            const ledCmd = state.ledEnabled ? "LED:ON" : "LED:OFF";
+            const ledTopic = `pixo/device/${state.deviceId}/led`;
+            state.mqttClient.publish(ledTopic, ledCmd, { qos: 0, retain: false });
+          }
+          resolve(true);
+        });
 
-      state.mqttClient.on('offline', () => {
-        state.mqttConnected = false;
-        state.mqttConnecting = false;
-        statusDot.className = "status-dot";
-      });
+        state.mqttClient.on('error', (err) => {
+          console.error('[MQTT] Errore MQTT:', err);
+          state.mqttConnected = false;
+          state.mqttConnecting = false;
+          mqttConnectPromise = null;
+          statusDot.className = "status-dot";
+          resolve(false);
+        });
 
-      state.mqttClient.on('close', () => {
-        state.mqttConnected = false;
-        state.mqttConnecting = false;
-        statusDot.className = "status-dot";
-      });
+        state.mqttClient.on('offline', () => {
+          state.mqttConnected = false;
+          state.mqttConnecting = false;
+          statusDot.className = "status-dot";
+        });
+
+        state.mqttClient.on('close', () => {
+          state.mqttConnected = false;
+          state.mqttConnecting = false;
+          statusDot.className = "status-dot";
+        });
+      } else {
+        const check = setInterval(() => {
+          if (state.mqttConnected) {
+            clearInterval(check);
+            mqttConnectPromise = null;
+            resolve(true);
+          }
+        }, 100);
+        setTimeout(() => {
+          clearInterval(check);
+          mqttConnectPromise = null;
+          resolve(state.mqttConnected);
+        }, 8000);
+      }
     } catch (err) {
       console.error('[MQTT] Eccezione avvio:', err);
       state.mqttConnected = false;
       state.mqttConnecting = false;
       state.mqttClient = null;
+      mqttConnectPromise = null;
       statusDot.className = "status-dot";
       resolve(false);
     }
   });
+
+  return mqttConnectPromise;
 }
 
 async function sendCanvasMqtt() {
@@ -1609,11 +1553,14 @@ function setupEventListeners() {
   // METEO: Invio automatico immediato + refresh
   weatherBtn.addEventListener('click', activateWeatherMode);
 
-  // NEWS: Invio automatico immediato + ciclo sulle 10 notizie
-  newsBtn.addEventListener('click', activateNewsFeedMode);
-
   // OROLOGIO SMART: Invio automatico immediato + refresh continuo
   clockBtn.addEventListener('click', activateClockMode);
+
+  // LUCE CONTINUA: Toggle ON / OFF indipendente dal lampeggio di notifica
+  const lightToggleBtn = document.getElementById('lightToggleBtn');
+  if (lightToggleBtn) {
+    lightToggleBtn.addEventListener('click', toggleContinuousLight);
+  }
 
   // SALVATAGGIO & GALLERIA DISEGNI
   saveCanvasBtn.addEventListener('click', saveCurrentCanvas);
