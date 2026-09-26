@@ -182,11 +182,13 @@ const state = {
   isDrawing: false,
   isSending: false,
   
-  // Elemento interattivo su schermo (Sticker o Testo con resize live)
+  // Elemento interattivo su schermo (Foto, Sticker o Testo con pinch-to-zoom e drag)
   interactiveElement: {
     active: false,
-    type: 'sticker', // 'sticker' o 'text'
+    type: 'sticker', // 'sticker', 'text', o 'image'
     content: '',
+    imageObj: null,
+    aspectRatio: 1,
     x: 120,
     y: 120,
     size: 44,
@@ -234,11 +236,8 @@ const devicePill = document.getElementById('devicePill');
 const elementOverlay = document.getElementById('elementOverlay');
 const floatingElement = document.getElementById('floatingElement');
 const floatingContent = document.getElementById('floatingContent');
+const floatingImage = document.getElementById('floatingImage');
 const overlayToolbar = document.getElementById('overlayToolbar');
-const overlaySizeSlider = document.getElementById('overlaySizeSlider');
-const overlaySizeLabel = document.getElementById('overlaySizeLabel');
-const overlayZoomInBtn = document.getElementById('overlayZoomInBtn');
-const overlayZoomOutBtn = document.getElementById('overlayZoomOutBtn');
 const confirmOverlayBtn = document.getElementById('confirmOverlayBtn');
 const cancelOverlayBtn = document.getElementById('cancelOverlayBtn');
 const overlayHintText = document.getElementById('overlayHintText');
@@ -361,14 +360,28 @@ function initDeviceAndSettings() {
                      DEFAULT_CONFIG.defaultDeviceId;
   }
 
+function generateRandomGuestKey() {
+  const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let token = 'g_';
+  for (let i = 0; i < 6; i++) {
+    token += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return token;
+}
+
   // Verifica se l'app è aperta come ospite
   if (urlParams.get('guest') === '1') {
     state.isGuestMode = true;
-    state.guestKey = urlParams.get('key') || 'pixo123';
+    state.guestKey = urlParams.get('key') || generateRandomGuestKey();
     state.devicePin = ""; // L'ospite NON ha e NON vede il PIN proprietario
   } else {
     state.isGuestMode = false;
-    state.guestKey = localStorage.getItem('pixo_guest_key') || 'pixo123';
+    let storedKey = localStorage.getItem('pixo_guest_key');
+    if (!storedKey || storedKey === 'pixo123') {
+      storedKey = generateRandomGuestKey();
+      localStorage.setItem('pixo_guest_key', storedKey);
+    }
+    state.guestKey = storedKey;
     
     const urlPin = urlParams.get('pin');
     if (urlPin && urlPin.trim() !== '') {
@@ -405,10 +418,20 @@ function updateSettingsUI() {
     deviceIdDisplay.textContent = `${state.deviceName || state.deviceId} (Ospite)`;
     if (openSettingsBtn) openSettingsBtn.style.display = 'none';
     if (shareBtn) shareBtn.style.display = 'none';
+    if (devicePill) {
+      devicePill.style.cursor = 'default';
+      devicePill.removeAttribute('title');
+    }
+    if (devicePinInput) devicePinInput.value = "";
   } else {
     deviceIdDisplay.textContent = state.deviceName || state.deviceId;
     if (openSettingsBtn) openSettingsBtn.style.display = '';
     if (shareBtn) shareBtn.style.display = '';
+    if (devicePill) {
+      devicePill.style.cursor = 'pointer';
+      devicePill.title = "Clicca per aprire le impostazioni";
+    }
+    if (devicePinInput) devicePinInput.value = state.devicePin;
   }
 
   deviceNameInput.value = state.deviceName;
@@ -578,25 +601,57 @@ function clearCanvas() {
 
 // ==========================================================================
 //  5. SISTEMA DI INGRANDIMENTO & POSIZIONAMENTO INTERATTIVO A SCHERMO
+//     (Pinch-to-Zoom con 2 dita, Spostamento con 1 dito, Maniglie angolari)
 // ==========================================================================
-let isDraggingOverlay = false;
-let dragStartX = 0;
-let dragStartY = 0;
-let elemStartX = 120;
-let elemStartY = 120;
 
-function startInteractiveOverlay(type, content, initialSize = 44) {
+function startInteractiveOverlay(type, content, initialSize = null) {
   stopAutomaticFeed();
   state.interactiveElement.active = true;
   state.interactiveElement.type = type;
-  state.interactiveElement.content = content;
-  state.interactiveElement.size = initialSize;
   state.interactiveElement.x = 120;
   state.interactiveElement.y = 120;
-  state.interactiveElement.color = state.currentColor;
 
-  floatingContent.textContent = content;
-  if (type === 'text') {
+  if (type === 'image') {
+    state.interactiveElement.imageObj = content;
+    state.interactiveElement.content = '';
+    const nw = content.naturalWidth || content.width || 200;
+    const nh = content.naturalHeight || content.height || 200;
+    const ar = nw / nh;
+    state.interactiveElement.aspectRatio = ar;
+
+    let initW = 180;
+    if (ar < 1) { // orientamento verticale
+      initW = Math.round(180 * ar);
+    }
+    state.interactiveElement.size = initialSize || Math.max(90, Math.min(220, initW));
+
+    floatingContent.style.display = 'none';
+    floatingImage.src = content.src;
+    floatingImage.classList.remove('hidden');
+    overlayHintText.textContent = "🖐️ Sposta con un dito • Pizzica con 2 dita per ingrandire la foto";
+  } else if (type === 'sticker') {
+    state.interactiveElement.imageObj = null;
+    state.interactiveElement.content = content;
+    state.interactiveElement.aspectRatio = 1;
+    state.interactiveElement.size = initialSize || 48;
+
+    floatingImage.classList.add('hidden');
+    floatingContent.style.display = 'inline-block';
+    floatingContent.textContent = content;
+    floatingContent.style.color = '';
+    floatingContent.style.fontWeight = 'normal';
+    floatingContent.style.fontFamily = 'sans-serif';
+    floatingContent.style.whiteSpace = 'nowrap';
+    overlayHintText.textContent = "🖐️ Sposta con un dito • Pizzica con 2 dita per ingrandire l'icona";
+  } else if (type === 'text') {
+    state.interactiveElement.imageObj = null;
+    state.interactiveElement.content = content;
+    state.interactiveElement.aspectRatio = 1;
+    state.interactiveElement.size = initialSize || 28;
+
+    floatingImage.classList.add('hidden');
+    floatingContent.style.display = 'inline-block';
+    floatingContent.textContent = content;
     const bg = getCanvasBgColor();
     let col = state.currentColor;
     if (col.toLowerCase() === bg.toLowerCase()) col = getDefaultPenColor();
@@ -605,20 +660,11 @@ function startInteractiveOverlay(type, content, initialSize = 44) {
     floatingContent.style.fontWeight = 'bold';
     floatingContent.style.fontFamily = '-apple-system, sans-serif';
     floatingContent.style.whiteSpace = 'pre-wrap';
-    overlayHintText.textContent = "Trascina il testo e regola la grandezza:";
-  } else {
-    floatingContent.style.color = '';
-    floatingContent.style.fontWeight = 'normal';
-    floatingContent.style.fontFamily = 'sans-serif';
-    floatingContent.style.whiteSpace = 'nowrap';
-    overlayHintText.textContent = "Trascina l'icona e regola la grandezza:";
+    overlayHintText.textContent = "🖐️ Sposta con un dito • Pizzica con 2 dita per ingrandire il testo";
   }
 
-  overlaySizeSlider.value = initialSize;
-  overlaySizeLabel.textContent = `${initialSize}px`;
-  floatingContent.style.fontSize = `${initialSize}px`;
-
   updateFloatingElementPosition();
+  updateFloatingElementDisplay();
 
   elementOverlay.classList.remove('hidden');
   overlayToolbar.classList.remove('hidden');
@@ -631,117 +677,249 @@ function updateFloatingElementPosition() {
   floatingElement.style.top = `${percentY}%`;
 }
 
+function updateFloatingElementDisplay() {
+  const rect = elementOverlay.getBoundingClientRect();
+  if (!rect.width) return;
+  const scale = rect.width / 240;
+  const { type, size, aspectRatio } = state.interactiveElement;
+
+  if (type === 'image') {
+    const dispW = Math.round(size * scale);
+    const dispH = Math.round((size / aspectRatio) * scale);
+    floatingImage.style.width = `${dispW}px`;
+    floatingImage.style.height = `${dispH}px`;
+  } else {
+    const dispFont = Math.round(size * scale);
+    floatingContent.style.fontSize = `${dispFont}px`;
+  }
+}
+
 function closeInteractiveOverlay() {
   state.interactiveElement.active = false;
   elementOverlay.classList.add('hidden');
   overlayToolbar.classList.add('hidden');
+  floatingElement.classList.remove('active-drag');
 }
 
 function confirmInteractiveOverlay() {
   if (!state.interactiveElement.active) return;
-  const { type, content, x, y, size, color } = state.interactiveElement;
+  const { type, content, imageObj, x, y, size, aspectRatio, color } = state.interactiveElement;
 
-  if (type === 'sticker') {
+  if (type === 'image' && imageObj) {
+    const w = size;
+    const h = Math.round(w / aspectRatio);
+    const drawX = Math.round(x - w / 2);
+    const drawY = Math.round(y - h / 2);
+    ctx.drawImage(imageObj, drawX, drawY, w, h);
+    showToast("Foto posizionata sul disegno!", "success");
+  } else if (type === 'sticker') {
     ctx.font = `${size}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(content, x, y);
+    showToast("Icona inserita sul disegno!", "success");
   } else if (type === 'text') {
     ctx.font = `bold ${size}px -apple-system, sans-serif`;
     ctx.fillStyle = color;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-
     const lines = wrapText(ctx, content, 220);
     const lineHeight = Math.round(size * 1.25);
     const totalH = lines.length * lineHeight;
     let startY = y - (totalH / 2) + (lineHeight / 2);
-
     lines.forEach((l) => {
       ctx.fillText(l, x, startY);
       startY += lineHeight;
     });
+    showToast("Testo inserito sul disegno!", "success");
   }
 
   saveState();
   updatePayloadPreview();
   closeInteractiveOverlay();
-  showToast(type === 'sticker' ? "Icona inserita sul disegno!" : "Testo inserito sul disegno!", "success");
 }
 
 function setupOverlayInteraction() {
-  let isDragging = false;
+  let mode = null; // 'drag', 'pinch', 'handle'
+  let activeHandle = null;
 
-  function getOverlayCoords(e) {
+  let startTouch1 = { x: 0, y: 0 };
+  let startDistance = 0;
+  let startSize = 0;
+  let startElemPos = { x: 120, y: 120 };
+  let handleStartDist = 0;
+
+  function getScale() {
     const rect = elementOverlay.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const scaleX = 240 / rect.width;
-    const scaleY = 240 / rect.height;
     return {
-      x: Math.round(Math.max(10, Math.min(230, (clientX - rect.left) * scaleX))),
-      y: Math.round(Math.max(10, Math.min(230, (clientY - rect.top) * scaleY)))
+      scaleX: 240 / (rect.width || 240),
+      scaleY: 240 / (rect.height || 240),
+      rect: rect
     };
   }
 
-  function startDrag(e) {
+  function clampSize(size, type) {
+    if (type === 'image') return Math.max(30, Math.min(360, size));
+    if (type === 'sticker') return Math.max(16, Math.min(180, size));
+    return Math.max(12, Math.min(120, size)); // text
+  }
+
+  // GESTIONE EVENTI TOUCH (Smartphone / Tablet)
+  elementOverlay.addEventListener('touchstart', (e) => {
     if (!state.interactiveElement.active) return;
-    isDragging = true;
-    const coords = getOverlayCoords(e);
-    state.interactiveElement.x = coords.x;
-    state.interactiveElement.y = coords.y;
-    updateFloatingElementPosition();
-    if (e.cancelable && e.type.startsWith('touch')) {
-      e.preventDefault();
+    const { rect } = getScale();
+
+    if (e.touches.length === 2) {
+      mode = 'pinch';
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      startDistance = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      startSize = state.interactiveElement.size;
+      startTouch1 = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+      startElemPos = { x: state.interactiveElement.x, y: state.interactiveElement.y };
+      floatingElement.classList.add('active-drag');
+      if (e.cancelable) e.preventDefault();
+      return;
     }
-  }
 
-  function moveDrag(e) {
-    if (!isDragging || !state.interactiveElement.active) return;
-    const coords = getOverlayCoords(e);
-    state.interactiveElement.x = coords.x;
-    state.interactiveElement.y = coords.y;
-    updateFloatingElementPosition();
-    if (e.cancelable) {
-      e.preventDefault();
+    if (e.touches.length === 1) {
+      const t = e.touches[0];
+      const target = document.elementFromPoint(t.clientX, t.clientY);
+
+      if (target && target.classList.contains('resize-handle')) {
+        mode = 'handle';
+        activeHandle = target.dataset.handle;
+        startSize = state.interactiveElement.size;
+        const centerScreenX = rect.left + (state.interactiveElement.x / 240) * rect.width;
+        const centerScreenY = rect.top + (state.interactiveElement.y / 240) * rect.height;
+        handleStartDist = Math.max(10, Math.hypot(t.clientX - centerScreenX, t.clientY - centerScreenY));
+      } else {
+        mode = 'drag';
+        startTouch1 = { x: t.clientX, y: t.clientY };
+        startElemPos = { x: state.interactiveElement.x, y: state.interactiveElement.y };
+      }
+      floatingElement.classList.add('active-drag');
+      if (e.cancelable) e.preventDefault();
     }
-  }
+  }, { passive: false });
 
-  function endDrag() {
-    isDragging = false;
-  }
+  elementOverlay.addEventListener('touchmove', (e) => {
+    if (!state.interactiveElement.active || !mode) return;
+    const { scaleX, scaleY, rect } = getScale();
 
-  elementOverlay.addEventListener('mousedown', startDrag);
-  window.addEventListener('mousemove', moveDrag);
-  window.addEventListener('mouseup', endDrag);
+    if (mode === 'pinch' && e.touches.length === 2) {
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const curDist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+      const scale = curDist / Math.max(10, startDistance);
+      state.interactiveElement.size = clampSize(Math.round(startSize * scale), state.interactiveElement.type);
 
-  elementOverlay.addEventListener('touchstart', startDrag, { passive: false });
-  window.addEventListener('touchmove', moveDrag, { passive: false });
-  window.addEventListener('touchend', endDrag);
+      const curMid = { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 };
+      const dx = (curMid.x - startTouch1.x) * scaleX;
+      const dy = (curMid.y - startTouch1.y) * scaleY;
+      state.interactiveElement.x = Math.round(Math.max(-40, Math.min(280, startElemPos.x + dx)));
+      state.interactiveElement.y = Math.round(Math.max(-40, Math.min(280, startElemPos.y + dy)));
 
-  // Resize tramite Slider
-  overlaySizeSlider.addEventListener('input', (e) => {
-    const size = parseInt(e.target.value, 10);
-    state.interactiveElement.size = size;
-    overlaySizeLabel.textContent = `${size}px`;
-    floatingContent.style.fontSize = `${size}px`;
+      updateFloatingElementPosition();
+      updateFloatingElementDisplay();
+      if (e.cancelable) e.preventDefault();
+    } else if (mode === 'drag' && e.touches.length === 1) {
+      const t = e.touches[0];
+      const dx = (t.clientX - startTouch1.x) * scaleX;
+      const dy = (t.clientY - startTouch1.y) * scaleY;
+      state.interactiveElement.x = Math.round(Math.max(-40, Math.min(280, startElemPos.x + dx)));
+      state.interactiveElement.y = Math.round(Math.max(-40, Math.min(280, startElemPos.y + dy)));
+
+      updateFloatingElementPosition();
+      if (e.cancelable) e.preventDefault();
+    } else if (mode === 'handle' && e.touches.length === 1) {
+      const t = e.touches[0];
+      const centerScreenX = rect.left + (state.interactiveElement.x / 240) * rect.width;
+      const centerScreenY = rect.top + (state.interactiveElement.y / 240) * rect.height;
+      const curDist = Math.hypot(t.clientX - centerScreenX, t.clientY - centerScreenY);
+      const scale = curDist / handleStartDist;
+      state.interactiveElement.size = clampSize(Math.round(startSize * scale), state.interactiveElement.type);
+
+      updateFloatingElementDisplay();
+      if (e.cancelable) e.preventDefault();
+    }
+  }, { passive: false });
+
+  const endTouch = () => {
+    mode = null;
+    activeHandle = null;
+    floatingElement.classList.remove('active-drag');
+  };
+  elementOverlay.addEventListener('touchend', endTouch);
+  elementOverlay.addEventListener('touchcancel', endTouch);
+
+  // GESTIONE EVENTI MOUSE (Desktop / PC)
+  let isMouseDown = false;
+  elementOverlay.addEventListener('mousedown', (e) => {
+    if (!state.interactiveElement.active) return;
+    const { rect } = getScale();
+    isMouseDown = true;
+
+    if (e.target && e.target.classList.contains('resize-handle')) {
+      mode = 'handle';
+      activeHandle = e.target.dataset.handle;
+      startSize = state.interactiveElement.size;
+      const centerScreenX = rect.left + (state.interactiveElement.x / 240) * rect.width;
+      const centerScreenY = rect.top + (state.interactiveElement.y / 240) * rect.height;
+      handleStartDist = Math.max(10, Math.hypot(e.clientX - centerScreenX, e.clientY - centerScreenY));
+    } else {
+      mode = 'drag';
+      startTouch1 = { x: e.clientX, y: e.clientY };
+      startElemPos = { x: state.interactiveElement.x, y: state.interactiveElement.y };
+    }
+    floatingElement.classList.add('active-drag');
+    e.preventDefault();
   });
 
-  // Pulsanti Zoom
-  overlayZoomInBtn.addEventListener('click', () => {
-    let size = Math.min(110, state.interactiveElement.size + 4);
-    state.interactiveElement.size = size;
-    overlaySizeSlider.value = size;
-    overlaySizeLabel.textContent = `${size}px`;
-    floatingContent.style.fontSize = `${size}px`;
+  window.addEventListener('mousemove', (e) => {
+    if (!state.interactiveElement.active || !isMouseDown || !mode) return;
+    const { scaleX, scaleY, rect } = getScale();
+
+    if (mode === 'drag') {
+      const dx = (e.clientX - startTouch1.x) * scaleX;
+      const dy = (e.clientY - startTouch1.y) * scaleY;
+      state.interactiveElement.x = Math.round(Math.max(-40, Math.min(280, startElemPos.x + dx)));
+      state.interactiveElement.y = Math.round(Math.max(-40, Math.min(280, startElemPos.y + dy)));
+      updateFloatingElementPosition();
+    } else if (mode === 'handle') {
+      const centerScreenX = rect.left + (state.interactiveElement.x / 240) * rect.width;
+      const centerScreenY = rect.top + (state.interactiveElement.y / 240) * rect.height;
+      const curDist = Math.hypot(e.clientX - centerScreenX, e.clientY - centerScreenY);
+      const scale = curDist / handleStartDist;
+      state.interactiveElement.size = clampSize(Math.round(startSize * scale), state.interactiveElement.type);
+      updateFloatingElementDisplay();
+    }
   });
 
-  overlayZoomOutBtn.addEventListener('click', () => {
-    let size = Math.max(16, state.interactiveElement.size - 4);
-    state.interactiveElement.size = size;
-    overlaySizeSlider.value = size;
-    overlaySizeLabel.textContent = `${size}px`;
-    floatingContent.style.fontSize = `${size}px`;
+  window.addEventListener('mouseup', () => {
+    if (isMouseDown) {
+      isMouseDown = false;
+      mode = null;
+      activeHandle = null;
+      floatingElement.classList.remove('active-drag');
+    }
+  });
+
+  // Zoom tramite rotellina del mouse
+  elementOverlay.addEventListener('wheel', (e) => {
+    if (!state.interactiveElement.active) return;
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 4 : -4;
+    state.interactiveElement.size = clampSize(state.interactiveElement.size + delta, state.interactiveElement.type);
+    updateFloatingElementDisplay();
+  }, { passive: false });
+
+  // Ridimensionamento viewport / rotazione schermo
+  window.addEventListener('resize', () => {
+    if (state.interactiveElement.active) {
+      updateFloatingElementPosition();
+      updateFloatingElementDisplay();
+    }
   });
 
   // Conferma & Annulla
@@ -1247,7 +1425,7 @@ function sendGuestAccessConfig(enabled) {
 }
 
 function revokeAndRegenerateGuestKey() {
-  const newKey = "pixo_" + Math.random().toString(36).substring(2, 8);
+  const newKey = generateRandomGuestKey();
   state.guestKey = newKey;
   localStorage.setItem('pixo_guest_key', newKey);
   updateGuestLink();
@@ -1336,6 +1514,12 @@ function connectMQTT() {
             const ledCmd = state.ledEnabled ? "NOTIF:ON" : "NOTIF:OFF";
             const ledTopic = `pixo/device/${state.deviceId}/led`;
             state.mqttClient.publish(ledTopic, ledCmd, { qos: 0, retain: false });
+          }
+
+          // Sincronizza la chiave ospiti dal proprietario al dispositivo
+          if (state.deviceId && !state.isGuestMode && state.guestKey) {
+            const accTopic = `pixo/device/${state.deviceId}/access`;
+            state.mqttClient.publish(accTopic, `GUEST:KEY:${state.guestKey}`, { qos: 0, retain: false });
           }
           resolve(true);
         });
@@ -1584,7 +1768,7 @@ function setupEventListeners() {
   // Stop Feed Button
   stopFeedBtn.addEventListener('click', stopAutomaticFeed);
 
-  // Foto
+  // Foto con Manipolazione Touch (Ingrandimento & Spostamento con dita)
   photoBtn.addEventListener('click', () => photoInput.click());
   photoInput.addEventListener('change', (e) => {
     stopAutomaticFeed();
@@ -1595,31 +1779,7 @@ function setupEventListeners() {
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
-        const bg = getCanvasBgColor();
-        ctx.fillStyle = bg;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        const canvasRatio = canvas.width / canvas.height;
-        const imgRatio = img.width / img.height;
-        let drawW, drawH, offsetX, offsetY;
-
-        if (imgRatio > canvasRatio) {
-          drawW = canvas.width;
-          drawH = canvas.width / imgRatio;
-          offsetX = 0;
-          offsetY = (canvas.height - drawH) / 2;
-        } else {
-          drawH = canvas.height;
-          drawW = canvas.height * imgRatio;
-          offsetX = (canvas.width - drawW) / 2;
-          offsetY = 0;
-        }
-
-        ctx.drawImage(img, offsetX, offsetY, drawW, drawH);
-        saveState();
-        updatePayloadPreview();
-        sendCanvasMqtt(false); // Invia subito la foto a Pixò!
-        showToast(t("toastPhotoApplied"), "success");
+        startInteractiveOverlay('image', img);
       };
       img.src = event.target.result;
     };
@@ -1670,10 +1830,15 @@ function setupEventListeners() {
     sendBrightness(val);
   });
 
-  // Modal Impostazioni
-  const openSettings = () => settingsModal.classList.remove('hidden');
+  // Modal Impostazioni (Accessibile SOLO al Proprietario)
+  const openSettings = () => {
+    if (state.isGuestMode) return;
+    settingsModal.classList.remove('hidden');
+  };
   openSettingsBtn.addEventListener('click', openSettings);
-  devicePill.addEventListener('click', openSettings);
+  devicePill.addEventListener('click', () => {
+    if (!state.isGuestMode) openSettings();
+  });
   closeSettingsModal.addEventListener('click', () => settingsModal.classList.add('hidden'));
 
   // Cambio Lingua

@@ -67,16 +67,10 @@
 
     <!-- Area Canvas (Risoluzione logica nativa 240x240, scalata ergonomicamente) -->
     <main class="canvas-wrapper">
-      <!-- Barra di Controllo Ingrandimento & Posizionamento a Schermo (Visibile quando si posiziona testo/sticker) -->
+      <!-- Barra Azioni Posizionamento Touch (Senza selettore a slider) -->
       <div class="overlay-toolbar hidden" id="overlayToolbar">
-        <div class="overlay-ctrl-group">
-          <span class="overlay-hint" id="overlayHintText">Trascina per posizionare:</span>
-          <div class="overlay-size-control">
-            <button id="overlayZoomOutBtn" class="btn mini-btn" title="Rimpicciolisci">➖</button>
-            <input type="range" id="overlaySizeSlider" min="16" max="110" value="40" step="2">
-            <button id="overlayZoomInBtn" class="btn mini-btn" title="Ingrandisci">➕</button>
-            <strong id="overlaySizeLabel">40px</strong>
-          </div>
+        <div class="overlay-info">
+          <span class="overlay-hint" id="overlayHintText">🖐️ Trascina per spostare • Pizzica con 2 dita per ingrandire</span>
         </div>
         <div class="overlay-actions">
           <button id="confirmOverlayBtn" class="btn mini-btn primary-btn">✅ Inserisci</button>
@@ -87,10 +81,16 @@
       <div class="canvas-container" id="canvasContainer">
         <canvas id="paintCanvas" width="240" height="240"></canvas>
         
-        <!-- Livello Interattivo di Anteprima & Ridimensionamento a Schermo -->
+        <!-- Livello Interattivo di Anteprima & Manipolazione a Schermo -->
         <div class="element-overlay hidden" id="elementOverlay">
           <div class="floating-element" id="floatingElement">
             <span id="floatingContent"></span>
+            <img id="floatingImage" class="hidden" alt="Anteprima">
+            <!-- Maniglie angolari per ridimensionamento con 1 dito o mouse -->
+            <div class="resize-handle top-left" data-handle="tl"></div>
+            <div class="resize-handle top-right" data-handle="tr"></div>
+            <div class="resize-handle bottom-left" data-handle="bl"></div>
+            <div class="resize-handle bottom-right" data-handle="br"></div>
           </div>
         </div>
       </div>
@@ -230,7 +230,7 @@
             <span>🔒 PIN Sicurezza Pixò:</span>
             <small style="display:block; color:var(--text-muted); font-size:0.75rem;">Protegge il display da messaggi anonimi o non autorizzati</small>
           </label>
-          <input type="text" id="devicePinInput" maxlength="8" placeholder="es. 1234" value="1234" style="letter-spacing: 2px; font-weight: bold; font-family: monospace;">
+          <input type="password" id="devicePinInput" maxlength="8" placeholder="••••" value="" autocomplete="off" style="letter-spacing: 4px; font-weight: bold; font-family: monospace;">
         </div>
 
         <!-- ID Hardware (Informativo) -->

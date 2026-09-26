@@ -260,36 +260,20 @@ body {
   display: none;
 }
 
-.overlay-ctrl-group {
+.overlay-info {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .overlay-hint {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  font-weight: 500;
-}
-
-.overlay-size-control {
+  font-size: 0.74rem;
+  color: #ffd166;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.overlay-size-control input[type=range] {
-  flex: 1;
-  accent-color: var(--primary);
-  cursor: pointer;
-}
-
-.overlay-size-control strong {
-  font-size: 0.8rem;
-  font-family: monospace;
-  color: var(--warning);
-  min-width: 36px;
-  text-align: right;
+  gap: 6px;
 }
 
 .overlay-actions {
@@ -299,7 +283,7 @@ body {
 
 .overlay-actions .btn {
   flex: 1;
-  padding: 6px 10px;
+  padding: 7px 10px;
   font-size: 0.82rem;
   justify-content: center;
   font-weight: 600;
@@ -318,6 +302,7 @@ body {
   pointer-events: auto;
   z-index: 10;
   overflow: hidden;
+  touch-action: none;
 }
 
 .element-overlay.hidden {
@@ -329,22 +314,25 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  cursor: move;
+  cursor: grab;
   user-select: none;
   touch-action: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed rgba(67, 97, 238, 0.85);
-  border-radius: 8px;
-  padding: 4px 8px;
+  border: 2px dashed rgba(67, 97, 238, 0.9);
+  border-radius: 6px;
+  padding: 3px;
   background: rgba(67, 97, 238, 0.15);
-  box-shadow: 0 0 12px rgba(67, 97, 238, 0.3);
+  box-shadow: 0 0 14px rgba(67, 97, 238, 0.35);
+  box-sizing: border-box;
 }
 
-.floating-element:active {
-  border-color: #fcbf49;
-  background: rgba(252, 191, 73, 0.2);
+.floating-element.active-drag {
+  cursor: grabbing;
+  border-color: #ffd166;
+  background: rgba(255, 209, 102, 0.25);
+  box-shadow: 0 0 18px rgba(255, 209, 102, 0.5);
 }
 
 #floatingContent {
@@ -352,6 +340,55 @@ body {
   pointer-events: none;
   line-height: 1.1;
   text-align: center;
+}
+
+#floatingImage {
+  display: block;
+  max-width: none;
+  pointer-events: none;
+  user-select: none;
+  border-radius: 4px;
+}
+
+#floatingImage.hidden {
+  display: none;
+}
+
+/* Maniglie angolari di ridimensionamento */
+.resize-handle {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  background: #ffffff;
+  border: 2px solid var(--primary);
+  border-radius: 50%;
+  box-shadow: 0 1px 5px rgba(0,0,0,0.5);
+  touch-action: none;
+  z-index: 15;
+}
+
+.resize-handle.top-left {
+  top: -9px;
+  left: -9px;
+  cursor: nwse-resize;
+}
+
+.resize-handle.top-right {
+  top: -9px;
+  right: -9px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.bottom-left {
+  bottom: -9px;
+  left: -9px;
+  cursor: nesw-resize;
+}
+
+.resize-handle.bottom-right {
+  bottom: -9px;
+  right: -9px;
+  cursor: nwse-resize;
 }
 
 .canvas-meta {
