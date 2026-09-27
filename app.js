@@ -218,7 +218,9 @@ const state = {
   mqttConnected: false,
   mqttConnecting: false,
   devicePin: DEFAULT_CONFIG.defaultPin,
-  textSize: 24
+  textSize: 24,
+  userHasDrawnLocally: false,
+  lastDisplayPayload: null
 };
 
 // --- RIFERIMENTI DOM ---
@@ -533,6 +535,7 @@ function startDrawing(e) {
   const coords = getCanvasCoordinates(e);
 
   state.isDrawing = true;
+  state.userHasDrawnLocally = true;
   state.lastX = coords.x;
   state.lastY = coords.y;
 
@@ -1216,6 +1219,9 @@ async function sendClockCommand() {
         console.log("[MQTT] Comando CLOCK inviato con successo a Pixò!");
       }
     });
+
+    const currentTopic = `pixo/device/${state.deviceId}/current`;
+    state.mqttClient.publish(currentTopic, cmd, { qos: 0, retain: true });
   }
 }
 
@@ -1524,7 +1530,22 @@ function connectMQTT() {
             const accTopic = `pixo/device/${state.deviceId}/access`;
             state.mqttClient.publish(accTopic, `GUEST:KEY:${state.guestKey}`, { qos: 0, retain: false });
           }
+
+          // Iscrizione al topic di sincronizzazione disegno attuale (Retained dal Cloud)
+          if (state.deviceId) {
+            const currentTopic = `pixo/device/${state.deviceId}/current`;
+            state.mqttClient.subscribe(currentTopic, { qos: 0 });
+          }
           resolve(true);
+        });
+
+        // Ricezione messaggi Cloud (es. disegno attualmente a schermo)
+        state.mqttClient.on('message', (topic, payload) => {
+          if (!state.deviceId) return;
+          const currentTopic = `pixo/device/${state.deviceId}/current`;
+          if (topic === currentTopic) {
+            handleCurrentDisplaySync(payload);
+          }
         });
 
         state.mqttClient.on('error', (err) => {
@@ -1587,6 +1608,68 @@ function connectMQTT() {
   return mqttConnectPromise;
 }
 
+// ==========================================================================
+//  SINCRONIZZAZIONE STATO ATTUALE DISPLAY (MQTT Retained)
+// ==========================================================================
+function handleCurrentDisplaySync(payload) {
+  if (!payload || payload.length === 0) return;
+
+  state.lastDisplayPayload = payload;
+
+  // Se l'utente ha già iniziato a disegnare o modificare il canvas in questa sessione, non sovrascrivere
+  if (state.userHasDrawnLocally) {
+    console.log("[SYNC] Ricevuto stato display dal Cloud, ma l'utente sta già disegnando.");
+    return;
+  }
+
+  // Verifica se è un'immagine JPEG valida (Magic Bytes 0xFF 0xD8)
+  if (payload[0] === 0xFF && payload[1] === 0xD8) {
+    const blob = new Blob([payload], { type: 'image/jpeg' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      saveState();
+      updatePayloadPreview();
+      URL.revokeObjectURL(url);
+      showToast("🎨 Disegno attuale sincronizzato dal display!", "info");
+    };
+    img.src = url;
+  } else {
+    // Messaggio testuale ("CLEAR", "STANDBY", "CLOCK")
+    try {
+      const text = new TextDecoder().decode(payload).trim();
+      if (text === "CLEAR" || text === "STANDBY") {
+        console.log("[SYNC] Il display è attualmente in standby.");
+      } else if (text === "CLOCK") {
+        console.log("[SYNC] Il display è attualmente in modalità Orologio.");
+      }
+    } catch(e) {}
+  }
+}
+
+function loadCurrentDrawingFromDisplay() {
+  if (state.lastDisplayPayload && state.lastDisplayPayload[0] === 0xFF && state.lastDisplayPayload[1] === 0xD8) {
+    const blob = new Blob([state.lastDisplayPayload], { type: 'image/jpeg' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      state.userHasDrawnLocally = true;
+      saveState();
+      updatePayloadPreview();
+      URL.revokeObjectURL(url);
+      galleryModal.classList.add('hidden');
+      showToast("Disegno del display caricato sulla lavagna!", "success");
+    };
+    img.src = url;
+  } else {
+    showToast("Nessun disegno presente sul display o display in standby", "info");
+  }
+}
+
 async function sendCanvasMqtt() {
   if (!state.deviceId) return;
 
@@ -1622,6 +1705,11 @@ async function sendCanvasMqtt() {
           showToast(t("toastSentSuccess", { name: state.deviceName || state.deviceId, kb: kb, ms: elapsed }), "success");
         }
       });
+
+      // Mantiene aggiornato il Cloud (Retained) per sincronizzare istantaneamente l'app quando viene aperta
+      const currentTopic = `pixo/device/${state.deviceId}/current`;
+      state.mqttClient.publish(currentTopic, uint8Array, { qos: 0, retain: true });
+      state.lastDisplayPayload = uint8Array;
     } else {
       state.isSending = false;
       sendBtn.disabled = false;
@@ -1682,6 +1770,10 @@ async function sendStandbyCommand() {
         showToast(t("toastStandby"), "success");
       }
     });
+
+    const currentTopic = `pixo/device/${state.deviceId}/current`;
+    state.mqttClient.publish(currentTopic, clearCmd, { qos: 0, retain: true });
+    state.lastDisplayPayload = null;
   }
 }
 
@@ -1762,6 +1854,10 @@ function setupEventListeners() {
   });
   closeGalleryModal.addEventListener('click', () => galleryModal.classList.add('hidden'));
   saveCurrentFromGalleryBtn.addEventListener('click', saveCurrentCanvas);
+  const loadFromDisplayBtn = document.getElementById('loadFromDisplayBtn');
+  if (loadFromDisplayBtn) {
+    loadFromDisplayBtn.addEventListener('click', loadCurrentDrawingFromDisplay);
+  }
 
   // CONDIVISIONE & GESTIONE OSPITI
   shareBtn.addEventListener('click', () => {
