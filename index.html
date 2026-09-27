@@ -67,14 +67,14 @@
 
     <!-- Area Canvas (Risoluzione logica nativa 240x240, scalata ergonomicamente) -->
     <main class="canvas-wrapper">
-      <!-- Barra Azioni Posizionamento Touch (Senza selettore a slider) -->
+      <!-- Barra Azioni Posizionamento Touch (Spostamento e Pinch con dita) -->
       <div class="overlay-toolbar hidden" id="overlayToolbar">
         <div class="overlay-info">
-          <span class="overlay-hint" id="overlayHintText">🖐️ Trascina per spostare • Pizzica con 2 dita per ingrandire</span>
+          <span class="overlay-hint" id="overlayHintText">🖐️ Trascina e pizzica • Premi "Invia a Display" quando pronto</span>
         </div>
         <div class="overlay-actions">
-          <button id="confirmOverlayBtn" class="btn mini-btn primary-btn">✅ Inserisci</button>
-          <button id="cancelOverlayBtn" class="btn mini-btn danger">❌ Annulla</button>
+          <button id="confirmOverlayBtn" class="btn mini-btn primary-btn" title="Fissa sul disegno">✅ Applica</button>
+          <button id="cancelOverlayBtn" class="btn mini-btn danger" title="Elimina elemento">❌ Annulla</button>
         </div>
       </div>
 
@@ -100,15 +100,11 @@
       </div>
     </main>
 
-    <!-- Pannello Sticker & Emoji con Slider di Ridimensionamento -->
+    <!-- Pannello Sticker & Emoji -->
     <section class="sticker-drawer hidden" id="stickerDrawer">
       <div class="drawer-header">
         <span data-i18n="chooseSticker">Scegli uno Sticker (28 disponibili)</span>
         <button id="closeStickerBtn" class="close-btn">&times;</button>
-      </div>
-      <div class="slider-control">
-        <label><span data-i18n="stickerSize">Dimensione Sticker:</span> <strong id="stickerSizeVal">38px</strong></label>
-        <input type="range" id="stickerSizeSlider" min="20" max="72" value="38" step="2">
       </div>
       <div class="sticker-grid" id="stickerGrid">
         <!-- Generati dinamicamente -->
@@ -248,7 +244,7 @@
     </div>
   </div>
 
-  <!-- Modal Inserimento Testo con Auto-Wrap e Slider Dimensione -->
+  <!-- Modal Inserimento Testo con Auto-Wrap -->
   <div class="modal-overlay hidden" id="textModal">
     <div class="modal-card">
       <div class="modal-header">
@@ -257,19 +253,6 @@
       </div>
       <div class="modal-body">
         <textarea id="customTextInput" rows="3" placeholder="Scrivi qui il messaggio... (va a capo automaticamente)" maxlength="120"></textarea>
-        
-        <div class="slider-control">
-          <label><span data-i18n="textSize">Dimensione Testo:</span> <strong id="textSizeVal">22px</strong></label>
-          <input type="range" id="textSizeSlider" min="14" max="44" value="22" step="2">
-        </div>
-
-        <div class="font-size-picker">
-          <label data-i18n="quickPresets">Preset:</label>
-          <button class="size-pill" data-size="16">16px</button>
-          <button class="size-pill active" data-size="22">22px</button>
-          <button class="size-pill" data-size="30">30px</button>
-          <button class="size-pill" data-size="40">40px</button>
-        </div>
       </div>
       <div class="modal-footer">
         <button id="applyTextBtn" class="btn primary-btn" data-i18n="insertOnCanvas">Inserisci sul Canvas</button>

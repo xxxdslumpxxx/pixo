@@ -635,7 +635,7 @@ function startInteractiveOverlay(type, content, initialSize = null) {
     floatingContent.style.display = 'none';
     floatingImage.src = content.src;
     floatingImage.classList.remove('hidden');
-    overlayHintText.textContent = "🖐️ Sposta con un dito • Pizzica con 2 dita per ingrandire la foto";
+    overlayHintText.textContent = "🖐️ Sposta e pizzica con 2 dita • Premi 'Invia a Display' quando pronto";
   } else if (type === 'sticker') {
     state.interactiveElement.imageObj = null;
     state.interactiveElement.content = content;
@@ -649,12 +649,12 @@ function startInteractiveOverlay(type, content, initialSize = null) {
     floatingContent.style.fontWeight = 'normal';
     floatingContent.style.fontFamily = 'sans-serif';
     floatingContent.style.whiteSpace = 'nowrap';
-    overlayHintText.textContent = "🖐️ Sposta con un dito • Pizzica con 2 dita per ingrandire l'icona";
+    overlayHintText.textContent = "🖐️ Sposta e pizzica con 2 dita • Premi 'Invia a Display' quando pronto";
   } else if (type === 'text') {
     state.interactiveElement.imageObj = null;
     state.interactiveElement.content = content;
     state.interactiveElement.aspectRatio = 1;
-    state.interactiveElement.size = initialSize || 28;
+    state.interactiveElement.size = initialSize || 26;
 
     floatingImage.classList.add('hidden');
     floatingContent.style.display = 'inline-block';
@@ -667,7 +667,7 @@ function startInteractiveOverlay(type, content, initialSize = null) {
     floatingContent.style.fontWeight = 'bold';
     floatingContent.style.fontFamily = '-apple-system, sans-serif';
     floatingContent.style.whiteSpace = 'pre-wrap';
-    overlayHintText.textContent = "🖐️ Sposta con un dito • Pizzica con 2 dita per ingrandire il testo";
+    overlayHintText.textContent = "🖐️ Sposta e pizzica con 2 dita • Premi 'Invia a Display' quando pronto";
   }
 
   updateFloatingElementPosition();
@@ -708,7 +708,7 @@ function closeInteractiveOverlay() {
   floatingElement.classList.remove('active-drag');
 }
 
-function confirmInteractiveOverlay() {
+function confirmInteractiveOverlay(silent = false) {
   if (!state.interactiveElement.active) return;
   const { type, content, imageObj, x, y, size, aspectRatio, color } = state.interactiveElement;
 
@@ -718,13 +718,13 @@ function confirmInteractiveOverlay() {
     const drawX = Math.round(x - w / 2);
     const drawY = Math.round(y - h / 2);
     ctx.drawImage(imageObj, drawX, drawY, w, h);
-    showToast("Foto posizionata sul disegno!", "success");
+    if (!silent) showToast("Foto posizionata sul disegno!", "success");
   } else if (type === 'sticker') {
     ctx.font = `${size}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(content, x, y);
-    showToast("Icona inserita sul disegno!", "success");
+    if (!silent) showToast("Icona inserita sul disegno!", "success");
   } else if (type === 'text') {
     ctx.font = `bold ${size}px -apple-system, sans-serif`;
     ctx.fillStyle = color;
@@ -738,7 +738,7 @@ function confirmInteractiveOverlay() {
       ctx.fillText(l, x, startY);
       startY += lineHeight;
     });
-    showToast("Testo inserito sul disegno!", "success");
+    if (!silent) showToast("Testo inserito sul disegno!", "success");
   }
 
   saveState();
@@ -1237,6 +1237,9 @@ function getSavedDrawings() {
 }
 
 function saveCurrentCanvas() {
+  if (state.interactiveElement && state.interactiveElement.active) {
+    confirmInteractiveOverlay(true);
+  }
   const drawings = getSavedDrawings();
   const now = new Date();
   const defaultName = `Pixò ${now.toLocaleDateString([], {day:'2-digit', month:'2-digit'})} ${now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}`;
@@ -1673,6 +1676,11 @@ function loadCurrentDrawingFromDisplay() {
 async function sendCanvasMqtt() {
   if (!state.deviceId) return;
 
+  // Se c'è un elemento interattivo (testo, icona o foto) attivo, fondilo automaticamente sul canvas!
+  if (state.interactiveElement && state.interactiveElement.active) {
+    confirmInteractiveOverlay(true);
+  }
+
   // Se non siamo ancora connessi al broker (es. appena aperta l'app o risvegliata dal background), attendi la connessione!
   if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
     await connectMQTT();
@@ -1727,6 +1735,12 @@ async function sendCanvasMqtt() {
 
 async function sendToDisplay() {
   stopAutomaticFeed();
+
+  // Se c'è un elemento interattivo attivo, fondilo automaticamente prima di inviare!
+  if (state.interactiveElement && state.interactiveElement.active) {
+    confirmInteractiveOverlay(true);
+  }
+
   if (!state.deviceId) {
     settingsModal.classList.remove('hidden');
     return;
@@ -1910,10 +1924,12 @@ function setupEventListeners() {
   });
   closeStickerBtn.addEventListener('click', () => stickerDrawer.classList.add('hidden'));
 
-  stickerSizeSlider.addEventListener('input', (e) => {
-    state.stickerSize = parseInt(e.target.value, 10);
-    stickerSizeVal.textContent = `${state.stickerSize}px`;
-  });
+  if (stickerSizeSlider) {
+    stickerSizeSlider.addEventListener('input', (e) => {
+      state.stickerSize = parseInt(e.target.value, 10);
+      if (stickerSizeVal) stickerSizeVal.textContent = `${state.stickerSize}px`;
+    });
+  }
 
   // Modal Testo
   textToolBtn.addEventListener('click', () => {
@@ -1923,21 +1939,31 @@ function setupEventListeners() {
   closeTextModal.addEventListener('click', () => textModal.classList.add('hidden'));
   applyTextBtn.addEventListener('click', applyCustomText);
 
-  textSizeSlider.addEventListener('input', (e) => {
-    state.textSize = parseInt(e.target.value, 10);
-    textSizeVal.textContent = `${state.textSize}px`;
-    document.querySelectorAll('.font-size-picker .size-pill').forEach(b => {
-      b.classList.toggle('active', parseInt(b.dataset.size, 10) === state.textSize);
-    });
+  // Inserimento testo rapido con tasto Invio
+  customTextInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      applyCustomText();
+    }
   });
+
+  if (textSizeSlider) {
+    textSizeSlider.addEventListener('input', (e) => {
+      state.textSize = parseInt(e.target.value, 10);
+      if (textSizeVal) textSizeVal.textContent = `${state.textSize}px`;
+      document.querySelectorAll('.font-size-picker .size-pill').forEach(b => {
+        b.classList.toggle('active', parseInt(b.dataset.size, 10) === state.textSize);
+      });
+    });
+  }
 
   document.querySelectorAll('.font-size-picker .size-pill').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.font-size-picker .size-pill').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.textSize = parseInt(btn.dataset.size, 10);
-      textSizeSlider.value = state.textSize;
-      textSizeVal.textContent = `${state.textSize}px`;
+      if (textSizeSlider) textSizeSlider.value = state.textSize;
+      if (textSizeVal) textSizeVal.textContent = `${state.textSize}px`;
     });
   });
 
