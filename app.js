@@ -670,11 +670,17 @@ function startInteractiveOverlay(type, content, initialSize = null) {
     overlayHintText.textContent = "🖐️ Sposta e pizzica con 2 dita • Premi 'Invia a Display' quando pronto";
   }
 
+  elementOverlay.classList.remove('hidden');
+  overlayToolbar.classList.remove('hidden');
+
   updateFloatingElementPosition();
   updateFloatingElementDisplay();
 
-  elementOverlay.classList.remove('hidden');
-  overlayToolbar.classList.remove('hidden');
+  // Secondo passaggio asincrono per garantire calcolo esatto del boundingClientRect
+  requestAnimationFrame(() => {
+    updateFloatingElementPosition();
+    updateFloatingElementDisplay();
+  });
 }
 
 function updateFloatingElementPosition() {
@@ -698,6 +704,10 @@ function updateFloatingElementDisplay() {
   } else {
     const dispFont = Math.round(size * scale);
     floatingContent.style.fontSize = `${dispFont}px`;
+    if (type === 'text') {
+      floatingContent.style.maxWidth = `${Math.round(220 * scale)}px`;
+      floatingContent.style.lineHeight = '1.25';
+    }
   }
 }
 
@@ -1435,9 +1445,9 @@ function sendGuestAccessConfig(enabled) {
   state.allowGuests = enabled;
   localStorage.setItem('pixo_allow_guests', enabled ? 'true' : 'false');
   if (!state.mqttConnected || !state.deviceId) return;
-  const topic = `pixo/device/${state.deviceId}/access`;
-  const cmd = enabled ? "GUEST:ENABLE" : "GUEST:DISABLE";
-  state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+  const status = enabled ? "ENABLE" : "DISABLE";
+  state.mqttClient.publish(`pixo/device/${state.deviceId}/access/status`, status, { qos: 0, retain: true });
+  state.mqttClient.publish(`pixo/device/${state.deviceId}/access`, `GUEST:${status}`, { qos: 0, retain: true });
   showToast(enabled ? t("toastGuestEnabled") : t("toastGuestDisabled"), enabled ? "success" : "error");
 }
 
@@ -1448,9 +1458,8 @@ function revokeAndRegenerateGuestKey() {
   updateGuestLink();
 
   if (state.mqttConnected && state.deviceId) {
-    const topic = `pixo/device/${state.deviceId}/access`;
-    const cmd = `GUEST:KEY:${newKey}`;
-    state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/access/key`, newKey, { qos: 0, retain: true });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/access`, `GUEST:KEY:${newKey}`, { qos: 0, retain: true });
   }
 
   showToast(t("toastKeyRevoked"), "success");
@@ -1528,10 +1537,10 @@ function connectMQTT() {
           // Invia la luminosità memorizzata all'avvio
           sendBrightness(state.brightness);
 
-          // Sincronizza la chiave ospiti dal proprietario al dispositivo
+          // Sincronizza la chiave ospiti dal proprietario al dispositivo (Retained)
           if (state.deviceId && !state.isGuestMode && state.guestKey) {
-            const accTopic = `pixo/device/${state.deviceId}/access`;
-            state.mqttClient.publish(accTopic, `GUEST:KEY:${state.guestKey}`, { qos: 0, retain: false });
+            state.mqttClient.publish(`pixo/device/${state.deviceId}/access/key`, state.guestKey, { qos: 0, retain: true });
+            state.mqttClient.publish(`pixo/device/${state.deviceId}/access`, `GUEST:KEY:${state.guestKey}`, { qos: 0, retain: true });
           }
 
           // Iscrizione al topic di sincronizzazione disegno attuale (Retained dal Cloud)
