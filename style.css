@@ -25,29 +25,42 @@
   user-select: none;
 }
 
+html, body {
+  height: 100%;
+  height: 100dvh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--bg-main);
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--bg-main);
   color: var(--text-main);
-  min-height: 100vh;
-  min-height: 100dvh;
   display: flex;
   justify-content: center;
   align-items: stretch;
-  overflow-x: hidden;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
 }
 
 .app-container {
   width: 100%;
   max-width: 440px;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 6px 12px;
-  gap: 5px;
+  padding: 4px 10px;
+  gap: 3px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 /* ==========================================================================
@@ -149,16 +162,17 @@ body {
 .top-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 3px;
   justify-content: space-between;
+  flex-shrink: 0;
 }
 
 .top-actions .btn {
-  flex: 1 1 calc(25% - 4px);
-  min-width: 50px;
-  padding: 5px 2px;
-  font-size: 0.72rem;
-  border-radius: 8px;
+  flex: 1 1 calc(25% - 3px);
+  min-width: 46px;
+  padding: 4px 2px;
+  font-size: 0.70rem;
+  border-radius: 6px;
 }
 
 .btn {
@@ -215,23 +229,26 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   margin: 0;
   flex: 1 1 auto;
+  min-height: 0;
 }
 
 .canvas-container {
-  width: min(76vw, 30vh, 235px);
-  height: min(76vw, 30vh, 235px);
+  width: min(72vw, 27vh, 215px);
+  height: min(72vw, 27vh, 215px);
+  aspect-ratio: 1;
   background: #000;
-  border-radius: 14px;
-  border: 3px solid #2a2f3a;
+  border-radius: 12px;
+  border: 2px solid #2a2f3a;
   box-shadow: var(--shadow);
   display: flex;
   align-items: center;
   justify-content: center;
   position: relative;
   overflow: hidden;
+  flex-shrink: 1;
 }
 
 #paintCanvas {
@@ -492,11 +509,12 @@ body {
 .toolbar {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 4px;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 6px 8px;
+  padding: 4px 8px;
+  flex-shrink: 0;
 }
 
 .palette {
@@ -583,19 +601,20 @@ body {
    ========================================================================== */
 .app-footer {
   display: flex;
-  margin-top: 2px;
+  margin-top: 1px;
+  flex-shrink: 0;
 }
 
 .send-btn {
   width: 100%;
-  padding: 10px;
-  font-size: 0.95rem;
+  padding: 8px 12px;
+  font-size: 0.90rem;
   font-weight: 700;
   background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
   border: none;
   border-radius: var(--radius);
   color: #fff;
-  box-shadow: 0 4px 14px rgba(67, 97, 238, 0.4);
+  box-shadow: 0 3px 12px rgba(67, 97, 238, 0.4);
 }
 
 .send-btn:disabled {

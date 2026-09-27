@@ -1204,17 +1204,19 @@ function renderClockCanvas() {
 
 async function sendClockCommand() {
   if (!state.deviceId) return;
-  if (!state.mqttConnected) {
+  if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
     await connectMQTT();
     if (!state.mqttConnected) return;
   }
   const topic = getDrawTopic();
   const cmd = new TextEncoder().encode("CLOCK");
-  state.mqttClient.publish(topic, cmd, { qos: 0, retain: false }, (err) => {
-    if (!err) {
-      console.log("[MQTT] Comando CLOCK inviato con successo a Pixò!");
-    }
-  });
+  if (state.mqttClient && state.mqttClient.connected) {
+    state.mqttClient.publish(topic, cmd, { qos: 0, retain: false }, (err) => {
+      if (!err) {
+        console.log("[MQTT] Comando CLOCK inviato con successo a Pixò!");
+      }
+    });
+  }
 }
 
 // ==========================================================================
@@ -1377,11 +1379,13 @@ function sendScreensaverConfig(enabled) {
 async function sendLedConfig(enabled) {
   state.ledEnabled = enabled;
   localStorage.setItem('pixo_led', enabled ? 'true' : 'false');
-  await connectMQTT();
+  if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
+    await connectMQTT();
+  }
   if (!state.deviceId) return;
   const topic = `pixo/device/${state.deviceId}/led`;
   const cmd = enabled ? "NOTIF:ON" : "NOTIF:OFF";
-  if (state.mqttConnected) {
+  if (state.mqttClient && state.mqttClient.connected) {
     state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
   }
   showToast(enabled 
@@ -1391,13 +1395,15 @@ async function sendLedConfig(enabled) {
 }
 
 async function toggleContinuousLight() {
-  await connectMQTT();
+  if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
+    await connectMQTT();
+  }
   state.lightOn = !state.lightOn;
   if (!state.deviceId) return;
 
   const topic = `pixo/device/${state.deviceId}/led`;
   const cmd = state.lightOn ? "LIGHT:ON" : "LIGHT:OFF";
-  if (state.mqttConnected) {
+  if (state.mqttClient && state.mqttClient.connected) {
     state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
   }
 
@@ -1476,7 +1482,9 @@ async function updatePayloadPreview() {
 let mqttConnectPromise = null;
 
 function connectMQTT() {
-  if (state.mqttConnected) return Promise.resolve(true);
+  if (state.mqttConnected && state.mqttClient && state.mqttClient.connected) {
+    return Promise.resolve(true);
+  }
   if (mqttConnectPromise) return mqttConnectPromise;
 
   state.mqttConnecting = true;
@@ -1487,9 +1495,9 @@ function connectMQTT() {
   const options = {
     clientId: clientId,
     clean: true,
-    connectTimeout: 8000,
-    reconnectPeriod: 3000,
-    keepalive: 60,
+    connectTimeout: 5000,
+    reconnectPeriod: 2000,
+    keepalive: 15, // Keepalive a 15s: previene socket zombie o congelati su smartphone
     username: state.brokerUser,
     password: state.brokerPass
   };
@@ -1540,18 +1548,30 @@ function connectMQTT() {
           statusDot.className = "status-dot";
         });
       } else {
+        // Se il client esiste già ma il socket si era addormentato (background mobile), forza subito la riconnessione!
+        if (!state.mqttClient.connected) {
+          try {
+            state.mqttClient.reconnect();
+          } catch(e) {
+            state.mqttClient.end(true);
+            state.mqttClient = null;
+            mqttConnectPromise = null;
+            return resolve(connectMQTT());
+          }
+        }
+
         const check = setInterval(() => {
-          if (state.mqttConnected) {
+          if (state.mqttConnected && state.mqttClient && state.mqttClient.connected) {
             clearInterval(check);
             mqttConnectPromise = null;
             resolve(true);
           }
-        }, 100);
+        }, 80);
         setTimeout(() => {
           clearInterval(check);
           mqttConnectPromise = null;
-          resolve(state.mqttConnected);
-        }, 8000);
+          resolve(Boolean(state.mqttConnected && state.mqttClient && state.mqttClient.connected));
+        }, 5000);
       }
     } catch (err) {
       console.error('[MQTT] Eccezione avvio:', err);
@@ -1570,8 +1590,8 @@ function connectMQTT() {
 async function sendCanvasMqtt() {
   if (!state.deviceId) return;
 
-  // Se non siamo ancora connessi al broker (es. appena aperta l'app), attendi la connessione!
-  if (!state.mqttConnected) {
+  // Se non siamo ancora connessi al broker (es. appena aperta l'app o risvegliata dal background), attendi la connessione!
+  if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
     await connectMQTT();
     if (!state.mqttConnected) return;
   }
@@ -1590,17 +1610,25 @@ async function sendCanvasMqtt() {
     // Inclusione PIN di sicurezza nel topic
     const topic = getDrawTopic();
 
-    state.mqttClient.publish(topic, uint8Array, { qos: 0, retain: false }, (err) => {
+    if (state.mqttClient && state.mqttClient.connected) {
+      state.mqttClient.publish(topic, uint8Array, { qos: 0, retain: false }, (err) => {
+        state.isSending = false;
+        sendBtn.disabled = false;
+        sendBtn.querySelector('.send-label').textContent = t("sendToDisplay");
+
+        if (!err) {
+          const elapsed = Math.round(performance.now() - sendStart);
+          const kb = (uint8Array.length / 1024).toFixed(1);
+          showToast(t("toastSentSuccess", { name: state.deviceName || state.deviceId, kb: kb, ms: elapsed }), "success");
+        }
+      });
+    } else {
       state.isSending = false;
       sendBtn.disabled = false;
       sendBtn.querySelector('.send-label').textContent = t("sendToDisplay");
-
-      if (!err) {
-        const elapsed = Math.round(performance.now() - sendStart);
-        const kb = (uint8Array.length / 1024).toFixed(1);
-        showToast(t("toastSentSuccess", { name: state.deviceName || state.deviceId, kb: kb, ms: elapsed }), "success");
-      }
-    });
+      showToast("Connessione persa. Riprovo...", "warning");
+      connectMQTT();
+    }
   } catch (err) {
     console.error("Errore compressione/invio:", err);
     state.isSending = false;
@@ -1621,7 +1649,7 @@ async function sendToDisplay() {
   const originalLabel = labelEl.textContent;
 
   // Se non siamo ancora connessi al broker, attendi la connessione in background senza errori!
-  if (!state.mqttConnected) {
+  if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
     labelEl.textContent = "Connessione Cloud...";
     const ok = await connectMQTT();
     if (!ok && !state.mqttConnected) {
@@ -1639,7 +1667,7 @@ async function sendToDisplay() {
 async function sendStandbyCommand() {
   stopAutomaticFeed();
   if (!state.deviceId) return;
-  if (!state.mqttConnected) {
+  if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
     await connectMQTT();
     if (!state.mqttConnected) {
       showToast("Broker non connesso!", "error");
@@ -1648,11 +1676,13 @@ async function sendStandbyCommand() {
   }
   const topic = getDrawTopic();
   const clearCmd = new TextEncoder().encode("CLEAR");
-  state.mqttClient.publish(topic, clearCmd, { qos: 0, retain: false }, (err) => {
-    if (!err) {
-      showToast(t("toastStandby"), "success");
-    }
-  });
+  if (state.mqttClient && state.mqttClient.connected) {
+    state.mqttClient.publish(topic, clearCmd, { qos: 0, retain: false }, (err) => {
+      if (!err) {
+        showToast(t("toastStandby"), "success");
+      }
+    });
+  }
 }
 
 function showToast(message, type = "info") {
@@ -1889,6 +1919,26 @@ function registerServiceWorker() {
     });
   }
 }
+
+// Sveglia immediata socket MQTT alla riapertura dell'app / cambio tab / sblocco schermo su smartphone
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (!state.mqttClient || !state.mqttClient.connected) {
+      state.mqttConnected = false;
+      connectMQTT();
+    }
+  }
+});
+window.addEventListener('focus', () => {
+  if (!state.mqttClient || !state.mqttClient.connected) {
+    state.mqttConnected = false;
+    connectMQTT();
+  }
+});
+window.addEventListener('online', () => {
+  state.mqttConnected = false;
+  connectMQTT();
+});
 
 // ==========================================================================
 //  BOOTSTRAP
