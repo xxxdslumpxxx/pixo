@@ -781,10 +781,13 @@ function setupOverlayInteraction() {
     return Math.max(12, Math.min(120, size)); // text
   }
 
+  let cachedScale = null;
+
   // GESTIONE EVENTI TOUCH (Smartphone / Tablet)
   elementOverlay.addEventListener('touchstart', (e) => {
     if (!state.interactiveElement.active) return;
-    const { rect } = getScale();
+    cachedScale = getScale();
+    const { rect } = cachedScale;
 
     if (e.touches.length === 2) {
       mode = 'pinch';
@@ -821,8 +824,8 @@ function setupOverlayInteraction() {
   }, { passive: false });
 
   elementOverlay.addEventListener('touchmove', (e) => {
-    if (!state.interactiveElement.active || !mode) return;
-    const { scaleX, scaleY, rect } = getScale();
+    if (!state.interactiveElement.active || !mode || !cachedScale) return;
+    const { scaleX, scaleY, rect } = cachedScale;
 
     if (mode === 'pinch' && e.touches.length === 2) {
       const t1 = e.touches[0];
@@ -865,6 +868,7 @@ function setupOverlayInteraction() {
   const endTouch = () => {
     mode = null;
     activeHandle = null;
+    cachedScale = null;
     floatingElement.classList.remove('active-drag');
   };
   elementOverlay.addEventListener('touchend', endTouch);
@@ -874,7 +878,8 @@ function setupOverlayInteraction() {
   let isMouseDown = false;
   elementOverlay.addEventListener('mousedown', (e) => {
     if (!state.interactiveElement.active) return;
-    const { rect } = getScale();
+    cachedScale = getScale();
+    const { rect } = cachedScale;
     isMouseDown = true;
 
     if (e.target && e.target.classList.contains('resize-handle')) {
@@ -894,8 +899,8 @@ function setupOverlayInteraction() {
   });
 
   window.addEventListener('mousemove', (e) => {
-    if (!state.interactiveElement.active || !isMouseDown || !mode) return;
-    const { scaleX, scaleY, rect } = getScale();
+    if (!state.interactiveElement.active || !isMouseDown || !mode || !cachedScale) return;
+    const { scaleX, scaleY, rect } = cachedScale;
 
     if (mode === 'drag') {
       const dx = (e.clientX - startTouch1.x) * scaleX;
@@ -1620,6 +1625,8 @@ function connectMQTT() {
   return mqttConnectPromise;
 }
 
+let lastLocalSendTime = 0;
+
 // ==========================================================================
 //  SINCRONIZZAZIONE STATO ATTUALE DISPLAY (MQTT Retained)
 // ==========================================================================
@@ -1627,6 +1634,11 @@ function handleCurrentDisplaySync(payload) {
   if (!payload || payload.length === 0) return;
 
   state.lastDisplayPayload = payload;
+
+  // Se l'invio è avvenuto da noi in questa sessione da meno di 6 secondi, ignora l'eco di ritorno
+  if (Date.now() - lastLocalSendTime < 6000) {
+    return;
+  }
 
   // Se l'utente ha già iniziato a disegnare o modificare il canvas in questa sessione, non sovrascrivere
   if (state.userHasDrawnLocally) {
@@ -1724,6 +1736,7 @@ async function sendCanvasMqtt() {
       });
 
       // Mantiene aggiornato il Cloud (Retained) per sincronizzare istantaneamente l'app quando viene aperta
+      lastLocalSendTime = Date.now();
       const currentTopic = `pixo/device/${state.deviceId}/current`;
       state.mqttClient.publish(currentTopic, uint8Array, { qos: 0, retain: true });
       state.lastDisplayPayload = uint8Array;
