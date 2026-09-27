@@ -202,6 +202,7 @@ const state = {
   // Modalità Ospite & Condivisione
   isGuestMode: false,
   guestKey: "pixo123",
+  guestKeys: [],
   allowGuests: true,
 
   // Screensaver & LED
@@ -292,9 +293,12 @@ const shareModal = document.getElementById('shareModal');
 const closeShareModal = document.getElementById('closeShareModal');
 const allowGuestsToggle = document.getElementById('allowGuestsToggle');
 const guestStatusSub = document.getElementById('guestStatusSub');
-const guestLinkInput = document.getElementById('guestLinkInput');
-const copyGuestLinkBtn = document.getElementById('copyGuestLinkBtn');
 const revokeGuestsBtn = document.getElementById('revokeGuestsBtn');
+const newGuestNameInput = document.getElementById('newGuestNameInput');
+const createGuestKeyBtn = document.getElementById('createGuestKeyBtn');
+const guestKeysCountBadge = document.getElementById('guestKeysCountBadge');
+const guestKeysList = document.getElementById('guestKeysList');
+const guestKeysEmpty = document.getElementById('guestKeysEmpty');
 
 const textModal = document.getElementById('textModal');
 const closeTextModal = document.getElementById('closeTextModal');
@@ -386,8 +390,33 @@ function initDeviceAndSettings() {
     state.devicePin = ""; // L'ospite NON ha e NON vede il PIN proprietario
   } else {
     state.isGuestMode = false;
-    // Mantiene la chiave ospite memorizzata o il default pixo123
-    state.guestKey = localStorage.getItem('pixo_guest_key') || 'pixo123';
+    try {
+      const stored = localStorage.getItem('pixo_guest_keys');
+      if (stored) {
+        state.guestKeys = JSON.parse(stored);
+      } else {
+        const legacyKey = localStorage.getItem('pixo_guest_key') || 'pixo123';
+        state.guestKeys = [
+          {
+            id: 'key_default',
+            name: 'Link Principale (pixo123)',
+            key: legacyKey,
+            created: Date.now()
+          }
+        ];
+        localStorage.setItem('pixo_guest_keys', JSON.stringify(state.guestKeys));
+      }
+    } catch(e) {
+      state.guestKeys = [
+        {
+          id: 'key_default',
+          name: 'Link Principale (pixo123)',
+          key: 'pixo123',
+          created: Date.now()
+        }
+      ];
+    }
+    state.guestKey = state.guestKeys.length > 0 ? state.guestKeys[0].key : 'pixo123';
     
     const urlPin = urlParams.get('pin');
     if (urlPin && urlPin.trim() !== '') {
@@ -416,7 +445,7 @@ function initDeviceAndSettings() {
 
   setLanguage(state.lang);
   updateSettingsUI();
-  updateGuestLink();
+  renderGuestKeysList();
 }
 
 function updateSettingsUI() {
@@ -454,14 +483,13 @@ function updateSettingsUI() {
   if (allowGuestsToggle) allowGuestsToggle.checked = state.allowGuests;
 }
 
-function updateGuestLink() {
-  if (!guestLinkInput) return;
+function buildGuestUrl(key) {
   const baseUrl = window.location.origin + window.location.pathname;
   const url = new URL(baseUrl);
   url.searchParams.set('id', state.deviceId);
-  url.searchParams.set('key', state.guestKey);
+  url.searchParams.set('key', key);
   url.searchParams.set('guest', '1');
-  guestLinkInput.value = url.toString();
+  return url.toString();
 }
 
 // ==========================================================================
@@ -1456,18 +1484,164 @@ function sendGuestAccessConfig(enabled) {
   showToast(enabled ? t("toastGuestEnabled") : t("toastGuestDisabled"), enabled ? "success" : "error");
 }
 
-function revokeAndRegenerateGuestKey() {
-  const newKey = generateRandomGuestKey();
-  state.guestKey = newKey;
-  localStorage.setItem('pixo_guest_key', newKey);
-  updateGuestLink();
+function renderGuestKeysList() {
+  if (!guestKeysList) return;
+  guestKeysList.innerHTML = '';
 
-  if (state.mqttConnected && state.deviceId) {
-    state.mqttClient.publish(`pixo/device/${state.deviceId}/access/key`, newKey, { qos: 0, retain: true });
-    state.mqttClient.publish(`pixo/device/${state.deviceId}/access`, `GUEST:KEY:${newKey}`, { qos: 0, retain: true });
+  const count = state.guestKeys ? state.guestKeys.length : 0;
+  if (guestKeysCountBadge) {
+    guestKeysCountBadge.textContent = `${count} ${count === 1 ? 'attivo' : 'attivi'}`;
   }
 
-  showToast(t("toastKeyRevoked"), "success");
+  if (count === 0) {
+    if (guestKeysEmpty) guestKeysEmpty.style.display = 'flex';
+    return;
+  }
+  if (guestKeysEmpty) guestKeysEmpty.style.display = 'none';
+
+  state.guestKeys.forEach((item) => {
+    const card = document.createElement('div');
+    card.className = 'guest-key-card';
+
+    const header = document.createElement('div');
+    header.className = 'guest-card-header';
+
+    const title = document.createElement('div');
+    title.className = 'guest-card-title';
+    title.innerHTML = `<span>👤</span> <span>${escapeHtml(item.name || 'Ospite')}</span>`;
+
+    const meta = document.createElement('div');
+    meta.className = 'guest-card-meta';
+
+    if (item.created) {
+      const d = new Date(item.created);
+      const dateSpan = document.createElement('span');
+      dateSpan.className = 'guest-card-date';
+      dateSpan.textContent = d.toLocaleDateString(state.lang === 'it' ? 'it-IT' : 'en-US', { day: '2-digit', month: 'short' });
+      meta.appendChild(dateSpan);
+    }
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'guest-card-delete-btn';
+    delBtn.title = state.lang === 'it' ? 'Revoca ed elimina questo link' : 'Revoke and delete this link';
+    delBtn.innerHTML = '🗑️ Revoca';
+    delBtn.addEventListener('click', () => {
+      deleteGuestKey(item.id, item.name);
+    });
+    meta.appendChild(delBtn);
+
+    header.appendChild(title);
+    header.appendChild(meta);
+
+    const linkRow = document.createElement('div');
+    linkRow.className = 'guest-card-link-row';
+
+    const fullUrl = buildGuestUrl(item.key);
+    const linkInput = document.createElement('input');
+    linkInput.type = 'text';
+    linkInput.value = fullUrl;
+    linkInput.readOnly = true;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'btn mini-btn';
+    copyBtn.innerHTML = '📋 Copia';
+    copyBtn.addEventListener('click', () => {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(fullUrl).then(() => {
+          showToast(`Link per "${item.name}" copiato!`, 'success');
+        }).catch(() => {
+          linkInput.select();
+          document.execCommand('copy');
+          showToast(`Link per "${item.name}" copiato!`, 'success');
+        });
+      } else {
+        linkInput.select();
+        document.execCommand('copy');
+        showToast(`Link per "${item.name}" copiato!`, 'success');
+      }
+    });
+
+    linkRow.appendChild(linkInput);
+    linkRow.appendChild(copyBtn);
+
+    card.appendChild(header);
+    card.appendChild(linkRow);
+    guestKeysList.appendChild(card);
+  });
+}
+
+function addNewGuestKey(name) {
+  const cleanName = (name || '').trim();
+  if (!cleanName) {
+    showToast(state.lang === 'it' ? "Inserisci un nome per il link (es. Roberto)" : "Enter a name for the link", "warning");
+    if (newGuestNameInput) newGuestNameInput.focus();
+    return;
+  }
+
+  const token = generateRandomGuestKey();
+  const newEntry = {
+    id: 'k_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+    name: cleanName,
+    key: token,
+    created: Date.now()
+  };
+
+  if (!state.guestKeys) state.guestKeys = [];
+  state.guestKeys.unshift(newEntry);
+  localStorage.setItem('pixo_guest_keys', JSON.stringify(state.guestKeys));
+
+  if (newGuestNameInput) newGuestNameInput.value = '';
+
+  syncGuestKeysToDevice();
+  renderGuestKeysList();
+  showToast(state.lang === 'it' ? `Link creato per "${cleanName}"!` : `Link created for "${cleanName}"!`, "success");
+}
+
+function deleteGuestKey(id, name) {
+  const confirmMsg = state.lang === 'it'
+    ? `Vuoi revocare l'accesso per "${name}"?\nChi possiede questo link non potrà più inviare disegni a Pixò.`
+    : `Revoke access for "${name}"?\nAnyone with this link will no longer be able to send drawings to Pixò.`;
+  if (!confirm(confirmMsg)) return;
+
+  state.guestKeys = state.guestKeys.filter(k => k.id !== id);
+  localStorage.setItem('pixo_guest_keys', JSON.stringify(state.guestKeys));
+
+  syncGuestKeysToDevice();
+  renderGuestKeysList();
+  showToast(state.lang === 'it' ? `Accesso per "${name}" revocato!` : `Access for "${name}" revoked!`, "success");
+}
+
+function revokeAllGuestKeys() {
+  const confirmMsg = state.lang === 'it'
+    ? "⚠️ Vuoi davvero revocare ed eliminare TUTTI i link ospite?\nTutti i link distribuiti smetteranno immediatamente di funzionare."
+    : "⚠️ Really revoke and delete ALL guest links?\nAll distributed links will stop working immediately.";
+  if (!confirm(confirmMsg)) return;
+
+  state.guestKeys = [];
+  localStorage.setItem('pixo_guest_keys', JSON.stringify([]));
+
+  syncGuestKeysToDevice();
+  renderGuestKeysList();
+  showToast(state.lang === 'it' ? "Tutti i link ospite sono stati revocati!" : "All guest links revoked!", "success");
+}
+
+function syncGuestKeysToDevice() {
+  if (!state.deviceId) return;
+  const keysArray = (state.guestKeys || []).map(k => (k.key || '').trim()).filter(Boolean);
+  const keysStr = keysArray.length > 0 ? keysArray.join(',') : 'NONE';
+
+  if (state.mqttConnected && state.mqttClient && state.mqttClient.connected) {
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/access/keys`, keysStr, { qos: 0, retain: true });
+    // Retrocompatibilità con firmware legacy
+    const firstKey = keysArray.length > 0 ? keysArray[0] : 'NONE';
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/access/key`, firstKey, { qos: 0, retain: true });
+  }
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
 // ==========================================================================
@@ -1542,10 +1716,9 @@ function connectMQTT() {
           // Invia la luminosità memorizzata all'avvio
           sendBrightness(state.brightness);
 
-          // Sincronizza la chiave ospiti dal proprietario al dispositivo (Retained)
-          if (state.deviceId && !state.isGuestMode && state.guestKey) {
-            state.mqttClient.publish(`pixo/device/${state.deviceId}/access/key`, state.guestKey, { qos: 0, retain: true });
-            state.mqttClient.publish(`pixo/device/${state.deviceId}/access`, `GUEST:KEY:${state.guestKey}`, { qos: 0, retain: true });
+          // Sincronizza le chiavi ospiti dal proprietario al dispositivo (Retained)
+          if (state.deviceId && !state.isGuestMode) {
+            syncGuestKeysToDevice();
           }
 
           // Iscrizione al topic di sincronizzazione disegno attuale (Retained dal Cloud)
@@ -1898,21 +2071,30 @@ function setupEventListeners() {
   // CONDIVISIONE & GESTIONE OSPITI
   shareBtn.addEventListener('click', () => {
     shareModal.classList.remove('hidden');
-    updateGuestLink();
+    renderGuestKeysList();
   });
   closeShareModal.addEventListener('click', () => shareModal.classList.add('hidden'));
   allowGuestsToggle.addEventListener('change', (e) => sendGuestAccessConfig(e.target.checked));
-  copyGuestLinkBtn.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(guestLinkInput.value);
-      showToast(t("toastLinkCopied"), "success");
-    } catch(e) {
-      guestLinkInput.select();
-      document.execCommand('copy');
-      showToast(t("toastLinkCopied"), "success");
-    }
-  });
-  revokeGuestsBtn.addEventListener('click', revokeAndRegenerateGuestKey);
+
+  if (createGuestKeyBtn) {
+    createGuestKeyBtn.addEventListener('click', () => {
+      const name = newGuestNameInput ? newGuestNameInput.value : '';
+      addNewGuestKey(name);
+    });
+  }
+
+  if (newGuestNameInput) {
+    newGuestNameInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        addNewGuestKey(newGuestNameInput.value);
+      }
+    });
+  }
+
+  if (revokeGuestsBtn) {
+    revokeGuestsBtn.addEventListener('click', revokeAllGuestKeys);
+  }
 
   // SCREENSAVER (30 min) & LED (GPIO 5)
   screensaverToggle.addEventListener('change', (e) => sendScreensaverConfig(e.target.checked));

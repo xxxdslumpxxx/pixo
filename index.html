@@ -306,23 +306,34 @@
           </div>
         </div>
 
-        <!-- Link Invito per Ospiti -->
-        <div class="form-group" style="margin-top: 15px;">
-          <label data-i18n="guestLinkLabel">Link di Invito per Ospiti:</label>
-          <div class="input-with-button">
-            <input type="text" id="guestLinkInput" readonly>
-            <button id="copyGuestLinkBtn" class="btn mini-btn">📋 Copia</button>
+        <!-- Creazione Nuovo Link Ospite Personalizzato -->
+        <div class="guest-create-card">
+          <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-main); display: block; margin-bottom: 6px;">➕ Crea Nuovo Link Ospite:</label>
+          <div class="form-row">
+            <input type="text" id="newGuestNameInput" placeholder="Nome persona o gruppo (es. Roberto, Amici)..." maxlength="32" class="flex-1">
+            <button id="createGuestKeyBtn" class="btn primary-btn mini-btn">➕ Crea Link</button>
           </div>
-          <small class="help-text">Chi apre questo link potrà inviare disegni e scritte ma non vedrà le impostazioni né i dati sensibili.</small>
+          <small class="help-text">Puoi creare link distinti per amici o gruppi e revocare solo quello specifico in qualsiasi momento.</small>
         </div>
 
-        <!-- Sezione Revoca e Rigenerazione Chiave -->
-        <div class="danger-zone-box">
-          <div class="danger-header">
-            <span>🛡️ Controllo e Revoca Accessi</span>
+        <!-- Elenco Link Attivi & Autorizzati -->
+        <div style="margin-top: 16px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">📋 Link Ospiti Attivi:</label>
+            <span id="guestKeysCountBadge" class="badge">0 attivi</span>
           </div>
-          <p style="font-size: 0.85rem; color: #a0aec0; margin: 6px 0 12px 0;">Se vuoi revocare l'accesso a tutti coloro a cui avevi dato il link in passato, premi il tasto sotto per rigenerare una nuova chiave segreta:</p>
-          <button id="revokeGuestsBtn" class="btn danger-btn mini-btn">🔄 Revoca Tutti & Cambia Chiave</button>
+          <div id="guestKeysList" class="guest-keys-container">
+            <!-- Schede link generate dinamicamente da app.js -->
+          </div>
+          <div id="guestKeysEmpty" class="empty-state" style="padding: 16px; display: none;">
+            <span style="font-size: 1.8rem;">🗝️</span>
+            <p style="font-size: 0.78rem;">Nessun link ospite attivo. Scrivi un nome sopra e premi "Crea Link" per invitare qualcuno!</p>
+          </div>
+        </div>
+
+        <!-- Opzione Revoca Totale Rapida -->
+        <div class="danger-zone-box" style="margin-top: 18px; padding: 10px 12px;">
+          <button id="revokeGuestsBtn" class="btn danger-btn mini-btn" style="font-size: 0.75rem; padding: 6px 10px;">⚠️ Revoca ed Elimina Tutti i Link Ospite</button>
         </div>
       </div>
     </div>
