@@ -1625,16 +1625,42 @@ function revokeAllGuestKeys() {
   showToast(state.lang === 'it' ? "Tutti i link ospite sono stati revocati!" : "All guest links revoked!", "success");
 }
 
-function syncGuestKeysToDevice() {
+function syncGuestKeysToDevice(forcePublishData = true) {
   if (!state.deviceId) return;
   const keysArray = (state.guestKeys || []).map(k => (k.key || '').trim()).filter(Boolean);
   const keysStr = keysArray.length > 0 ? keysArray.join(',') : 'NONE';
 
   if (state.mqttConnected && state.mqttClient && state.mqttClient.connected) {
+    // 1. Topic hardware per ESP32 (elenco chiavi separate da virgola)
     state.mqttClient.publish(`pixo/device/${state.deviceId}/access/keys`, keysStr, { qos: 0, retain: true });
     // Retrocompatibilità con firmware legacy
     const firstKey = keysArray.length > 0 ? keysArray[0] : 'NONE';
     state.mqttClient.publish(`pixo/device/${state.deviceId}/access/key`, firstKey, { qos: 0, retain: true });
+
+    // 2. Topic Cloud con nomi ed etichette per sincronizzare tutti i dispositivi del proprietario (PC, cellulare)
+    if (forcePublishData) {
+      const keysJson = JSON.stringify(state.guestKeys || []);
+      state.mqttClient.publish(`pixo/device/${state.deviceId}/access/keys_data`, keysJson, { qos: 0, retain: true });
+    }
+  }
+}
+
+function handleGuestKeysSyncFromCloud(payload) {
+  try {
+    const uint8 = (payload instanceof Uint8Array) 
+      ? new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength)
+      : new Uint8Array(payload);
+    const text = new TextDecoder().decode(uint8).trim();
+    if (!text || text === "NONE" || text === "[]") return;
+    const cloudKeys = JSON.parse(text);
+    if (Array.isArray(cloudKeys) && cloudKeys.length > 0) {
+      state.guestKeys = cloudKeys;
+      localStorage.setItem('pixo_guest_keys', JSON.stringify(cloudKeys));
+      renderGuestKeysList();
+      console.log('[SYNC] Sincronizzate', cloudKeys.length, 'chiavi ospiti nominative dal Cloud!');
+    }
+  } catch (e) {
+    console.warn('[SYNC] Errore sync chiavi ospiti dal cloud:', e);
   }
 }
 
@@ -1677,6 +1703,7 @@ async function updatePayloadPreview() {
 }
 
 let mqttConnectPromise = null;
+let hasShownConnectedToast = false;
 
 function connectMQTT() {
   if (state.mqttConnected && state.mqttClient && state.mqttClient.connected) {
@@ -1692,9 +1719,9 @@ function connectMQTT() {
   const options = {
     clientId: clientId,
     clean: true,
-    connectTimeout: 5000,
-    reconnectPeriod: 2000,
-    keepalive: 15, // Keepalive a 15s: previene socket zombie o congelati su smartphone
+    connectTimeout: 7000,
+    reconnectPeriod: 3000,
+    keepalive: 15,
     username: state.brokerUser,
     password: state.brokerPass
   };
@@ -1711,30 +1738,43 @@ function connectMQTT() {
           mqttConnectPromise = null;
           statusDot.className = "status-dot online";
           statusDot.title = "Connesso a Pixò Cloud";
-          showToast(t("toastConnected"), "success");
 
-          // Invia la luminosità memorizzata all'avvio
-          sendBrightness(state.brightness);
-
-          // Sincronizza le chiavi ospiti dal proprietario al dispositivo (Retained)
-          if (state.deviceId && !state.isGuestMode) {
-            syncGuestKeysToDevice();
+          // Mostra il toast di benvenuto una sola volta all'avvio, mai in loop
+          if (!hasShownConnectedToast) {
+            hasShownConnectedToast = true;
+            showToast(t("toastConnected"), "success");
           }
 
-          // Iscrizione al topic di sincronizzazione disegno attuale (Retained dal Cloud)
+          // Invia la luminosità memorizzata all'avvio solo se proprietario
+          if (!state.isGuestMode) {
+            sendBrightness(state.brightness);
+          }
+
           if (state.deviceId) {
+            // Sottoscrizione al topic di sincronizzazione disegno attuale
             const currentTopic = `pixo/device/${state.deviceId}/current`;
             state.mqttClient.subscribe(currentTopic, { qos: 0 });
+
+            // Sottoscrizione al topic cloud chiavi ospiti con etichette se proprietario
+            if (!state.isGuestMode) {
+              const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
+              state.mqttClient.subscribe(keysDataTopic, { qos: 0 });
+              syncGuestKeysToDevice(false);
+            }
           }
           resolve(true);
         });
 
-        // Ricezione messaggi Cloud (es. disegno attualmente a schermo)
+        // Ricezione messaggi Cloud (es. disegno attualmente a schermo, chiavi ospiti)
         state.mqttClient.on('message', (topic, payload) => {
           if (!state.deviceId) return;
           const currentTopic = `pixo/device/${state.deviceId}/current`;
+          const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
+
           if (topic === currentTopic) {
             handleCurrentDisplaySync(payload);
+          } else if (topic === keysDataTopic && !state.isGuestMode) {
+            handleGuestKeysSyncFromCloud(payload);
           }
         });
 
@@ -1759,7 +1799,7 @@ function connectMQTT() {
           statusDot.className = "status-dot";
         });
       } else {
-        // Se il client esiste già ma il socket si era addormentato (background mobile), forza subito la riconnessione!
+        // Se il client esiste già ed è disconnesso, riconnetti senza abortire la promessa attiva
         if (!state.mqttClient.connected) {
           try {
             state.mqttClient.reconnect();
@@ -1777,7 +1817,7 @@ function connectMQTT() {
             mqttConnectPromise = null;
             resolve(true);
           }
-        }, 80);
+        }, 100);
         setTimeout(() => {
           clearInterval(check);
           mqttConnectPromise = null;
@@ -1819,9 +1859,14 @@ function handleCurrentDisplaySync(payload) {
     return;
   }
 
+  // Estrae in modo sicuro i byte binari del JPEG
+  const uint8 = (payload instanceof Uint8Array)
+    ? new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength)
+    : new Uint8Array(payload);
+
   // Verifica se è un'immagine JPEG valida (Magic Bytes 0xFF 0xD8)
-  if (payload[0] === 0xFF && payload[1] === 0xD8) {
-    const blob = new Blob([payload], { type: 'image/jpeg' });
+  if (uint8.length >= 2 && uint8[0] === 0xFF && uint8[1] === 0xD8) {
+    const blob = new Blob([uint8], { type: 'image/jpeg' });
     const url = URL.createObjectURL(blob);
     const img = new Image();
     img.onload = () => {
@@ -1830,13 +1875,15 @@ function handleCurrentDisplaySync(payload) {
       saveState();
       updatePayloadPreview();
       URL.revokeObjectURL(url);
-      showToast("🎨 Disegno attuale sincronizzato dal display!", "info");
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
     };
     img.src = url;
   } else {
     // Messaggio testuale ("CLEAR", "STANDBY", "CLOCK")
     try {
-      const text = new TextDecoder().decode(payload).trim();
+      const text = new TextDecoder().decode(uint8).trim();
       if (text === "CLEAR" || text === "STANDBY") {
         console.log("[SYNC] Il display è attualmente in standby.");
       } else if (text === "CLOCK") {
@@ -2246,25 +2293,24 @@ function registerServiceWorker() {
   }
 }
 
-// Sveglia immediata socket MQTT alla riapertura dell'app / cambio tab / sblocco schermo su smartphone
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    if (!state.mqttClient || !state.mqttClient.connected) {
-      state.mqttConnected = false;
+// Sveglia socket MQTT alla riapertura dell'app / cambio tab / sblocco schermo su smartphone
+let wakeDebounceTimer = null;
+function handleAppWakeup() {
+  if (wakeDebounceTimer) clearTimeout(wakeDebounceTimer);
+  wakeDebounceTimer = setTimeout(() => {
+    if (!state.mqttClient || (!state.mqttClient.connected && !state.mqttConnecting)) {
       connectMQTT();
     }
+  }, 400);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    handleAppWakeup();
   }
 });
-window.addEventListener('focus', () => {
-  if (!state.mqttClient || !state.mqttClient.connected) {
-    state.mqttConnected = false;
-    connectMQTT();
-  }
-});
-window.addEventListener('online', () => {
-  state.mqttConnected = false;
-  connectMQTT();
-});
+window.addEventListener('focus', handleAppWakeup);
+window.addEventListener('online', handleAppWakeup);
 
 // ==========================================================================
 //  BOOTSTRAP
