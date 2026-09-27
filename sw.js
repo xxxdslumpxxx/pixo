@@ -1,5 +1,5 @@
 // Service Worker per Pixò Cloud PWA
-const CACHE_NAME = 'pixo-cloud-v9';
+const CACHE_NAME = 'pixo-cloud-v11';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
