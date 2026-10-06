@@ -1734,8 +1734,8 @@ function connectMQTT() {
     clientId: clientId,
     clean: true,
     connectTimeout: 7000,
-    reconnectPeriod: 3000,
-    keepalive: 15,
+    reconnectPeriod: 1000,
+    keepalive: 60,
     username: state.brokerUser,
     password: state.brokerPass
   };
