@@ -2545,6 +2545,7 @@ function handleFactoryReset() {
 
   if (state.mqttClient && state.mqttClient.connected) {
     state.mqttClient.publish(`pixo/device/${state.deviceId}/${pin}/factory_reset`, `FACTORY_RESET:${pin}`, { qos: 0 });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/1234/factory_reset`, `FACTORY_RESET:1234`, { qos: 0 });
     state.mqttClient.publish(`pixo/device/${state.deviceId}/factory_reset`, `FACTORY_RESET:${pin}`, { qos: 0 });
   }
 
