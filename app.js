@@ -283,8 +283,15 @@ const changeDeviceBtn = document.getElementById('changeDeviceBtn');
 const factoryResetBtn = document.getElementById('factoryResetBtn');
 const factoryResetSection = document.getElementById('factoryResetSection');
 
-// Modal Onboarding Primo Avvio
+// Modal Onboarding e Connessione Pixò
 const onboardingModal = document.getElementById('onboardingModal');
+const tabOnboardLogin = document.getElementById('tabOnboardLogin');
+const tabOnboardActivate = document.getElementById('tabOnboardActivate');
+const sectionOnboardLogin = document.getElementById('sectionOnboardLogin');
+const sectionOnboardActivate = document.getElementById('sectionOnboardActivate');
+const onboardLoginDeviceId = document.getElementById('onboardLoginDeviceId');
+const onboardLoginPin = document.getElementById('onboardLoginPin');
+const submitLoginBtn = document.getElementById('submitLoginBtn');
 const onboardDeviceId = document.getElementById('onboardDeviceId');
 const onboardFactoryPin = document.getElementById('onboardFactoryPin');
 const onboardNewPin = document.getElementById('onboardNewPin');
@@ -2316,7 +2323,20 @@ function setupEventListeners() {
     });
   }
 
-  // Gestione Invio Onboarding Primo Avvio
+  // Gestione Tab Switcher Onboarding
+  if (tabOnboardLogin) {
+    tabOnboardLogin.addEventListener('click', () => switchOnboardTab('login'));
+  }
+  if (tabOnboardActivate) {
+    tabOnboardActivate.addEventListener('click', () => switchOnboardTab('activate'));
+  }
+
+  // Gestione Invio Login con PIN
+  if (submitLoginBtn) {
+    submitLoginBtn.addEventListener('click', handleOnboardingLogin);
+  }
+
+  // Gestione Invio Prima Attivazione
   if (submitOnboardingBtn) {
     submitOnboardingBtn.addEventListener('click', handleOnboardingSubmit);
   }
@@ -2325,6 +2345,36 @@ function setupEventListeners() {
 // ==========================================================================
 //  10b. LOGICA ONBOARDING PRIMO AVVIO & FACTORY RESET
 // ==========================================================================
+function switchOnboardTab(tab) {
+  if (onboardErrorText) {
+    onboardErrorText.style.display = 'none';
+    onboardErrorText.textContent = '';
+  }
+  if (tab === 'login') {
+    if (tabOnboardLogin) {
+      tabOnboardLogin.style.background = 'var(--primary)';
+      tabOnboardLogin.style.color = '#fff';
+    }
+    if (tabOnboardActivate) {
+      tabOnboardActivate.style.background = 'transparent';
+      tabOnboardActivate.style.color = 'var(--text-muted)';
+    }
+    if (sectionOnboardLogin) sectionOnboardLogin.style.display = 'flex';
+    if (sectionOnboardActivate) sectionOnboardActivate.style.display = 'none';
+  } else {
+    if (tabOnboardActivate) {
+      tabOnboardActivate.style.background = 'var(--primary)';
+      tabOnboardActivate.style.color = '#fff';
+    }
+    if (tabOnboardLogin) {
+      tabOnboardLogin.style.background = 'transparent';
+      tabOnboardLogin.style.color = 'var(--text-muted)';
+    }
+    if (sectionOnboardActivate) sectionOnboardActivate.style.display = 'flex';
+    if (sectionOnboardLogin) sectionOnboardLogin.style.display = 'none';
+  }
+}
+
 function showOnboardingModal(prefillCurrent = true) {
   if (!onboardingModal) return;
   const closeBtn = document.getElementById('closeOnboardingModal');
@@ -2332,9 +2382,13 @@ function showOnboardingModal(prefillCurrent = true) {
     closeBtn.style.display = state.deviceId ? 'block' : 'none';
   }
   if (prefillCurrent && state.deviceId) {
+    if (onboardLoginDeviceId) onboardLoginDeviceId.value = state.deviceId;
+    if (onboardLoginPin) onboardLoginPin.value = state.devicePin || "";
     if (onboardDeviceId) onboardDeviceId.value = state.deviceId;
     if (onboardFactoryPin) onboardFactoryPin.value = "1234";
   } else {
+    if (onboardLoginDeviceId) onboardLoginDeviceId.value = "";
+    if (onboardLoginPin) onboardLoginPin.value = "";
     if (onboardDeviceId) onboardDeviceId.value = "";
     if (onboardFactoryPin) onboardFactoryPin.value = "1234";
   }
@@ -2344,6 +2398,7 @@ function showOnboardingModal(prefillCurrent = true) {
     onboardErrorText.style.display = "none";
     onboardErrorText.textContent = "";
   }
+  switchOnboardTab('login');
   onboardingModal.classList.remove('hidden');
 }
 
@@ -2355,6 +2410,54 @@ function showOnboardingError(msg) {
   if (!onboardErrorText) return;
   onboardErrorText.textContent = msg;
   onboardErrorText.style.display = "block";
+}
+
+function handleOnboardingLogin() {
+  if (!onboardLoginDeviceId || !onboardLoginPin) return;
+
+  let devId = onboardLoginDeviceId.value.trim().toUpperCase();
+  if (!devId) {
+    showOnboardingError("Inserisci l'ID del dispositivo (es. ESP32-9205D4 o 9205D4).");
+    return;
+  }
+  if (!devId.startsWith("ESP32-")) {
+    devId = "ESP32-" + devId;
+  }
+
+  const pin = onboardLoginPin.value.trim();
+  if (!pin) {
+    showOnboardingError("Inserisci il tuo PIN personale di sicurezza.");
+    return;
+  }
+  if (pin === "1234") {
+    showOnboardingError("⚠️ Questo Pixò ha ancora il PIN di fabbrica 1234! Clicca sulla scheda '✨ Prima Attivazione' in alto per impostare il tuo PIN personale e attivarlo.");
+    return;
+  }
+  if (pin.length < 4) {
+    showOnboardingError("Il PIN personale deve contenere almeno 4 caratteri o cifre.");
+    return;
+  }
+
+  submitLoginBtn.disabled = true;
+  submitLoginBtn.textContent = "Connessione in corso...";
+
+  // Salva credenziali localmente
+  state.deviceId = devId;
+  state.devicePin = pin;
+  localStorage.setItem('pixo_device_id', devId);
+  localStorage.setItem('pixo_device_pin', pin);
+
+  // Aggiorna interfaccia utente
+  deviceIdDisplay.textContent = state.deviceName || "Il mio Pixò";
+  updateSettingsUI();
+  hideOnboardingModal();
+
+  submitLoginBtn.disabled = false;
+  submitLoginBtn.textContent = "🚀 Connetti e Disegna";
+
+  // Connetti a Pixò Cloud via MQTT
+  connectMQTT();
+  showToast(`🎉 Connesso a Pixò ${devId}!`, "success");
 }
 
 function handleOnboardingSubmit() {

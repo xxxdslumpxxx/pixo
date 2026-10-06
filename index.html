@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 
   <!-- Stili -->
-  <link rel="stylesheet" href="style.css?v=20">
+  <link rel="stylesheet" href="style.css?v=21">
 
   <!-- MQTT.js via CDN affidabile -->
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
@@ -349,47 +349,78 @@
     </div>
   </div>
 
-  <!-- Modal Onboarding / Primo Avvio Pixò -->
+  <!-- Modal Onboarding / Connessione Pixò -->
   <div class="modal-overlay hidden" id="onboardingModal" style="z-index: 10000;">
-    <div class="modal-card" style="max-width: 380px; position: relative;">
+    <div class="modal-card" style="max-width: 400px; position: relative;">
       <button type="button" id="closeOnboardingModal" class="close-btn" style="position: absolute; top: 12px; right: 14px;">&times;</button>
-      <div class="modal-header" style="flex-direction: column; align-items: center; text-align: center; gap: 6px;">
+      
+      <div class="modal-header" style="flex-direction: column; align-items: center; text-align: center; gap: 4px; padding-bottom: 6px;">
         <span style="font-size: 2.2rem;">📺</span>
         <h3 style="font-size: 1.25rem;">Collega il tuo Pixò</h3>
-        <p style="font-size: 0.78rem; color: var(--text-muted);">Configura la tua nuova lavagna smart per iniziare</p>
+        <p style="font-size: 0.78rem; color: var(--text-muted);">Accedi con il tuo PIN o attiva un nuovo dispositivo</p>
       </div>
+
+      <!-- Tab Switcher -->
+      <div style="display: flex; gap: 6px; background: rgba(255,255,255,0.06); padding: 4px; border-radius: 10px; margin-bottom: 12px;">
+        <button type="button" id="tabOnboardLogin" class="btn mini-btn" style="flex: 1; padding: 8px 4px; font-size: 0.8rem; font-weight: 600; border-radius: 8px; background: var(--primary); color: #fff; border: none; cursor: pointer;">🔑 Accedi con PIN</button>
+        <button type="button" id="tabOnboardActivate" class="btn mini-btn" style="flex: 1; padding: 8px 4px; font-size: 0.8rem; font-weight: 600; border-radius: 8px; background: transparent; color: var(--text-muted); border: none; cursor: pointer;">✨ Prima Attivazione</button>
+      </div>
+
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
-        
-        <div class="form-group">
-          <label for="onboardDeviceId" style="font-size: 0.82rem; font-weight: 600;">
-            <span>1. ID Dispositivo:</span>
-            <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">Visualizzato sullo schermo durante la connessione Wi-Fi</small>
-          </label>
-          <input type="text" id="onboardDeviceId" placeholder="es. 9205D4 o ESP32-9205D4" autocomplete="off" autocorrect="off" autocapitalize="characters" style="font-family: monospace; font-weight: bold; letter-spacing: 1px;">
+
+        <!-- SCHEDA 1: LOGIN (Pixò già attivato) -->
+        <div id="sectionOnboardLogin" style="display: flex; flex-direction: column; gap: 14px;">
+          <div class="form-group">
+            <label for="onboardLoginDeviceId" style="font-size: 0.82rem; font-weight: 600;">
+              <span>ID Dispositivo:</span>
+              <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">Visualizzato all'avvio sul display (es. 9205D4 o ESP32-9205D4)</small>
+            </label>
+            <input type="text" id="onboardLoginDeviceId" placeholder="es. 9205D4 o ESP32-9205D4" autocomplete="off" autocorrect="off" autocapitalize="characters" style="font-family: monospace; font-weight: bold; letter-spacing: 1px;">
+          </div>
+
+          <div class="form-group">
+            <label for="onboardLoginPin" style="font-size: 0.82rem; font-weight: 600;">
+              <span>Il tuo PIN Personale:</span>
+              <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">Il codice impostato al primo utilizzo (diverso da 1234)</small>
+            </label>
+            <input type="password" id="onboardLoginPin" placeholder="Inserisci il tuo PIN" maxlength="8" autocomplete="current-password" style="font-family: monospace; letter-spacing: 3px;">
+          </div>
+
+          <button type="button" id="submitLoginBtn" class="btn primary-btn" style="width: 100%; padding: 11px; font-size: 0.92rem; margin-top: 4px;">🚀 Connetti e Disegna</button>
         </div>
 
-        <div class="form-group">
-          <label for="onboardFactoryPin" style="font-size: 0.82rem; font-weight: 600;">
-            <span>2. PIN di Fabbrica:</span>
-            <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">PIN iniziale di fabbrica (predefinito: 1234)</small>
-          </label>
-          <input type="text" id="onboardFactoryPin" value="1234" maxlength="8" autocomplete="off" style="font-family: monospace; letter-spacing: 2px;">
-        </div>
+        <!-- SCHEDA 2: PRIMA ATTIVAZIONE (Nuovo di fabbrica) -->
+        <div id="sectionOnboardActivate" style="display: none; flex-direction: column; gap: 14px;">
+          <div class="form-group">
+            <label for="onboardDeviceId" style="font-size: 0.82rem; font-weight: 600;">
+              <span>1. ID Dispositivo:</span>
+              <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">Visualizzato sul banner dello schermo Pixò</small>
+            </label>
+            <input type="text" id="onboardDeviceId" placeholder="es. 9205D4 o ESP32-9205D4" autocomplete="off" autocorrect="off" autocapitalize="characters" style="font-family: monospace; font-weight: bold; letter-spacing: 1px;">
+          </div>
 
-        <div class="form-group" style="background: rgba(67, 97, 238, 0.08); border: 1px solid rgba(67, 97, 238, 0.3); border-radius: var(--radius); padding: 10px 12px;">
-          <label style="font-size: 0.82rem; font-weight: 600; color: #4cc9f0;">
-            <span>3. Nuovo PIN Personale (Obbligatorio):</span>
-            <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">Sostituisce il PIN 1234 per proteggere il tuo schermo (min. 4 caratteri/cifre, diverso da 1234)</small>
-          </label>
-          <input type="password" id="onboardNewPin" placeholder="Nuovo PIN Personale" maxlength="8" autocomplete="new-password" style="margin-top: 6px; font-family: monospace; letter-spacing: 3px;">
-          <input type="password" id="onboardConfirmPin" placeholder="Conferma Nuovo PIN" maxlength="8" autocomplete="new-password" style="margin-top: 6px; font-family: monospace; letter-spacing: 3px;">
+          <div class="form-group">
+            <label for="onboardFactoryPin" style="font-size: 0.82rem; font-weight: 600;">
+              <span>2. PIN di Fabbrica:</span>
+              <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">PIN iniziale mostrato a display (predefinito: 1234)</small>
+            </label>
+            <input type="text" id="onboardFactoryPin" value="1234" maxlength="8" autocomplete="off" style="font-family: monospace; letter-spacing: 2px;">
+          </div>
+
+          <div class="form-group" style="background: rgba(67, 97, 238, 0.08); border: 1px solid rgba(67, 97, 238, 0.3); border-radius: var(--radius); padding: 10px 12px;">
+            <label style="font-size: 0.82rem; font-weight: 600; color: #4cc9f0;">
+              <span>3. Nuovo PIN Personale (Obbligatorio):</span>
+              <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">Sostituisce il PIN 1234 per attivare lo schermo (min. 4 caratteri/cifre)</small>
+            </label>
+            <input type="password" id="onboardNewPin" placeholder="Nuovo PIN Personale" maxlength="8" autocomplete="new-password" style="margin-top: 6px; font-family: monospace; letter-spacing: 3px;">
+            <input type="password" id="onboardConfirmPin" placeholder="Conferma Nuovo PIN" maxlength="8" autocomplete="new-password" style="margin-top: 6px; font-family: monospace; letter-spacing: 3px;">
+          </div>
+
+          <button type="button" id="submitOnboardingBtn" class="btn primary-btn" style="width: 100%; padding: 11px; font-size: 0.92rem; margin-top: 4px;">✨ Attiva e Connetti Pixò</button>
         </div>
 
         <div id="onboardErrorText" style="display: none; background: rgba(239, 71, 111, 0.15); border: 1px solid var(--danger); color: #ff8fab; padding: 8px 10px; border-radius: 8px; font-size: 0.75rem; text-align: center;"></div>
 
-      </div>
-      <div class="modal-footer" style="padding-top: 6px;">
-        <button type="button" id="submitOnboardingBtn" class="btn primary-btn" style="width: 100%; padding: 10px; font-size: 0.9rem;">🚀 Attiva e Connetti Pixò</button>
       </div>
     </div>
   </div>
@@ -398,6 +429,6 @@
   <div class="toast-container" id="toastContainer"></div>
 
   <!-- Script Applicativo -->
-  <script src="app.js?v=20"></script>
+  <script src="app.js?v=21"></script>
 </body>
 </html>
