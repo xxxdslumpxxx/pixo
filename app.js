@@ -2306,6 +2306,16 @@ function setupEventListeners() {
     factoryResetBtn.addEventListener('click', handleFactoryReset);
   }
 
+  // Gestione Chiusura Onboarding (se già associato)
+  const closeOnboardingModal = document.getElementById('closeOnboardingModal');
+  if (closeOnboardingModal) {
+    closeOnboardingModal.addEventListener('click', () => {
+      if (state.deviceId) {
+        hideOnboardingModal();
+      }
+    });
+  }
+
   // Gestione Invio Onboarding Primo Avvio
   if (submitOnboardingBtn) {
     submitOnboardingBtn.addEventListener('click', handleOnboardingSubmit);
@@ -2317,6 +2327,10 @@ function setupEventListeners() {
 // ==========================================================================
 function showOnboardingModal(prefillCurrent = true) {
   if (!onboardingModal) return;
+  const closeBtn = document.getElementById('closeOnboardingModal');
+  if (closeBtn) {
+    closeBtn.style.display = state.deviceId ? 'block' : 'none';
+  }
   if (prefillCurrent && state.deviceId) {
     if (onboardDeviceId) onboardDeviceId.value = state.deviceId;
     if (onboardFactoryPin) onboardFactoryPin.value = "1234";
