@@ -229,12 +229,22 @@
           <input type="password" id="devicePinInput" maxlength="8" placeholder="••••" value="" autocomplete="off" style="letter-spacing: 4px; font-weight: bold; font-family: monospace;">
         </div>
 
-        <!-- ID Hardware (Informativo) -->
-        <div class="hardware-info-box">
+        <!-- ID Hardware e Gestione Dispositivo -->
+        <div class="hardware-info-box" style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; background: var(--bg-main); border: 1px solid var(--border); border-radius: var(--radius); margin-top: 10px;">
           <div class="hardware-badge">
-            <span data-i18n="hardwareId">ID Hardware:</span>
-            <strong id="hardwareIdDisplay">ESP32-A28DCC</strong>
+            <span data-i18n="hardwareId" style="color: var(--text-muted); font-size: 0.8rem;">ID Hardware:</span>
+            <strong id="hardwareIdDisplay" style="color: var(--primary); font-family: monospace; font-size: 0.95rem; margin-left: 6px;">-</strong>
           </div>
+          <button type="button" id="changeDeviceBtn" class="btn secondary-btn" style="font-size: 0.72rem; padding: 4px 8px;">Cambia</button>
+        </div>
+
+        <!-- Sezione Ripristino Dati di Fabbrica (Solo Proprietario) -->
+        <div class="danger-zone" id="factoryResetSection" style="margin-top: 18px; padding: 12px; border: 1px solid rgba(239, 71, 111, 0.3); border-radius: var(--radius); background: rgba(239, 71, 111, 0.05);">
+          <div class="danger-zone-header" style="margin-bottom: 8px;">
+            <h4 style="color: var(--danger); font-size: 0.85rem; display: flex; align-items: center; gap: 6px;">⚠️ Ripristino di Fabbrica</h4>
+            <p style="color: var(--text-muted); font-size: 0.72rem; margin-top: 4px;">Cancella le reti Wi-Fi dal display, reimposta il PIN a 1234 e azzera il dispositivo.</p>
+          </div>
+          <button type="button" id="factoryResetBtn" class="btn danger-btn" style="width: 100%; font-size: 0.78rem; padding: 7px 10px;">Ripristina Dati di Fabbrica</button>
         </div>
 
       </div>
@@ -335,6 +345,48 @@
         <div class="danger-zone-box" style="margin-top: 18px; padding: 10px 12px;">
           <button id="revokeGuestsBtn" class="btn danger-btn mini-btn" style="font-size: 0.75rem; padding: 6px 10px;">⚠️ Revoca ed Elimina Tutti i Link Ospite</button>
         </div>
+      </div>
+    </div>
+  <!-- Modal Onboarding / Primo Avvio Pixò -->
+  <div class="modal-overlay hidden" id="onboardingModal" style="z-index: 10000;">
+    <div class="modal-card" style="max-width: 380px;">
+      <div class="modal-header" style="flex-direction: column; align-items: center; text-align: center; gap: 6px;">
+        <span style="font-size: 2.2rem;">📺</span>
+        <h3 style="font-size: 1.25rem;">Collega il tuo Pixò</h3>
+        <p style="font-size: 0.78rem; color: var(--text-muted);">Configura la tua nuova lavagna smart per iniziare</p>
+      </div>
+      <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px;">
+        
+        <div class="form-group">
+          <label for="onboardDeviceId" style="font-size: 0.82rem; font-weight: 600;">
+            <span>1. ID Dispositivo:</span>
+            <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">Visualizzato sullo schermo durante la connessione Wi-Fi</small>
+          </label>
+          <input type="text" id="onboardDeviceId" placeholder="es. 9205D4 o ESP32-9205D4" autocomplete="off" autocorrect="off" autocapitalize="characters" style="font-family: monospace; font-weight: bold; letter-spacing: 1px;">
+        </div>
+
+        <div class="form-group">
+          <label for="onboardFactoryPin" style="font-size: 0.82rem; font-weight: 600;">
+            <span>2. PIN di Fabbrica:</span>
+            <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">PIN iniziale di fabbrica (predefinito: 1234)</small>
+          </label>
+          <input type="text" id="onboardFactoryPin" value="1234" maxlength="8" autocomplete="off" style="font-family: monospace; letter-spacing: 2px;">
+        </div>
+
+        <div class="form-group" style="background: rgba(67, 97, 238, 0.08); border: 1px solid rgba(67, 97, 238, 0.3); border-radius: var(--radius); padding: 10px 12px;">
+          <label style="font-size: 0.82rem; font-weight: 600; color: #4cc9f0;">
+            <span>3. Nuovo PIN Personale (Obbligatorio):</span>
+            <small style="display: block; color: var(--text-muted); font-size: 0.72rem; font-weight: normal; margin-top: 2px;">Sostituisce il PIN 1234 per proteggere il tuo schermo (min. 4 caratteri/cifre, diverso da 1234)</small>
+          </label>
+          <input type="password" id="onboardNewPin" placeholder="Nuovo PIN Personale" maxlength="8" autocomplete="new-password" style="margin-top: 6px; font-family: monospace; letter-spacing: 3px;">
+          <input type="password" id="onboardConfirmPin" placeholder="Conferma Nuovo PIN" maxlength="8" autocomplete="new-password" style="margin-top: 6px; font-family: monospace; letter-spacing: 3px;">
+        </div>
+
+        <div id="onboardErrorText" style="display: none; background: rgba(239, 71, 111, 0.15); border: 1px solid var(--danger); color: #ff8fab; padding: 8px 10px; border-radius: 8px; font-size: 0.75rem; text-align: center;"></div>
+
+      </div>
+      <div class="modal-footer" style="padding-top: 6px;">
+        <button type="button" id="submitOnboardingBtn" class="btn primary-btn" style="width: 100%; padding: 10px; font-size: 0.9rem;">🚀 Attiva e Connetti Pixò</button>
       </div>
     </div>
   </div>

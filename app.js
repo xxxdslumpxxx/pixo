@@ -7,7 +7,7 @@ const DEFAULT_CONFIG = {
   brokerUrl: "wss://e58d8ef9b4cb45b9b8250157f6c5b7c2.s1.eu.hivemq.cloud:8884/mqtt",
   brokerUser: "dslump",
   brokerPass: "projectLavagna!",
-  defaultDeviceId: "ESP32-A28DCC",
+  defaultDeviceId: "",
   defaultDeviceName: "Il mio Pixò",
   jpegQuality: 0.60, // Ottimizzato: ~4-6 KB per invio istantaneo in meno di 100ms!
   defaultCity: "Roma",
@@ -279,6 +279,18 @@ const themeSelect = document.getElementById('themeSelect');
 const weatherCityInput = document.getElementById('weatherCityInput');
 const screensaverToggle = document.getElementById('screensaverToggle');
 const ledToggle = document.getElementById('ledToggle');
+const changeDeviceBtn = document.getElementById('changeDeviceBtn');
+const factoryResetBtn = document.getElementById('factoryResetBtn');
+const factoryResetSection = document.getElementById('factoryResetSection');
+
+// Modal Onboarding Primo Avvio
+const onboardingModal = document.getElementById('onboardingModal');
+const onboardDeviceId = document.getElementById('onboardDeviceId');
+const onboardFactoryPin = document.getElementById('onboardFactoryPin');
+const onboardNewPin = document.getElementById('onboardNewPin');
+const onboardConfirmPin = document.getElementById('onboardConfirmPin');
+const onboardErrorText = document.getElementById('onboardErrorText');
+const submitOnboardingBtn = document.getElementById('submitOnboardingBtn');
 
 // Galleria Disegni
 const galleryModal = document.getElementById('galleryModal');
@@ -378,9 +390,9 @@ function initDeviceAndSettings() {
     state.deviceId = urlId.trim().toUpperCase();
     localStorage.setItem('pixo_device_id', state.deviceId);
   } else {
-    state.deviceId = localStorage.getItem('pixo_device_id') || 
-                     localStorage.getItem('lavagna_device_id') || 
-                     DEFAULT_CONFIG.defaultDeviceId;
+    state.deviceId = (localStorage.getItem('pixo_device_id') || 
+                      localStorage.getItem('lavagna_device_id') || 
+                      "").trim().toUpperCase();
   }
 
   // Verifica se l'app è aperta come ospite
@@ -450,7 +462,7 @@ function initDeviceAndSettings() {
 
 function updateSettingsUI() {
   if (state.isGuestMode) {
-    deviceIdDisplay.textContent = `${state.deviceName || state.deviceId} (Ospite)`;
+    deviceIdDisplay.textContent = `${state.deviceName || state.deviceId || "Pixò"} (Ospite)`;
     if (openSettingsBtn) openSettingsBtn.style.display = 'none';
     if (shareBtn) shareBtn.style.display = 'none';
     if (devicePill) {
@@ -458,8 +470,9 @@ function updateSettingsUI() {
       devicePill.removeAttribute('title');
     }
     if (devicePinInput) devicePinInput.value = "";
+    if (factoryResetSection) factoryResetSection.style.display = 'none';
   } else {
-    deviceIdDisplay.textContent = state.deviceName || state.deviceId;
+    deviceIdDisplay.textContent = state.deviceName || state.deviceId || "Collega Pixò";
     if (openSettingsBtn) openSettingsBtn.style.display = '';
     if (shareBtn) shareBtn.style.display = '';
     if (devicePill) {
@@ -467,11 +480,12 @@ function updateSettingsUI() {
       devicePill.title = "Clicca per aprire le impostazioni";
     }
     if (devicePinInput) devicePinInput.value = state.devicePin;
+    if (factoryResetSection) factoryResetSection.style.display = 'block';
   }
 
   deviceNameInput.value = state.deviceName;
   if (devicePinInput) devicePinInput.value = state.devicePin;
-  hardwareIdDisplay.textContent = state.deviceId;
+  if (hardwareIdDisplay) hardwareIdDisplay.textContent = state.deviceId || "(Non collegato)";
   brightnessSlider.value = state.brightness;
   brightnessVal.textContent = `${state.brightness}%`;
   langSelect.value = state.lang;
@@ -2278,6 +2292,157 @@ function setupEventListeners() {
     settingsModal.classList.add('hidden');
     showToast(t("toastSettingsSaved"));
   });
+
+  // Gestione Cambio Dispositivo dalle Impostazioni
+  if (changeDeviceBtn) {
+    changeDeviceBtn.addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+      showOnboardingModal(true);
+    });
+  }
+
+  // Gestione Ripristino ai Dati di Fabbrica (Solo Proprietario)
+  if (factoryResetBtn) {
+    factoryResetBtn.addEventListener('click', handleFactoryReset);
+  }
+
+  // Gestione Invio Onboarding Primo Avvio
+  if (submitOnboardingBtn) {
+    submitOnboardingBtn.addEventListener('click', handleOnboardingSubmit);
+  }
+}
+
+// ==========================================================================
+//  10b. LOGICA ONBOARDING PRIMO AVVIO & FACTORY RESET
+// ==========================================================================
+function showOnboardingModal(prefillCurrent = true) {
+  if (!onboardingModal) return;
+  if (prefillCurrent && state.deviceId) {
+    if (onboardDeviceId) onboardDeviceId.value = state.deviceId;
+    if (onboardFactoryPin) onboardFactoryPin.value = "1234";
+  } else {
+    if (onboardDeviceId) onboardDeviceId.value = "";
+    if (onboardFactoryPin) onboardFactoryPin.value = "1234";
+  }
+  if (onboardNewPin) onboardNewPin.value = "";
+  if (onboardConfirmPin) onboardConfirmPin.value = "";
+  if (onboardErrorText) {
+    onboardErrorText.style.display = "none";
+    onboardErrorText.textContent = "";
+  }
+  onboardingModal.classList.remove('hidden');
+}
+
+function hideOnboardingModal() {
+  if (onboardingModal) onboardingModal.classList.add('hidden');
+}
+
+function showOnboardingError(msg) {
+  if (!onboardErrorText) return;
+  onboardErrorText.textContent = msg;
+  onboardErrorText.style.display = "block";
+}
+
+function handleOnboardingSubmit() {
+  if (!onboardDeviceId || !onboardNewPin || !onboardConfirmPin) return;
+
+  let devId = onboardDeviceId.value.trim().toUpperCase();
+  if (!devId) {
+    showOnboardingError("Inserisci l'ID del dispositivo (es. ESP32-9205D4 o 9205D4).");
+    return;
+  }
+  if (!devId.startsWith("ESP32-")) {
+    devId = "ESP32-" + devId;
+  }
+
+  const factPin = (onboardFactoryPin ? onboardFactoryPin.value.trim() : "") || "1234";
+  const newPin = onboardNewPin.value.trim();
+  const confirmPin = onboardConfirmPin.value.trim();
+
+  // Validazione nuovo PIN obbligatorio
+  if (!newPin) {
+    showOnboardingError("È obbligatorio impostare un nuovo PIN personale di sicurezza.");
+    return;
+  }
+  if (newPin.length < 4) {
+    showOnboardingError("Il nuovo PIN deve contenere almeno 4 caratteri o cifre.");
+    return;
+  }
+  if (newPin === "1234" || newPin === factPin) {
+    showOnboardingError("Il nuovo PIN deve essere diverso dal PIN di fabbrica (1234).");
+    return;
+  }
+  if (newPin !== confirmPin) {
+    showOnboardingError("I due campi del nuovo PIN non coincidono. Riprova.");
+    return;
+  }
+
+  submitOnboardingBtn.disabled = true;
+  submitOnboardingBtn.textContent = "Attivazione e connessione...";
+
+  // Imposta lo stato locale
+  state.deviceId = devId;
+  state.devicePin = newPin;
+  localStorage.setItem('pixo_device_id', devId);
+  localStorage.setItem('pixo_device_pin', newPin);
+
+  // Aggiorna subito l'interfaccia
+  deviceIdDisplay.textContent = state.deviceName || "Il mio Pixò";
+  updateSettingsUI();
+
+  // Connetti a MQTT
+  connectMQTT().then(() => {
+    // Invia comando cambio PIN all'ESP32 tramite MQTT
+    if (state.mqttClient && state.mqttClient.connected) {
+      // 1. Invia sul topic di setup autorizzato col PIN di fabbrica
+      state.mqttClient.publish(`pixo/device/${devId}/${factPin}/setpin`, `SETPIN:${newPin}`, { qos: 0 });
+      // 2. Invia anche sul topic diretto
+      state.mqttClient.publish(`pixo/device/${devId}/setpin`, `SETPIN:${newPin}`, { qos: 0 });
+    }
+
+    submitOnboardingBtn.disabled = false;
+    submitOnboardingBtn.textContent = "🚀 Attiva e Connetti Pixò";
+    hideOnboardingModal();
+
+    showToast(`🎉 Pixò ${devId} attivato con successo!`, "success");
+  }).catch((err) => {
+    submitOnboardingBtn.disabled = false;
+    submitOnboardingBtn.textContent = "🚀 Attiva e Connetti Pixò";
+    hideOnboardingModal();
+    showToast(`Pixò salvato! Connessione al Cloud in corso...`);
+  });
+}
+
+function handleFactoryReset() {
+  if (state.isGuestMode) {
+    alert("Operazione non consentita in modalità ospite.");
+    return;
+  }
+  if (!state.deviceId) {
+    alert("Nessun dispositivo associato da ripristinare.");
+    return;
+  }
+  const pin = state.devicePin || "1234";
+  const ok = confirm(`⚠️ ATTENZIONE: Sei sicuro di voler ripristinare "${state.deviceId}" ai dati di fabbrica?\n\n• Verranno cancellate le reti Wi-Fi memorizzate dal dispositivo.\n• Il PIN di sicurezza tornerà a 1234.\n• Il display si riavvierà in modalità configurazione Wi-Fi.\n• L'app sul tuo telefono verrà scollegata.\n\nVuoi procedere?`);
+  if (!ok) return;
+
+  if (state.mqttClient && state.mqttClient.connected) {
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/${pin}/factory_reset`, `FACTORY_RESET:${pin}`, { qos: 0 });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/factory_reset`, `FACTORY_RESET:${pin}`, { qos: 0 });
+  }
+
+  localStorage.removeItem('pixo_device_id');
+  localStorage.removeItem('pixo_device_pin');
+  localStorage.removeItem('pixo_guest_keys');
+
+  settingsModal.classList.add('hidden');
+
+  alert("✅ Comando di ripristino inviato!\n\nPixò si sta riavviando allo stato di fabbrica. Per riconnetterti, accendi il dispositivo, collegati alla sua rete Wi-Fi 'Pixo-Setup-...' e ripeti la procedura iniziale.");
+
+  state.deviceId = "";
+  state.devicePin = "1234";
+  updateSettingsUI();
+  showOnboardingModal(false);
 }
 
 // ==========================================================================
@@ -2320,6 +2485,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initCanvas();
   initStickers();
   setupEventListeners();
-  connectMQTT();
+  if (state.deviceId) {
+    connectMQTT();
+  } else if (!state.isGuestMode) {
+    showOnboardingModal(false);
+  }
   registerServiceWorker();
 });
