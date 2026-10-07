@@ -480,7 +480,7 @@ function updateSettingsUI() {
     if (factoryResetSection) factoryResetSection.style.display = 'none';
   } else {
     deviceIdDisplay.textContent = state.deviceName || state.deviceId || "Collega Pixò";
-    if (openSettingsBtn) openSettingsBtn.style.display = '';
+    if (openSettingsBtn) openSettingsBtn.style.display = 'none';
     if (shareBtn) shareBtn.style.display = '';
     if (devicePill) {
       devicePill.style.cursor = 'pointer';
@@ -1695,7 +1695,7 @@ function connectMQTT() {
   if (mqttConnectPromise) return mqttConnectPromise;
 
   state.mqttConnecting = true;
-  statusDot.className = "status-dot connecting";
+  statusDot.className = "status-pulse status-dot connecting";
   statusDot.title = "Connessione a Pixò Cloud...";
 
   const clientId = "WebPixo_" + Math.random().toString(16).substr(2, 8);
@@ -1719,7 +1719,7 @@ function connectMQTT() {
           state.mqttConnected = true;
           state.mqttConnecting = false;
           mqttConnectPromise = null;
-          statusDot.className = "status-dot online";
+          statusDot.className = "status-pulse status-dot online";
           statusDot.title = "Connesso a Pixò Cloud";
 
           // Mostra il toast di benvenuto una sola volta all'avvio, mai in loop
@@ -1766,20 +1766,20 @@ function connectMQTT() {
           state.mqttConnected = false;
           state.mqttConnecting = false;
           mqttConnectPromise = null;
-          statusDot.className = "status-dot";
+          statusDot.className = "status-pulse status-dot";
           resolve(false);
         });
 
         state.mqttClient.on('offline', () => {
           state.mqttConnected = false;
           state.mqttConnecting = false;
-          statusDot.className = "status-dot";
+          statusDot.className = "status-pulse status-dot";
         });
 
         state.mqttClient.on('close', () => {
           state.mqttConnected = false;
           state.mqttConnecting = false;
-          statusDot.className = "status-dot";
+          statusDot.className = "status-pulse status-dot";
         });
       } else {
         // Se il client esiste già ed è disconnesso, riconnetti senza abortire la promessa attiva
