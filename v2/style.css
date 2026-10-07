@@ -2,14 +2,14 @@
    PIXÒ V2 — APPLE HUMAN INTERFACE DESIGN SYSTEM
    ========================================================================== */
 :root {
-  --bg-app: #000000;
-  --bg-surface: #121216;
-  --bg-card: rgba(26, 26, 32, 0.75);
-  --bg-glass: rgba(28, 28, 35, 0.65);
-  --glass-border: rgba(255, 255, 255, 0.08);
-  --text-main: #ffffff;
-  --text-secondary: rgba(235, 235, 245, 0.6);
-  --text-tertiary: rgba(235, 235, 245, 0.38);
+  --bg-app: #080a10;
+  --bg-surface: #10141e;
+  --bg-card: rgba(22, 27, 40, 0.72);
+  --bg-glass: rgba(24, 30, 45, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.09);
+  --text-main: #f5f5f7;
+  --text-secondary: rgba(235, 235, 245, 0.65);
+  --text-tertiary: rgba(235, 235, 245, 0.42);
   --accent-blue: #0a84ff;
   --accent-blue-glow: rgba(10, 132, 255, 0.35);
   --accent-green: #30d158;
@@ -37,6 +37,7 @@ html, body {
   min-height: 100%;
   min-height: 100dvh;
   background-color: var(--bg-app);
+  background: radial-gradient(circle at 50% -10%, #1c2438 0%, #0d111a 45%, #06080d 100%);
   color: var(--text-main);
   overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
@@ -56,7 +57,8 @@ body {
   display: flex;
   flex-direction: column;
   position: relative;
-  background: radial-gradient(circle at 50% 0%, #151624 0%, #000000 65%);
+  background: radial-gradient(circle at 50% -5%, rgba(30, 48, 80, 0.45) 0%, rgba(13, 17, 26, 0.95) 40%, rgba(7, 9, 14, 0.98) 100%);
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
 }
 
 /* ==========================================================================
@@ -70,9 +72,9 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: calc(var(--safe-top) + 6px) 16px 10px 16px;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(10, 13, 20, 0.75);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid var(--glass-border);
 }
 
@@ -83,12 +85,14 @@ body {
 }
 
 .nav-brand-avatar {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
-  box-shadow: 0 0 10px rgba(247, 215, 60, 0.45), 0 2px 6px rgba(0, 0, 0, 0.4);
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 12px rgba(247, 215, 60, 0.55), 0 2px 6px rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(255, 215, 0, 0.4);
+  background: #f7d73c;
+  display: block;
 }
 
 
@@ -165,7 +169,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 6px 14px calc(140px + var(--safe-bottom)) 14px; /* Ampio spazio per CTA flottante e Tab Bar */
+  padding: 6px 14px calc(75px + var(--safe-bottom)) 14px;
   gap: 10px;
 }
 
@@ -292,19 +296,75 @@ body {
   touch-action: none;
 }
 
-.canvas-footer-meta {
+/* Nascondi la lavagna e il tasto invia quando si è nella tab Dispositivo / Impostazioni */
+body[data-active-tab="panelSettings"] .canvas-stage,
+.canvas-stage.is-hidden {
+  display: none !important;
+}
+
+/* Pulsante Primario Invia a Pixò (ancorato direttamente sotto la cornice del display) */
+.ios-send-cta {
+  position: relative;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   width: 100%;
-  max-width: 320px;
-  padding: 6px 4px 0 4px;
+  max-width: min(84vw, 340px);
+  padding: 8px 16px 9px 16px;
+  margin-top: 10px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #0a84ff 0%, #0066cc 100%);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 8px 24px var(--accent-blue-glow), 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ios-send-cta:active {
+  transform: scale(0.975);
+  box-shadow: 0 4px 12px var(--accent-blue-glow);
+}
+
+.ios-send-cta:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.send-cta-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.send-label {
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+
+.send-cta-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
+  letter-spacing: 0.2px;
+}
+
+.meta-sep {
+  opacity: 0.45;
 }
 
 .meta-tag {
   font-size: 0.7rem;
-  font-weight: 600;
-  color: var(--text-tertiary);
-  letter-spacing: 0.3px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.78);
 }
 
 /* Overlay Manipolazione Touch */
@@ -708,41 +768,7 @@ body {
   flex-direction: column;
   align-items: center;
   padding: 0 16px var(--safe-bottom) 16px;
-  pointer-events: none; /* Lascia cliccabile ciò che sta dietro fuori dai bottoni */
-}
-
-/* Big Action Button "Invia a Pixò" */
-.ios-send-cta {
-  pointer-events: auto;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  width: 100%;
-  height: 54px;
-  border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, #0a84ff 0%, #0066cc 100%);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #ffffff;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.2px;
-  cursor: pointer;
-  box-shadow: 0 8px 24px var(--accent-blue-glow), 0 2px 6px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-  margin-bottom: 10px;
-}
-
-.ios-send-cta:active {
-  transform: scale(0.97);
-  box-shadow: 0 4px 12px var(--accent-blue-glow);
-}
-
-.ios-send-cta:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-  transform: none;
+  pointer-events: none;
 }
 
 /* Tab Bar */
