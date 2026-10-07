@@ -2217,10 +2217,10 @@ function setupEventListeners() {
     sendBrightness(val);
   });
 
-  // Modal Impostazioni (Accessibile SOLO al Proprietario)
+  // Impostazioni Dispositivo (Accessibile SOLO al Proprietario)
   const openSettings = () => {
     if (state.isGuestMode) return;
-    settingsModal.classList.remove('hidden');
+    document.querySelector('.tab-item[data-tab="panelSettings"]')?.click();
   };
   openSettingsBtn.addEventListener('click', openSettings);
   devicePill.addEventListener('click', () => {
@@ -2314,14 +2314,26 @@ function setupEventListeners() {
   }
 
   // --- LOGICA TAB BAR APPLE STYLE ---
+  const canvasStage = document.querySelector('.canvas-stage');
   document.querySelectorAll('.tab-item').forEach(tabBtn => {
     tabBtn.addEventListener('click', () => {
       document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
       tabBtn.classList.add('active');
       const targetId = tabBtn.dataset.tab;
+      document.body.dataset.activeTab = targetId;
+
       document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
       const targetPanel = document.getElementById(targetId);
       if (targetPanel) targetPanel.classList.add('active');
+
+      // Se l'utente entra nella tab Impostazioni (Dispositivo), nascondi completamente la lavagna e il tasto invia!
+      if (canvasStage) {
+        if (targetId === 'panelSettings') {
+          canvasStage.style.display = 'none';
+        } else {
+          canvasStage.style.display = 'flex';
+        }
+      }
 
       if (targetId === 'panelGallery') {
         renderGallery();
