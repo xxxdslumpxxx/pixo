@@ -1,5 +1,5 @@
 // Service Worker per Pixò v2 PWA
-const CACHE_NAME = 'pixo-v2-apple-v1';
+const CACHE_NAME = 'pixo-v2-apple-v2';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -9,6 +9,7 @@ const ASSETS_TO_CACHE = [
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
+  './pixo_face.png',
   'https://unpkg.com/mqtt/dist/mqtt.min.js'
 ];
 
