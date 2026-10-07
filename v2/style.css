@@ -134,21 +134,32 @@ body {
   background: rgba(255, 255, 255, 0.14);
 }
 
-.status-pulse {
-  width: 7px;
-  height: 7px;
+#openSettingsBtn {
+  display: none !important;
+}
+
+.status-pulse,
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  min-width: 8px;
+  min-height: 8px;
   border-radius: 50%;
   background: var(--accent-red);
   box-shadow: 0 0 8px var(--accent-red);
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
-.status-pulse.online {
+.status-pulse.online,
+.status-dot.online {
   background: var(--accent-green);
   box-shadow: 0 0 10px var(--accent-green);
 }
 
-.status-pulse.connecting {
+.status-pulse.connecting,
+.status-dot.connecting {
   background: var(--accent-orange);
   box-shadow: 0 0 10px var(--accent-orange);
 }
