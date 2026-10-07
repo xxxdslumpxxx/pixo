@@ -321,6 +321,41 @@
                 <button type="button" id="changeDeviceBtn" class="pill-btn secondary mini">Cambia</button>
               </div>
 
+              <!-- Gestione Wi-Fi Pixò -->
+              <div class="setting-item" id="wifiManagementSection" style="margin-top:10px; padding:12px; border:1px solid var(--glass-border); border-radius:var(--radius-md); background:rgba(255,255,255,0.03); flex-direction:column; align-items:stretch;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div class="setting-info">
+                    <strong style="display:flex; align-items:center; gap:6px;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                      Rete Wi-Fi di Pixò
+                    </strong>
+                    <small id="currentWifiDesc" style="color:var(--text-secondary); margin-top:2px; display:block;">In attesa di segnale da Pixò...</small>
+                  </div>
+                  <span id="currentWifiBadge" style="font-size:0.75rem; padding:3px 8px; border-radius:10px; background:rgba(52,199,89,0.15); color:var(--accent-green); font-weight:600; display:none;">Collegato</span>
+                </div>
+
+                <div id="wifiActionButtons" style="display:flex; gap:8px; margin-top:10px;">
+                  <button type="button" class="pill-btn secondary mini" id="btnToggleNewWifi" style="flex:1;">Imposta Nuova Wi-Fi</button>
+                  <button type="button" class="pill-btn secondary mini" id="btnOpenWifiPortal" style="flex:1;" title="Avvia l'hotspot per scegliere la rete dallo smartphone">Scansiona Rete</button>
+                </div>
+
+                <!-- Modulo a scomparsa per digitare nuova rete -->
+                <div id="newWifiFormBox" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--glass-border);">
+                  <div class="ios-input-group" style="margin-bottom:8px;">
+                    <label style="font-size:0.8rem; margin-bottom:4px;">Nome Nuova Rete (SSID)</label>
+                    <input type="text" id="newWifiSsidInput" placeholder="es. NomeRete_2.4GHz" style="font-size:0.85rem; height:38px;">
+                  </div>
+                  <div class="ios-input-group" style="margin-bottom:10px;">
+                    <label style="font-size:0.8rem; margin-bottom:4px;">Password Wi-Fi</label>
+                    <input type="password" id="newWifiPassInput" placeholder="Password della rete" style="font-size:0.85rem; height:38px;">
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    <button type="button" class="pill-btn secondary mini" id="btnCancelNewWifi" style="flex:1;">Annulla</button>
+                    <button type="button" class="pill-btn primary mini" id="btnApplyNewWifi" style="flex:2;">Invia a Pixò</button>
+                  </div>
+                </div>
+              </div>
+
               <!-- Ripristino Dati di Fabbrica -->
               <div class="setting-item" id="factoryResetSection" style="margin-top:10px; padding:12px; border:1px solid rgba(255,69,58,0.25); border-radius:var(--radius-md); background:rgba(255,69,58,0.06);">
                 <div class="setting-info">
@@ -501,6 +536,6 @@
 
   </div>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
