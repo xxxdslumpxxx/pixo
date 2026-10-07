@@ -13,8 +13,8 @@
   <link rel="icon" type="image/svg+xml" href="icon.svg">
   <link rel="apple-touch-icon" href="icon-192.png">
 
-  <!-- Font SF Pro / System & Stili Apple Design -->
-  <link rel="stylesheet" href="style.css?v=1">
+  <!-- Stili Apple Design -->
+  <link rel="stylesheet" href="style.css?v=2">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
@@ -25,17 +25,18 @@
       <div class="nav-left">
         <span class="nav-brand-icon">👾</span>
         <div class="nav-title-group">
-          <span class="nav-app-name" id="appTitleDisplay">Pixò</span>
-          <span class="nav-subtitle" id="deviceSubtitle">Non connesso</span>
+          <span class="nav-app-name" id="appTitleDisplay" data-i18n="appTitle">Pixò</span>
+          <span class="nav-subtitle" id="deviceSubtitle">Smart Display</span>
         </div>
       </div>
 
       <div class="nav-right">
-        <!-- Live status pill -->
-        <button class="nav-pill" id="navDevicePill" title="Stato Dispositivo">
+        <!-- Live status pill & device -->
+        <button class="nav-pill" id="devicePill" title="Stato Dispositivo">
           <span class="status-pulse" id="statusDot"></span>
-          <span class="device-id-label" id="deviceIdDisplay">Connessione...</span>
+          <span class="device-id-label" id="deviceIdDisplay">Nessun ID</span>
         </button>
+        <button id="openSettingsBtn" style="display:none;"></button>
       </div>
     </header>
 
@@ -46,7 +47,7 @@
       <div class="ios-banner hidden" id="feedBanner">
         <div class="banner-content">
           <span class="banner-pulse"></span>
-          <span class="banner-text" id="feedStatusText">Feed attivo</span>
+          <span class="banner-text" id="feedStatusText">Feed attivo...</span>
         </div>
         <button class="banner-stop-btn" id="stopFeedBtn">Interrompi</button>
       </div>
@@ -54,23 +55,23 @@
       <!-- Canvas Card (La cornice elegante del display fisico) -->
       <section class="canvas-stage">
         
-        <!-- Toolbar flottante contestuale di undo/pulisci/standby sopra il canvas -->
+        <!-- Toolbar rapida elegante sopra il canvas -->
         <div class="canvas-quick-bar">
-          <button class="quick-tool-btn" id="undoBtn" title="Annulla ultimo tratto">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
-            <span>Undo</span>
+          <button class="quick-tool-btn" id="undoBtn" title="Annulla ultimo tratto (Undo)">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
+            <span data-i18n="undo">Undo</span>
           </button>
           <button class="quick-tool-btn danger" id="clearBtn" title="Pulisci lavagna">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-            <span>Pulisci</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            <span data-i18n="clear">Pulisci</span>
           </button>
-          <button class="quick-tool-btn" id="saveCanvasBtn" title="Salva nei preferiti">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
-            <span>Salva</span>
+          <button class="quick-tool-btn" id="saveCanvasBtn" title="Salva questo disegno nei preferiti">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>
+            <span data-i18n="save">Salva</span>
           </button>
-          <button class="quick-tool-btn" id="standbyBtn" title="Metti in standby">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
-            <span>Standby</span>
+          <button class="quick-tool-btn" id="standbyBtn" title="Ripristina faccina animata di standby">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+            <span data-i18n="standby">Standby</span>
           </button>
         </div>
 
@@ -80,8 +81,8 @@
           <div class="overlay-toolbar hidden" id="overlayToolbar">
             <span class="overlay-hint" id="overlayHintText">🖐️ Trascina e ridimensiona</span>
             <div class="overlay-btns">
-              <button id="confirmOverlayBtn" class="pill-btn primary">Applica</button>
-              <button id="cancelOverlayBtn" class="pill-btn danger">Annulla</button>
+              <button id="confirmOverlayBtn" class="pill-btn primary mini">Applica</button>
+              <button id="cancelOverlayBtn" class="pill-btn danger mini">Annulla</button>
             </div>
           </div>
 
@@ -102,8 +103,8 @@
         </div>
 
         <div class="canvas-footer-meta">
-          <span class="meta-tag">ST7789 • 240×240</span>
-          <span class="meta-tag" id="payloadSizeBadge">~0 KB</span>
+          <span class="meta-tag">Pixò ST7789 • 240×240 px</span>
+          <span class="meta-tag" id="payloadSizeBadge">Payload: ~0 KB</span>
         </div>
       </section>
 
@@ -115,15 +116,15 @@
           <div class="panel-card glass">
             <!-- Palette Colori Apple Style -->
             <div class="palette-scroll" id="palette">
-              <button class="color-dot" data-color="#000000" style="--c: #000000;" aria-label="Nero"></button>
-              <button class="color-dot active" data-color="#ffffff" style="--c: #ffffff;" aria-label="Bianco"></button>
-              <button class="color-dot" data-color="#ff3b30" style="--c: #ff3b30;" aria-label="Rosso"></button>
-              <button class="color-dot" data-color="#ff9500" style="--c: #ff9500;" aria-label="Arancione"></button>
-              <button class="color-dot" data-color="#ffcc00" style="--c: #ffcc00;" aria-label="Giallo"></button>
-              <button class="color-dot" data-color="#34c759" style="--c: #34c759;" aria-label="Verde"></button>
-              <button class="color-dot" data-color="#00c7be" style="--c: #00c7be;" aria-label="Turchese"></button>
-              <button class="color-dot" data-color="#007aff" style="--c: #007aff;" aria-label="Blu"></button>
-              <button class="color-dot" data-color="#af52de" style="--c: #af52de;" aria-label="Viola"></button>
+              <button class="color-btn" data-color="#000000" style="--c: #000000;" aria-label="Nero"></button>
+              <button class="color-btn active" data-color="#ffffff" style="--c: #ffffff;" aria-label="Bianco"></button>
+              <button class="color-btn" data-color="#ff3b30" style="--c: #ff3b30;" aria-label="Rosso"></button>
+              <button class="color-btn" data-color="#ff9500" style="--c: #ff9500;" aria-label="Arancione"></button>
+              <button class="color-btn" data-color="#ffcc00" style="--c: #ffcc00;" aria-label="Giallo"></button>
+              <button class="color-btn" data-color="#34c759" style="--c: #34c759;" aria-label="Verde"></button>
+              <button class="color-btn" data-color="#00c7be" style="--c: #00c7be;" aria-label="Turchese"></button>
+              <button class="color-btn" data-color="#007aff" style="--c: #007aff;" aria-label="Blu"></button>
+              <button class="color-btn" data-color="#af52de" style="--c: #af52de;" aria-label="Viola"></button>
             </div>
 
             <!-- Separatore -->
@@ -132,12 +133,12 @@
             <!-- Strumenti Tratto & Gomma -->
             <div class="stroke-dock">
               <div class="stroke-sizes">
-                <button class="size-dot active" data-size="2" title="Fine (2px)"><span style="width: 4px; height: 4px;"></span></button>
-                <button class="size-dot" data-size="4" title="Medio (4px)"><span style="width: 8px; height: 8px;"></span></button>
-                <button class="size-dot" data-size="8" title="Spesso (8px)"><span style="width: 14px; height: 14px;"></span></button>
-                <button class="size-dot" data-size="16" title="Pennarello (16px)"><span style="width: 22px; height: 22px;"></span></button>
+                <button class="stroke-btn active" data-size="2" title="Fine (2px)"><span style="width: 4px; height: 4px;"></span></button>
+                <button class="stroke-btn" data-size="4" title="Medio (4px)"><span style="width: 8px; height: 8px;"></span></button>
+                <button class="stroke-btn" data-size="8" title="Spesso (8px)"><span style="width: 14px; height: 14px;"></span></button>
+                <button class="stroke-btn" data-size="16" title="Pennarello (16px)"><span style="width: 22px; height: 22px;"></span></button>
               </div>
-              <button class="tool-toggle-btn" id="eraserBtn" title="Gomma">
+              <button class="tool-toggle-btn" id="eraserBtn" title="Gomma per cancellare">
                 <span>🧹</span>
                 <span class="tool-lbl">Gomma</span>
               </button>
@@ -145,48 +146,48 @@
           </div>
         </div>
 
-        <!-- TAB 2: SMART CREA (Testo, Foto, Sticker, Meteo, Orologio) -->
+        <!-- TAB 2: SMART CREA (Testo, Foto, Sticker, Meteo, Orologio, Luce) -->
         <div class="tab-panel" id="panelSmart">
           <div class="panel-card glass grid-2x3">
             <button class="smart-action-card" id="textToolBtn">
               <span class="smart-icon">🔤</span>
               <div class="smart-text">
-                <strong>Testo</strong>
+                <strong data-i18n="text">Testo</strong>
                 <small>Scrivi a schermo</small>
               </div>
             </button>
             <button class="smart-action-card" id="photoBtn">
               <span class="smart-icon">📷</span>
               <div class="smart-text">
-                <strong>Foto</strong>
+                <strong data-i18n="photo">Foto</strong>
                 <small>Dalla galleria</small>
               </div>
             </button>
             <button class="smart-action-card" id="stickerToggleBtn">
               <span class="smart-icon">⭐</span>
               <div class="smart-text">
-                <strong>Sticker</strong>
+                <strong data-i18n="stickers">Sticker</strong>
                 <small>Emoji & Simboli</small>
               </div>
             </button>
             <button class="smart-action-card" id="weatherBtn">
               <span class="smart-icon">🌦️</span>
               <div class="smart-text">
-                <strong>Meteo</strong>
+                <strong data-i18n="weather">Meteo</strong>
                 <small>Previsioni live</small>
               </div>
             </button>
             <button class="smart-action-card" id="clockBtn">
               <span class="smart-icon">⏰</span>
               <div class="smart-text">
-                <strong>Orologio</strong>
+                <strong data-i18n="clock">Orologio</strong>
                 <small>Modalità sveglia</small>
               </div>
             </button>
             <button class="smart-action-card" id="lightToggleBtn">
               <span class="smart-icon">💡</span>
               <div class="smart-text">
-                <strong>Luce LED</strong>
+                <strong data-i18n="light">Luce LED</strong>
                 <small>Illumina stanza</small>
               </div>
             </button>
@@ -198,13 +199,18 @@
         <div class="tab-panel" id="panelGallery">
           <div class="panel-card glass">
             <div class="gallery-header-row">
-              <h4 class="card-title">I Tuoi Disegni Salvati</h4>
-              <button class="pill-btn secondary mini" id="syncDisplayBtn" title="Carica ciò che c'è attualmente a display">
+              <h4 class="card-title" data-i18n="gallery">I Tuoi Disegni</h4>
+              <span id="galleryCountText" style="font-size:0.75rem; color:var(--text-secondary);"></span>
+              <button class="pill-btn secondary mini" id="loadFromDisplayBtn" title="Carica ciò che c'è attualmente a display">
                 🔄 Da Pixò
               </button>
+              <button class="pill-btn secondary mini" id="saveCurrentFromGalleryBtn" style="display:none;"></button>
             </div>
             <div class="gallery-grid" id="galleryGrid">
               <!-- Riempito dinamicamente -->
+            </div>
+            <div id="galleryEmptyMessage" style="display:none; text-align:center; padding:20px; color:var(--text-secondary); font-size:0.85rem;">
+              Nessun disegno salvato. Usa il tasto 💾 Salva per conservare le tue creazioni!
             </div>
           </div>
         </div>
@@ -212,36 +218,59 @@
         <!-- TAB 4: DISPOSITIVO & IMPOSTAZIONI -->
         <div class="tab-panel" id="panelSettings">
           <div class="panel-card glass">
-            <h4 class="card-title">Impostazioni Pixò</h4>
+            <h4 class="card-title" data-i18n="settingsTitle">Impostazioni Pixò</h4>
+            
             <div class="settings-list">
-              <div class="setting-item" id="devicePinRow">
-                <div class="setting-info">
-                  <strong>PIN di Sicurezza</strong>
-                  <small>Protegge il tuo Pixò da accessi non autorizzati</small>
-                </div>
-                <button class="pill-btn secondary" id="changePinBtn">Modifica</button>
+              <!-- Nome Dispositivo -->
+              <div class="ios-input-group">
+                <label data-i18n="deviceNameLabel">Nome del tuo Pixò</label>
+                <input type="text" id="deviceNameInput" placeholder="es. Pixò Salotto">
               </div>
 
-              <div class="setting-item" id="guestShareRow">
-                <div class="setting-info">
-                  <strong>Accesso Ospiti & Link</strong>
-                  <small>Condividi link speciali per far disegnare gli amici</small>
-                </div>
-                <button class="pill-btn secondary" id="shareBtn">Gestisci</button>
+              <!-- PIN di Sicurezza -->
+              <div class="ios-input-group">
+                <label>PIN di Sicurezza Personale</label>
+                <input type="password" id="devicePinInput" maxlength="8" placeholder="••••" style="letter-spacing: 4px; font-weight: bold; font-family: monospace;">
               </div>
 
+              <!-- Città per Meteo -->
+              <div class="ios-input-group">
+                <label data-i18n="cityLabel">Città Predefinita per il Meteo</label>
+                <input type="text" id="weatherCityInput" placeholder="es. Roma, Milano...">
+              </div>
+
+              <!-- Lingua e Tema -->
+              <div style="display:flex; gap:10px; margin-bottom:12px;">
+                <div class="ios-input-group" style="flex:1;">
+                  <label data-i18n="langLabel">Lingua</label>
+                  <select id="langSelect" class="ios-input-group" style="height:44px; padding:0 10px; border-radius:var(--radius-md); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; font-size:0.85rem;">
+                    <option value="it">Italiano 🇮🇹</option>
+                    <option value="en">English 🇬🇧</option>
+                  </select>
+                </div>
+                <div class="ios-input-group" style="flex:1;">
+                  <label data-i18n="canvasThemeLabel">Tema Lavagna</label>
+                  <select id="themeSelect" style="height:44px; padding:0 10px; border-radius:var(--radius-md); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; font-size:0.85rem;">
+                    <option value="dark">Nero</option>
+                    <option value="light">Bianco</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Slider Luminosità Display (Hardware PWM) -->
               <div class="setting-item">
                 <div class="setting-info">
-                  <strong>Luminosità Display</strong>
+                  <strong data-i18n="brightnessLabel">Luminosità Schermo</strong>
                   <small id="brightnessVal">100%</small>
                 </div>
                 <input type="range" id="brightnessSlider" min="10" max="100" value="100" class="ios-slider">
               </div>
 
+              <!-- Screensaver Standby 30 Minuti -->
               <div class="setting-item">
                 <div class="setting-info">
-                  <strong>Screensaver Standby</strong>
-                  <small>Dopo 30 min ripristina la simpatica animazione</small>
+                  <strong data-i18n="screensaverLabel">Screensaver Standby (30 min)</strong>
+                  <small data-i18n="screensaverSub">Torna alla faccina animata dopo 30 min di inattività</small>
                 </div>
                 <label class="ios-toggle">
                   <input type="checkbox" id="screensaverToggle" checked>
@@ -249,10 +278,11 @@
                 </label>
               </div>
 
+              <!-- LED Notifica Ausiliario (GPIO 5) -->
               <div class="setting-item">
                 <div class="setting-info">
-                  <strong>Lampeggio Notifica LED</strong>
-                  <small>Doppio flash luminoso quando arriva un nuovo disegno</small>
+                  <strong data-i18n="ledLabel">Lampeggio LED alla ricezione</strong>
+                  <small data-i18n="ledSub">Doppio flash luminoso quando ricevi un nuovo disegno</small>
                 </div>
                 <label class="ios-toggle">
                   <input type="checkbox" id="ledToggle" checked>
@@ -260,8 +290,30 @@
                 </label>
               </div>
 
-              <div class="setting-item" id="factoryResetSection">
-                <div class="setting-info text-danger">
+              <!-- Accesso Ospiti & Link -->
+              <div class="setting-item" id="guestShareRow">
+                <div class="setting-info">
+                  <strong data-i18n="share">Accesso Ospiti & Link</strong>
+                  <small>Condividi link speciali per far disegnare gli amici</small>
+                </div>
+                <button class="pill-btn secondary" id="shareBtn">Gestisci</button>
+              </div>
+
+              <!-- Salva Impostazioni -->
+              <button class="pill-btn primary full" id="saveSettingsBtn" style="margin-top:6px;">Salva Impostazioni</button>
+
+              <!-- Hardware ID & Cambio Dispositivo -->
+              <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:var(--radius-md); border:1px solid var(--glass-border); margin-top:8px;">
+                <div>
+                  <small style="color:var(--text-secondary); display:block;">ID Hardware</small>
+                  <strong id="hardwareIdDisplay" style="color:var(--accent-blue); font-family:monospace; font-size:0.95rem;">-</strong>
+                </div>
+                <button type="button" id="changeDeviceBtn" class="pill-btn secondary mini">Cambia</button>
+              </div>
+
+              <!-- Ripristino Dati di Fabbrica -->
+              <div class="setting-item" id="factoryResetSection" style="margin-top:10px; padding:12px; border:1px solid rgba(255,69,58,0.25); border-radius:var(--radius-md); background:rgba(255,69,58,0.06);">
+                <div class="setting-info">
                   <strong class="text-danger">Ripristino di Fabbrica</strong>
                   <small>Cancella Wi-Fi e riporta il PIN a 1234</small>
                 </div>
@@ -279,7 +331,6 @@
     <footer class="ios-footer">
       <!-- Big Floating Action Button "Invia a Pixò" -->
       <button class="ios-send-cta" id="sendBtn">
-        <div class="send-glow"></div>
         <svg class="send-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
           <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
         </svg>
@@ -312,57 +363,52 @@
 
     <!-- Bottom Sheets / Modali Apple Style -->
 
-    <!-- Sticker Sheet -->
+    <!-- Sticker Sheet Drawer -->
     <div class="ios-sheet hidden" id="stickerDrawer">
       <div class="sheet-backdrop" id="closeStickerBackdrop"></div>
       <div class="sheet-card">
         <div class="sheet-grabber"></div>
         <div class="sheet-header">
-          <h3>Scegli uno Sticker</h3>
+          <h3 data-i18n="chooseSticker">Scegli uno Sticker</h3>
           <button class="sheet-close-btn" id="closeStickerBtn">&times;</button>
         </div>
         <div class="sticker-grid" id="stickerGrid"></div>
       </div>
     </div>
 
-    <!-- Modale Modifica PIN -->
-    <div class="ios-sheet hidden" id="pinModal">
-      <div class="sheet-backdrop" id="closePinBackdrop"></div>
+    <!-- Modale Testo Personalizzato -->
+    <div class="ios-sheet hidden" id="textModal">
+      <div class="sheet-backdrop" id="closeTextBackdrop"></div>
       <div class="sheet-card">
         <div class="sheet-grabber"></div>
         <div class="sheet-header">
-          <h3>PIN di Sicurezza Pixò</h3>
-          <button class="sheet-close-btn" id="closePinModal">&times;</button>
+          <h3 data-i18n="text">Aggiungi Testo</h3>
+          <button class="sheet-close-btn" id="closeTextModal">&times;</button>
         </div>
         <div class="sheet-body">
-          <p class="sheet-desc">Imposta un PIN personale per autorizzare disegni e comandi verso il display.</p>
           <div class="ios-input-group">
-            <label>PIN Attuale</label>
-            <input type="password" id="modalOldPin" placeholder="PIN attuale (es. 1234)">
+            <label>Scrivi il tuo messaggio:</label>
+            <input type="text" id="customTextInput" placeholder="es. Ciao amore!">
           </div>
-          <div class="ios-input-group">
-            <label>Nuovo PIN</label>
-            <input type="password" id="modalNewPin" placeholder="Nuovo PIN personale">
-          </div>
-          <button class="pill-btn primary full" id="savePinBtn">Salva Nuovo PIN</button>
+          <button class="pill-btn primary full" id="applyTextBtn" style="margin-top:10px;">Inserisci sulla Lavagna</button>
         </div>
       </div>
     </div>
 
     <!-- Modale Condivisione Ospiti (Link multipli) -->
-    <div class="ios-sheet hidden" id="guestModal">
-      <div class="sheet-backdrop" id="closeGuestBackdrop"></div>
+    <div class="ios-sheet hidden" id="shareModal">
+      <div class="sheet-backdrop" id="closeShareBackdrop"></div>
       <div class="sheet-card">
         <div class="sheet-grabber"></div>
         <div class="sheet-header">
           <h3>Condivisione & Ospiti</h3>
-          <button class="sheet-close-btn" id="closeGuestModal">&times;</button>
+          <button class="sheet-close-btn" id="closeShareModal">&times;</button>
         </div>
         <div class="sheet-body">
-          <div class="setting-item mb-3">
+          <div class="setting-item" style="margin-bottom:14px;">
             <div class="setting-info">
               <strong>Consenti Disegni da Ospiti</strong>
-              <small>Se disattivato, solo tu potrai inviare disegni</small>
+              <small id="guestStatusSub">Se disattivato, solo tu potrai inviare disegni</small>
             </div>
             <label class="ios-toggle">
               <input type="checkbox" id="allowGuestsToggle" checked>
@@ -370,12 +416,20 @@
             </label>
           </div>
 
-          <div class="new-key-box">
-            <input type="text" id="newGuestNameInput" placeholder="Nome per chi riceve il link (es. Marco)">
-            <button class="pill-btn primary" id="addGuestKeyBtn">+ Crea Link</button>
+          <div style="display:flex; gap:8px; margin-bottom:14px;">
+            <input type="text" id="newGuestNameInput" placeholder="Nome per il link (es. Marco)" style="flex:1; height:44px; padding:0 14px; border-radius:var(--radius-md); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; font-size:0.9rem; outline:none;">
+            <button class="pill-btn primary" id="createGuestKeyBtn">+ Crea Link</button>
           </div>
 
-          <div class="guest-keys-container" id="guestKeysList"></div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span id="guestKeysCountBadge" style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">0 attivi</span>
+            <button id="revokeGuestsBtn" class="pill-btn danger mini" style="display:none;"></button>
+          </div>
+
+          <div id="guestKeysList" style="display:flex; flex-direction:column; gap:10px; max-height:40vh; overflow-y:auto;"></div>
+          <div id="guestKeysEmpty" style="display:none; text-align:center; padding:16px; color:var(--text-secondary); font-size:0.82rem;">
+            Nessun link ospite attivo. Creane uno per farlo usare ai tuoi amici!
+          </div>
         </div>
       </div>
     </div>
@@ -387,51 +441,64 @@
         <div class="sheet-grabber"></div>
         <div class="sheet-header">
           <h3 id="onboardingTitle">Connetti il tuo Pixò</h3>
+          <button id="closeOnboardingModal" class="sheet-close-btn" style="display:none;">&times;</button>
         </div>
         <div class="sheet-body">
           <div class="onboarding-tabs">
-            <button class="ob-tab active" id="tabObLogin">🔑 Accedi con PIN</button>
-            <button class="ob-tab" id="tabObActivate">✨ Prima Attivazione</button>
+            <button class="ob-tab active" id="tabOnboardLogin">🔑 Accedi con PIN</button>
+            <button class="ob-tab" id="tabOnboardActivate">✨ Prima Attivazione</button>
           </div>
 
-          <!-- Form Accedi -->
-          <form id="formObLogin" class="ob-form">
+          <!-- Errore Onboarding -->
+          <div id="onboardErrorText" style="display:none; padding:8px 12px; border-radius:var(--radius-sm); background:rgba(255,69,58,0.15); border:1px solid rgba(255,69,58,0.3); color:#ff6961; font-size:0.8rem; margin-bottom:12px;"></div>
+
+          <!-- Sezione Accedi -->
+          <div id="sectionOnboardLogin" style="display:flex; flex-direction:column; gap:12px;">
             <div class="ios-input-group">
               <label>ID Dispositivo</label>
-              <input type="text" id="obLoginId" placeholder="Es. ESP32-9205D4" required>
+              <input type="text" id="onboardLoginDeviceId" placeholder="Es. ESP32-9205D4">
             </div>
             <div class="ios-input-group">
               <label>PIN di Sicurezza</label>
-              <input type="password" id="obLoginPin" placeholder="Il tuo PIN personale" required>
+              <input type="password" id="onboardLoginPin" placeholder="Il tuo PIN personale">
             </div>
-            <button type="submit" class="pill-btn primary full">Entra in Pixò</button>
-          </form>
+            <button type="button" class="pill-btn primary full" id="submitLoginBtn">Entra in Pixò</button>
+          </div>
 
-          <!-- Form Prima Attivazione -->
-          <form id="formObActivate" class="ob-form hidden">
+          <!-- Sezione Prima Attivazione -->
+          <div id="sectionOnboardActivate" style="display:none; flex-direction:column; gap:12px;">
             <div class="ios-input-group">
               <label>ID Dispositivo (visibile sullo schermo)</label>
-              <input type="text" id="obActId" placeholder="Es. ESP32-9205D4" required>
+              <input type="text" id="onboardDeviceId" placeholder="Es. ESP32-9205D4">
             </div>
             <div class="ios-input-group">
               <label>PIN di Fabbrica (1234)</label>
-              <input type="password" id="obActFactPin" value="1234" required>
+              <input type="password" id="onboardFactoryPin" value="1234">
             </div>
             <div class="ios-input-group">
               <label>Crea Nuovo PIN Personale</label>
-              <input type="password" id="obActNewPin" placeholder="Almeno 4 cifre" required>
+              <input type="password" id="onboardNewPin" placeholder="Almeno 4 cifre">
             </div>
-            <button type="submit" class="pill-btn primary full">Attiva Pixò</button>
-          </form>
+            <div class="ios-input-group">
+              <label>Conferma Nuovo PIN</label>
+              <input type="password" id="onboardConfirmPin" placeholder="Ripeti il nuovo PIN">
+            </div>
+            <button type="button" class="pill-btn primary full" id="submitOnboardingBtn">Attiva Pixò</button>
+          </div>
         </div>
       </div>
     </div>
+
+    <!-- Modale Impostazioni legacy fittizio (nascosto) per compatibilità selettori -->
+    <div id="settingsModal" style="display:none;"><button id="closeSettingsModal"></button></div>
+    <div id="galleryModal" style="display:none;"><button id="closeGalleryModal"></button></div>
+    <button id="galleryBtn" style="display:none;"></button>
 
     <!-- Toast Notification in stile Dynamic Island di iOS -->
     <div class="ios-toast-container" id="toastContainer"></div>
 
   </div>
 
-  <script src="app.js?v=1"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>
