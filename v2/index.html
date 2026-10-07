@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 
   <!-- Stili Apple Design -->
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
@@ -23,7 +23,7 @@
     <!-- Top Navigation Bar (Apple Style Glass) -->
     <header class="ios-navbar">
       <div class="nav-left">
-        <img src="pixo_face.png" alt="Pixò" class="nav-brand-avatar">
+        <img src="./pixo_face.png?v=3" alt="Pixò" class="nav-brand-avatar" id="navAvatarImg" onerror="if(!this.dataset.tried){this.dataset.tried=1;this.src='pixo_face.png';}">
         <div class="nav-title-group">
           <span class="nav-app-name" id="appTitleDisplay" data-i18n="appTitle">Pixò</span>
           <span class="nav-subtitle" id="deviceSubtitle">Smart Display</span>
@@ -102,10 +102,20 @@
           </div>
         </div>
 
-        <div class="canvas-footer-meta">
-          <span class="meta-tag">Pixò ST7789 • 240×240 px</span>
-          <span class="meta-tag" id="payloadSizeBadge">Payload: ~0 KB</span>
-        </div>
+        <!-- Pulsante Invia a Pixò (ancorato subito sotto la lavagna con info payload integrate) -->
+        <button class="ios-send-cta" id="sendBtn">
+          <div class="send-cta-main">
+            <svg class="send-svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
+            </svg>
+            <span class="send-label" data-i18n="sendToDisplay">Invia a Pixò</span>
+          </div>
+          <div class="send-cta-meta">
+            <span class="meta-tag">240×240 px</span>
+            <span class="meta-sep">•</span>
+            <span class="meta-tag" id="payloadSizeBadge">Payload: ~0 KB</span>
+          </div>
+        </button>
       </section>
 
       <!-- Pannello Contestuale Dinamico (In base alla Tab attiva) -->
@@ -327,16 +337,8 @@
 
     </main>
 
-    <!-- Bottom Action Area: Big CTA Button + iOS TabBar -->
+    <!-- Bottom Action Area: Clean Apple Floating TabBar -->
     <footer class="ios-footer">
-      <!-- Big Floating Action Button "Invia a Pixò" -->
-      <button class="ios-send-cta" id="sendBtn">
-        <svg class="send-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
-          <path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>
-        </svg>
-        <span class="send-label" data-i18n="sendToDisplay">Invia a Pixò</span>
-      </button>
-
       <!-- Apple Bottom Navigation Bar (4 Tab Pulite) -->
       <nav class="ios-tabbar">
         <button class="tab-item active" data-tab="panelDraw">
@@ -499,6 +501,6 @@
 
   </div>
 
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>
