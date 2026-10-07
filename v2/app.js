@@ -221,7 +221,10 @@ const state = {
   devicePin: DEFAULT_CONFIG.defaultPin,
   textSize: 24,
   userHasDrawnLocally: false,
-  lastDisplayPayload: null
+  lastDisplayPayload: null,
+  wifiSsid: "",
+  wifiSignal: 0,
+  wifiIp: ""
 };
 
 // --- RIFERIMENTI DOM ---
@@ -282,6 +285,18 @@ const ledToggle = document.getElementById('ledToggle');
 const changeDeviceBtn = document.getElementById('changeDeviceBtn');
 const factoryResetBtn = document.getElementById('factoryResetBtn');
 const factoryResetSection = document.getElementById('factoryResetSection');
+
+// Gestione Wi-Fi Pixò
+const wifiManagementSection = document.getElementById('wifiManagementSection');
+const currentWifiDesc = document.getElementById('currentWifiDesc');
+const currentWifiBadge = document.getElementById('currentWifiBadge');
+const btnToggleNewWifi = document.getElementById('btnToggleNewWifi');
+const btnOpenWifiPortal = document.getElementById('btnOpenWifiPortal');
+const newWifiFormBox = document.getElementById('newWifiFormBox');
+const newWifiSsidInput = document.getElementById('newWifiSsidInput');
+const newWifiPassInput = document.getElementById('newWifiPassInput');
+const btnCancelNewWifi = document.getElementById('btnCancelNewWifi');
+const btnApplyNewWifi = document.getElementById('btnApplyNewWifi');
 
 // Modal Onboarding e Connessione Pixò
 const onboardingModal = document.getElementById('onboardingModal');
@@ -478,6 +493,7 @@ function updateSettingsUI() {
     }
     if (devicePinInput) devicePinInput.value = "";
     if (factoryResetSection) factoryResetSection.style.display = 'none';
+    if (wifiManagementSection) wifiManagementSection.style.display = 'none';
   } else {
     deviceIdDisplay.textContent = state.deviceName || state.deviceId || "Collega Pixò";
     if (openSettingsBtn) openSettingsBtn.style.display = 'none';
@@ -488,6 +504,7 @@ function updateSettingsUI() {
     }
     if (devicePinInput) devicePinInput.value = state.devicePin;
     if (factoryResetSection) factoryResetSection.style.display = 'block';
+    if (wifiManagementSection) wifiManagementSection.style.display = 'flex';
   }
 
   deviceNameInput.value = state.deviceName;
@@ -498,6 +515,14 @@ function updateSettingsUI() {
   langSelect.value = state.lang;
   themeSelect.value = state.canvasTheme;
   weatherCityInput.value = state.weatherCity;
+
+  if (state.wifiSsid && currentWifiDesc) {
+    currentWifiDesc.innerHTML = `<strong style="color:#fff;">${escapeHtml(state.wifiSsid)}</strong> <span style="color:var(--text-secondary); font-size:0.75rem;">(${state.wifiSignal || 0}% segnale${state.wifiIp ? ' • IP: ' + state.wifiIp : ''})</span>`;
+    if (currentWifiBadge) {
+      currentWifiBadge.style.display = 'inline-block';
+      currentWifiBadge.textContent = 'Collegato';
+    }
+  }
 
   if (screensaverToggle) screensaverToggle.checked = state.screensaverEnabled;
   if (ledToggle) ledToggle.checked = state.ledEnabled;
@@ -1654,6 +1679,107 @@ function escapeHtml(text) {
 }
 
 // ==========================================================================
+//  GESTIONE WI-FI PIXÒ (TELEMETRIA, CAMBIO REMOTO & PORTALE AP)
+// ==========================================================================
+function handleWifiStatusSync(payload) {
+  try {
+    const uint8 = (payload instanceof Uint8Array)
+      ? new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength)
+      : new Uint8Array(payload);
+    const text = new TextDecoder().decode(uint8).trim();
+    if (!text) return;
+    const data = JSON.parse(text);
+
+    if (data.status === 'connecting') {
+      if (currentWifiDesc) {
+        currentWifiDesc.innerHTML = `<span style="color:var(--accent-orange);">⏳ Connessione a <strong>${escapeHtml(data.ssid || '')}</strong>...</span>`;
+      }
+      if (currentWifiBadge) {
+        currentWifiBadge.style.display = 'inline-block';
+        currentWifiBadge.textContent = 'In corso...';
+        currentWifiBadge.style.background = 'rgba(255,149,0,0.15)';
+        currentWifiBadge.style.color = 'var(--accent-orange)';
+      }
+    } else if (data.ssid) {
+      state.wifiSsid = data.ssid;
+      state.wifiSignal = data.signal || 0;
+      state.wifiIp = data.ip || '';
+      if (currentWifiDesc) {
+        currentWifiDesc.innerHTML = `<strong style="color:#fff;">${escapeHtml(data.ssid)}</strong> <span style="color:var(--text-secondary); font-size:0.75rem;">(${data.signal || 0}% segnale${data.ip ? ' • IP: ' + data.ip : ''})</span>`;
+      }
+      if (currentWifiBadge) {
+        currentWifiBadge.style.display = 'inline-block';
+        currentWifiBadge.textContent = 'Collegato';
+        currentWifiBadge.style.background = 'rgba(52,199,89,0.15)';
+        currentWifiBadge.style.color = 'var(--accent-green)';
+      }
+    }
+  } catch (err) {
+    console.warn('[WiFi] Errore parsing stato Wi-Fi:', err);
+  }
+}
+
+function handleApplyNewWifi() {
+  if (state.isGuestMode) {
+    alert("Operazione non consentita in modalità ospite.");
+    return;
+  }
+  const newSsid = (newWifiSsidInput ? newWifiSsidInput.value.trim() : "");
+  const newPass = (newWifiPassInput ? newWifiPassInput.value : "");
+
+  if (!newSsid) {
+    alert("Inserisci il nome della nuova rete Wi-Fi (SSID).");
+    return;
+  }
+
+  const confirmMsg = `Confermi di voler collegare Pixò alla rete Wi-Fi "${newSsid}"?\n\nPixò proverà a connettersi per 15 secondi. In caso di errore o password errata, ripristinerà automaticamente la rete attuale.`;
+  if (!confirm(confirmMsg)) return;
+
+  if (state.mqttClient && state.mqttClient.connected && state.deviceId) {
+    const payload = JSON.stringify({
+      ssid: newSsid,
+      pass: newPass,
+      pin: state.devicePin || "1234"
+    });
+
+    const pin = state.devicePin || "1234";
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/${pin}/setwifi`, payload, { qos: 0 });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/setwifi`, payload, { qos: 0 });
+
+    showToast(`Comando inviato! Pixò si connette a ${newSsid}...`, "info");
+    if (newWifiFormBox) newWifiFormBox.style.display = 'none';
+    if (currentWifiDesc) {
+      currentWifiDesc.innerHTML = `<span style="color:var(--accent-orange);">⏳ Cambio rete in corso verso <strong>${escapeHtml(newSsid)}</strong>...</span>`;
+    }
+    if (newWifiPassInput) newWifiPassInput.value = "";
+  } else {
+    showToast("Disconnesso dal Cloud. Impossibile inviare.", "error");
+  }
+}
+
+function handleOpenWifiPortal() {
+  if (state.isGuestMode) {
+    alert("Operazione non consentita in modalità ospite.");
+    return;
+  }
+  const confirmMsg = "Pixò riavvierà il modulo Wi-Fi e attiverà la rete hotspot 'Pixo-Setup' per 3 minuti.\n\nPotrai collegarti col cellulare all'hotspot e scansionare le reti vicine per selezionare quella desiderata.\n\nVuoi avviare la procedura?";
+  if (!confirm(confirmMsg)) return;
+
+  if (state.mqttClient && state.mqttClient.connected && state.deviceId) {
+    const pin = state.devicePin || "1234";
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/${pin}/wifi_portal`, "WIFI:PORTAL", { qos: 0 });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/wifi_portal`, "WIFI:PORTAL", { qos: 0 });
+
+    showToast("Hotspot Pixo-Setup attivato su Pixò!", "info");
+    if (currentWifiDesc) {
+      currentWifiDesc.innerHTML = `<span style="color:var(--accent-orange);">📶 Hotspot <strong>Pixo-Setup</strong> attivo. Collegati col cellulare!</span>`;
+    }
+  } else {
+    showToast("Disconnesso dal Cloud. Impossibile inviare.", "error");
+  }
+}
+
+// ==========================================================================
 //  8. CONTROLLO LUMINOSITÀ HARDWARE (PWM VIA MQTT)
 // ==========================================================================
 function sendBrightness(percent) {
@@ -1744,20 +1870,27 @@ function connectMQTT() {
               state.mqttClient.subscribe(keysDataTopic, { qos: 0 });
               syncGuestKeysToDevice(false);
             }
+
+            // Sottoscrizione al topic di telemetria Wi-Fi
+            const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
+            state.mqttClient.subscribe(wifiTopic, { qos: 0 });
           }
           resolve(true);
         });
 
-        // Ricezione messaggi Cloud (es. disegno attualmente a schermo, chiavi ospiti)
+        // Ricezione messaggi Cloud (es. disegno attualmente a schermo, chiavi ospiti, telemetria Wi-Fi)
         state.mqttClient.on('message', (topic, payload) => {
           if (!state.deviceId) return;
           const currentTopic = `pixo/device/${state.deviceId}/current`;
           const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
+          const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
 
           if (topic === currentTopic) {
             handleCurrentDisplaySync(payload);
           } else if (topic === keysDataTopic && !state.isGuestMode) {
             handleGuestKeysSyncFromCloud(payload);
+          } else if (topic === wifiTopic) {
+            handleWifiStatusSync(payload);
           }
         });
 
@@ -2283,6 +2416,31 @@ function setupEventListeners() {
   // Gestione Ripristino ai Dati di Fabbrica (Solo Proprietario)
   if (factoryResetBtn) {
     factoryResetBtn.addEventListener('click', handleFactoryReset);
+  }
+
+  // Gestione Wi-Fi Pixò (Solo Proprietario)
+  if (btnToggleNewWifi) {
+    btnToggleNewWifi.addEventListener('click', () => {
+      if (newWifiFormBox) {
+        const isHidden = newWifiFormBox.style.display === 'none' || !newWifiFormBox.style.display;
+        newWifiFormBox.style.display = isHidden ? 'block' : 'none';
+        if (isHidden && newWifiSsidInput) newWifiSsidInput.focus();
+      }
+    });
+  }
+
+  if (btnCancelNewWifi) {
+    btnCancelNewWifi.addEventListener('click', () => {
+      if (newWifiFormBox) newWifiFormBox.style.display = 'none';
+    });
+  }
+
+  if (btnApplyNewWifi) {
+    btnApplyNewWifi.addEventListener('click', handleApplyNewWifi);
+  }
+
+  if (btnOpenWifiPortal) {
+    btnOpenWifiPortal.addEventListener('click', handleOpenWifiPortal);
   }
 
   // Gestione Chiusura Onboarding (se già associato)
