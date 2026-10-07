@@ -221,7 +221,10 @@ const state = {
   devicePin: DEFAULT_CONFIG.defaultPin,
   textSize: 24,
   userHasDrawnLocally: false,
-  lastDisplayPayload: null
+  lastDisplayPayload: null,
+  wifiSsid: "",
+  wifiSignal: 0,
+  wifiIp: ""
 };
 
 // --- RIFERIMENTI DOM ---
@@ -282,6 +285,18 @@ const ledToggle = document.getElementById('ledToggle');
 const changeDeviceBtn = document.getElementById('changeDeviceBtn');
 const factoryResetBtn = document.getElementById('factoryResetBtn');
 const factoryResetSection = document.getElementById('factoryResetSection');
+
+// Gestione Wi-Fi Pixò
+const wifiManagementSection = document.getElementById('wifiManagementSection');
+const currentWifiDesc = document.getElementById('currentWifiDesc');
+const currentWifiBadge = document.getElementById('currentWifiBadge');
+const btnToggleNewWifi = document.getElementById('btnToggleNewWifi');
+const btnOpenWifiPortal = document.getElementById('btnOpenWifiPortal');
+const newWifiFormBox = document.getElementById('newWifiFormBox');
+const newWifiSsidInput = document.getElementById('newWifiSsidInput');
+const newWifiPassInput = document.getElementById('newWifiPassInput');
+const btnCancelNewWifi = document.getElementById('btnCancelNewWifi');
+const btnApplyNewWifi = document.getElementById('btnApplyNewWifi');
 
 // Modal Onboarding e Connessione Pixò
 const onboardingModal = document.getElementById('onboardingModal');
@@ -478,9 +493,10 @@ function updateSettingsUI() {
     }
     if (devicePinInput) devicePinInput.value = "";
     if (factoryResetSection) factoryResetSection.style.display = 'none';
+    if (wifiManagementSection) wifiManagementSection.style.display = 'none';
   } else {
     deviceIdDisplay.textContent = state.deviceName || state.deviceId || "Collega Pixò";
-    if (openSettingsBtn) openSettingsBtn.style.display = '';
+    if (openSettingsBtn) openSettingsBtn.style.display = 'none';
     if (shareBtn) shareBtn.style.display = '';
     if (devicePill) {
       devicePill.style.cursor = 'pointer';
@@ -488,6 +504,7 @@ function updateSettingsUI() {
     }
     if (devicePinInput) devicePinInput.value = state.devicePin;
     if (factoryResetSection) factoryResetSection.style.display = 'block';
+    if (wifiManagementSection) wifiManagementSection.style.display = 'flex';
   }
 
   deviceNameInput.value = state.deviceName;
@@ -498,6 +515,14 @@ function updateSettingsUI() {
   langSelect.value = state.lang;
   themeSelect.value = state.canvasTheme;
   weatherCityInput.value = state.weatherCity;
+
+  if (state.wifiSsid && currentWifiDesc) {
+    currentWifiDesc.innerHTML = `<strong style="color:#fff;">${escapeHtml(state.wifiSsid)}</strong> <span style="color:var(--text-secondary); font-size:0.75rem;">(${state.wifiSignal || 0}% segnale${state.wifiIp ? ' • IP: ' + state.wifiIp : ''})</span>`;
+    if (currentWifiBadge) {
+      currentWifiBadge.style.display = 'inline-block';
+      currentWifiBadge.textContent = 'Collegato';
+    }
+  }
 
   if (screensaverToggle) screensaverToggle.checked = state.screensaverEnabled;
   if (ledToggle) ledToggle.checked = state.ledEnabled;
@@ -1340,55 +1365,15 @@ function renderGallery() {
 
   drawings.forEach((d) => {
     const card = document.createElement('div');
-    card.className = 'gallery-card';
+    card.className = 'gallery-thumb-card';
 
     const img = document.createElement('img');
-    img.className = 'gallery-thumb';
     img.src = d.dataUrl;
     img.alt = d.name;
-    img.title = state.lang === 'it' ? "Clicca per caricare sulla lavagna" : "Click to load onto canvas";
-    img.onclick = () => loadSavedDrawing(d.id);
-
-    const info = document.createElement('div');
-    info.className = 'gallery-info';
-
-    const nameEl = document.createElement('div');
-    nameEl.className = 'gallery-name';
-    nameEl.textContent = d.name;
-
-    const dateEl = document.createElement('div');
-    dateEl.className = 'gallery-date';
-    dateEl.textContent = d.date;
-
-    const actions = document.createElement('div');
-    actions.className = 'gallery-card-actions';
-
-    const loadBtn = document.createElement('button');
-    loadBtn.className = 'btn mini-btn';
-    loadBtn.textContent = '✏️ ' + (state.lang === 'it' ? 'Carica' : 'Load');
-    loadBtn.onclick = () => loadSavedDrawing(d.id);
-
-    const sendDirectBtn = document.createElement('button');
-    sendDirectBtn.className = 'btn mini-btn primary-btn';
-    sendDirectBtn.textContent = '🚀 ' + (state.lang === 'it' ? 'Invia' : 'Send');
-    sendDirectBtn.onclick = () => sendSavedDrawingDirect(d.id);
-
-    const delBtn = document.createElement('button');
-    delBtn.className = 'btn mini-btn danger';
-    delBtn.textContent = '🗑️';
-    delBtn.title = 'Elimina';
-    delBtn.onclick = () => deleteSavedDrawing(d.id);
-
-    actions.appendChild(loadBtn);
-    actions.appendChild(sendDirectBtn);
-    actions.appendChild(delBtn);
-
-    info.appendChild(nameEl);
-    info.appendChild(dateEl);
-    info.appendChild(actions);
+    img.title = `${d.name} (${d.date})`;
+    card.onclick = () => loadSavedDrawing(d.id);
 
     card.appendChild(img);
-    card.appendChild(info);
     galleryGrid.appendChild(card);
   });
 }
@@ -1403,11 +1388,13 @@ function loadSavedDrawing(id) {
     ctx.drawImage(img, 0, 0, 240, 240);
     saveState();
     updatePayloadPreview();
-    galleryModal.classList.add('hidden');
+    // Torna alla tab del disegno per vederlo subito
+    document.querySelector('.tab-item[data-tab="panelDraw"]')?.click();
     showToast(t("toastDrawingLoaded"), "success");
   };
   img.src = found.dataUrl;
 }
+
 
 function sendSavedDrawingDirect(id) {
   const drawings = getSavedDrawings();
@@ -1692,6 +1679,107 @@ function escapeHtml(text) {
 }
 
 // ==========================================================================
+//  GESTIONE WI-FI PIXÒ (TELEMETRIA, CAMBIO REMOTO & PORTALE AP)
+// ==========================================================================
+function handleWifiStatusSync(payload) {
+  try {
+    const uint8 = (payload instanceof Uint8Array)
+      ? new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength)
+      : new Uint8Array(payload);
+    const text = new TextDecoder().decode(uint8).trim();
+    if (!text) return;
+    const data = JSON.parse(text);
+
+    if (data.status === 'connecting') {
+      if (currentWifiDesc) {
+        currentWifiDesc.innerHTML = `<span style="color:var(--accent-orange);">⏳ Connessione a <strong>${escapeHtml(data.ssid || '')}</strong>...</span>`;
+      }
+      if (currentWifiBadge) {
+        currentWifiBadge.style.display = 'inline-block';
+        currentWifiBadge.textContent = 'In corso...';
+        currentWifiBadge.style.background = 'rgba(255,149,0,0.15)';
+        currentWifiBadge.style.color = 'var(--accent-orange)';
+      }
+    } else if (data.ssid) {
+      state.wifiSsid = data.ssid;
+      state.wifiSignal = data.signal || 0;
+      state.wifiIp = data.ip || '';
+      if (currentWifiDesc) {
+        currentWifiDesc.innerHTML = `<strong style="color:#fff;">${escapeHtml(data.ssid)}</strong> <span style="color:var(--text-secondary); font-size:0.75rem;">(${data.signal || 0}% segnale${data.ip ? ' • IP: ' + data.ip : ''})</span>`;
+      }
+      if (currentWifiBadge) {
+        currentWifiBadge.style.display = 'inline-block';
+        currentWifiBadge.textContent = 'Collegato';
+        currentWifiBadge.style.background = 'rgba(52,199,89,0.15)';
+        currentWifiBadge.style.color = 'var(--accent-green)';
+      }
+    }
+  } catch (err) {
+    console.warn('[WiFi] Errore parsing stato Wi-Fi:', err);
+  }
+}
+
+function handleApplyNewWifi() {
+  if (state.isGuestMode) {
+    alert("Operazione non consentita in modalità ospite.");
+    return;
+  }
+  const newSsid = (newWifiSsidInput ? newWifiSsidInput.value.trim() : "");
+  const newPass = (newWifiPassInput ? newWifiPassInput.value : "");
+
+  if (!newSsid) {
+    alert("Inserisci il nome della nuova rete Wi-Fi (SSID).");
+    return;
+  }
+
+  const confirmMsg = `Confermi di voler collegare Pixò alla rete Wi-Fi "${newSsid}"?\n\nPixò proverà a connettersi per 15 secondi. In caso di errore o password errata, ripristinerà automaticamente la rete attuale.`;
+  if (!confirm(confirmMsg)) return;
+
+  if (state.mqttClient && state.mqttClient.connected && state.deviceId) {
+    const payload = JSON.stringify({
+      ssid: newSsid,
+      pass: newPass,
+      pin: state.devicePin || "1234"
+    });
+
+    const pin = state.devicePin || "1234";
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/${pin}/setwifi`, payload, { qos: 0 });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/setwifi`, payload, { qos: 0 });
+
+    showToast(`Comando inviato! Pixò si connette a ${newSsid}...`, "info");
+    if (newWifiFormBox) newWifiFormBox.style.display = 'none';
+    if (currentWifiDesc) {
+      currentWifiDesc.innerHTML = `<span style="color:var(--accent-orange);">⏳ Cambio rete in corso verso <strong>${escapeHtml(newSsid)}</strong>...</span>`;
+    }
+    if (newWifiPassInput) newWifiPassInput.value = "";
+  } else {
+    showToast("Disconnesso dal Cloud. Impossibile inviare.", "error");
+  }
+}
+
+function handleOpenWifiPortal() {
+  if (state.isGuestMode) {
+    alert("Operazione non consentita in modalità ospite.");
+    return;
+  }
+  const confirmMsg = "Pixò riavvierà il modulo Wi-Fi e attiverà la rete hotspot 'Pixo-Setup' per 3 minuti.\n\nPotrai collegarti col cellulare all'hotspot e scansionare le reti vicine per selezionare quella desiderata.\n\nVuoi avviare la procedura?";
+  if (!confirm(confirmMsg)) return;
+
+  if (state.mqttClient && state.mqttClient.connected && state.deviceId) {
+    const pin = state.devicePin || "1234";
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/${pin}/wifi_portal`, "WIFI:PORTAL", { qos: 0 });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/wifi_portal`, "WIFI:PORTAL", { qos: 0 });
+
+    showToast("Hotspot Pixo-Setup attivato su Pixò!", "info");
+    if (currentWifiDesc) {
+      currentWifiDesc.innerHTML = `<span style="color:var(--accent-orange);">📶 Hotspot <strong>Pixo-Setup</strong> attivo. Collegati col cellulare!</span>`;
+    }
+  } else {
+    showToast("Disconnesso dal Cloud. Impossibile inviare.", "error");
+  }
+}
+
+// ==========================================================================
 //  8. CONTROLLO LUMINOSITÀ HARDWARE (PWM VIA MQTT)
 // ==========================================================================
 function sendBrightness(percent) {
@@ -1733,7 +1821,7 @@ function connectMQTT() {
   if (mqttConnectPromise) return mqttConnectPromise;
 
   state.mqttConnecting = true;
-  statusDot.className = "status-dot connecting";
+  statusDot.className = "status-pulse status-dot connecting";
   statusDot.title = "Connessione a Pixò Cloud...";
 
   const clientId = "WebPixo_" + Math.random().toString(16).substr(2, 8);
@@ -1757,7 +1845,7 @@ function connectMQTT() {
           state.mqttConnected = true;
           state.mqttConnecting = false;
           mqttConnectPromise = null;
-          statusDot.className = "status-dot online";
+          statusDot.className = "status-pulse status-dot online";
           statusDot.title = "Connesso a Pixò Cloud";
 
           // Mostra il toast di benvenuto una sola volta all'avvio, mai in loop
@@ -1782,20 +1870,27 @@ function connectMQTT() {
               state.mqttClient.subscribe(keysDataTopic, { qos: 0 });
               syncGuestKeysToDevice(false);
             }
+
+            // Sottoscrizione al topic di telemetria Wi-Fi
+            const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
+            state.mqttClient.subscribe(wifiTopic, { qos: 0 });
           }
           resolve(true);
         });
 
-        // Ricezione messaggi Cloud (es. disegno attualmente a schermo, chiavi ospiti)
+        // Ricezione messaggi Cloud (es. disegno attualmente a schermo, chiavi ospiti, telemetria Wi-Fi)
         state.mqttClient.on('message', (topic, payload) => {
           if (!state.deviceId) return;
           const currentTopic = `pixo/device/${state.deviceId}/current`;
           const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
+          const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
 
           if (topic === currentTopic) {
             handleCurrentDisplaySync(payload);
           } else if (topic === keysDataTopic && !state.isGuestMode) {
             handleGuestKeysSyncFromCloud(payload);
+          } else if (topic === wifiTopic) {
+            handleWifiStatusSync(payload);
           }
         });
 
@@ -1804,20 +1899,20 @@ function connectMQTT() {
           state.mqttConnected = false;
           state.mqttConnecting = false;
           mqttConnectPromise = null;
-          statusDot.className = "status-dot";
+          statusDot.className = "status-pulse status-dot";
           resolve(false);
         });
 
         state.mqttClient.on('offline', () => {
           state.mqttConnected = false;
           state.mqttConnecting = false;
-          statusDot.className = "status-dot";
+          statusDot.className = "status-pulse status-dot";
         });
 
         state.mqttClient.on('close', () => {
           state.mqttConnected = false;
           state.mqttConnecting = false;
-          statusDot.className = "status-dot";
+          statusDot.className = "status-pulse status-dot";
         });
       } else {
         // Se il client esiste già ed è disconnesso, riconnetti senza abortire la promessa attiva
@@ -2055,14 +2150,24 @@ async function sendStandbyCommand() {
 }
 
 function showToast(message, type = "info") {
+  if (!toastContainer) return;
   const toast = document.createElement('div');
-  toast.className = `toast ${type}`;
-  toast.textContent = message;
+  toast.className = `ios-toast ${type}`;
+  let icon = "✨";
+  if (type === "success") icon = "✅";
+  else if (type === "error") icon = "⚠️";
+  else if (type === "warning") icon = "🔔";
+
+  toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
   toastContainer.appendChild(toast);
   setTimeout(() => {
-    toast.remove();
-  }, 2800);
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(-10px)';
+    toast.style.transition = 'all 0.25s ease';
+    setTimeout(() => toast.remove(), 260);
+  }, 2600);
 }
+
 
 // ==========================================================================
 //  10. EVENT LISTENERS
@@ -2245,10 +2350,10 @@ function setupEventListeners() {
     sendBrightness(val);
   });
 
-  // Modal Impostazioni (Accessibile SOLO al Proprietario)
+  // Impostazioni Dispositivo (Accessibile SOLO al Proprietario)
   const openSettings = () => {
     if (state.isGuestMode) return;
-    settingsModal.classList.remove('hidden');
+    document.querySelector('.tab-item[data-tab="panelSettings"]')?.click();
   };
   openSettingsBtn.addEventListener('click', openSettings);
   devicePill.addEventListener('click', () => {
@@ -2313,6 +2418,31 @@ function setupEventListeners() {
     factoryResetBtn.addEventListener('click', handleFactoryReset);
   }
 
+  // Gestione Wi-Fi Pixò (Solo Proprietario)
+  if (btnToggleNewWifi) {
+    btnToggleNewWifi.addEventListener('click', () => {
+      if (newWifiFormBox) {
+        const isHidden = newWifiFormBox.style.display === 'none' || !newWifiFormBox.style.display;
+        newWifiFormBox.style.display = isHidden ? 'block' : 'none';
+        if (isHidden && newWifiSsidInput) newWifiSsidInput.focus();
+      }
+    });
+  }
+
+  if (btnCancelNewWifi) {
+    btnCancelNewWifi.addEventListener('click', () => {
+      if (newWifiFormBox) newWifiFormBox.style.display = 'none';
+    });
+  }
+
+  if (btnApplyNewWifi) {
+    btnApplyNewWifi.addEventListener('click', handleApplyNewWifi);
+  }
+
+  if (btnOpenWifiPortal) {
+    btnOpenWifiPortal.addEventListener('click', handleOpenWifiPortal);
+  }
+
   // Gestione Chiusura Onboarding (se già associato)
   const closeOnboardingModal = document.getElementById('closeOnboardingModal');
   if (closeOnboardingModal) {
@@ -2340,7 +2470,45 @@ function setupEventListeners() {
   if (submitOnboardingBtn) {
     submitOnboardingBtn.addEventListener('click', handleOnboardingSubmit);
   }
+
+  // --- LOGICA TAB BAR APPLE STYLE ---
+  const canvasStage = document.querySelector('.canvas-stage');
+  document.querySelectorAll('.tab-item').forEach(tabBtn => {
+    tabBtn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
+      tabBtn.classList.add('active');
+      const targetId = tabBtn.dataset.tab;
+      document.body.dataset.activeTab = targetId;
+
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      const targetPanel = document.getElementById(targetId);
+      if (targetPanel) targetPanel.classList.add('active');
+
+      // Se l'utente entra nella tab Impostazioni (Dispositivo), nascondi completamente la lavagna e il tasto invia!
+      if (canvasStage) {
+        if (targetId === 'panelSettings') {
+          canvasStage.style.display = 'none';
+        } else {
+          canvasStage.style.display = 'flex';
+        }
+      }
+
+      if (targetId === 'panelGallery') {
+        renderGallery();
+      }
+    });
+  });
+
+  // Chiusura Bottom Sheets cliccando sul backdrop
+  const closeBackdrop = (sheetId) => {
+    const sheet = document.getElementById(sheetId);
+    if (sheet) sheet.classList.add('hidden');
+  };
+  document.getElementById('closeStickerBackdrop')?.addEventListener('click', () => closeBackdrop('stickerDrawer'));
+  document.getElementById('closeTextBackdrop')?.addEventListener('click', () => closeBackdrop('textModal'));
+  document.getElementById('closeShareBackdrop')?.addEventListener('click', () => closeBackdrop('shareModal'));
 }
+
 
 // ==========================================================================
 //  10b. LOGICA ONBOARDING PRIMO AVVIO & FACTORY RESET
