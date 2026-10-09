@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 
   <!-- Stili Apple Design -->
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
@@ -540,11 +540,33 @@
     <div id="galleryModal" style="display:none;"><button id="closeGalleryModal"></button></div>
     <button id="galleryBtn" style="display:none;"></button>
 
+    <!-- Schermata Blocco Accesso Negato / Revocato per Ospiti -->
+    <div class="guest-revoked-overlay hidden" id="guestRevokedOverlay">
+      <div class="guest-revoked-card">
+        <div class="revoked-icon-circle">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ff453a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+          </svg>
+        </div>
+        <h2 class="revoked-title">Accesso Non Disponibile</h2>
+        <p class="revoked-reason" id="guestRevokedReason">
+          Non possiedi più l'autorizzazione per accedere a questo Pixò.
+        </p>
+        <p class="revoked-hint">
+          Il proprietario ha revocato questo link di invito oppure ha disattivato l'accesso per gli ospiti. Contattalo per richiedere un nuovo link.
+        </p>
+        <button class="pill-btn secondary" id="retryGuestAuthBtn" style="margin-top:16px;">
+          🔄 Riprova a Verificare
+        </button>
+      </div>
+    </div>
+
     <!-- Toast Notification in stile Dynamic Island di iOS -->
     <div class="ios-toast-container" id="toastContainer"></div>
 
   </div>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
