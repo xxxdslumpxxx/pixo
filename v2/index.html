@@ -388,9 +388,14 @@
                     <label style="font-size:0.8rem; margin-bottom:4px;">URL Pacchetto Firmware (.bin)</label>
                     <input type="text" id="otaUrlInput" placeholder="https://.../firmware.bin" style="font-size:0.82rem; height:38px;">
                   </div>
-                  <div style="display:flex; gap:8px;">
+                  <div style="display:flex; gap:8px; margin-bottom:10px;">
                     <button type="button" class="pill-btn secondary mini" id="btnCancelOta" style="flex:1;">Chiudi</button>
-                    <button type="button" class="pill-btn primary mini" id="btnStartOta" style="flex:2;">Avvia Aggiornamento</button>
+                    <button type="button" class="pill-btn primary mini" id="btnStartOta" style="flex:2;">Aggiorna Questo Pixò</button>
+                  </div>
+
+                  <!-- Sezione Riservata Amministratore (Master Broadcast) -->
+                  <div style="padding-top:8px; border-top:1px dashed var(--glass-border);">
+                    <button type="button" class="pill-btn danger mini full" id="btnBroadcastOta" style="font-size:0.78rem;">🚀 Forza Aggiornamento su TUTTI i Pixò (Master)</button>
                   </div>
                 </div>
               </div>
