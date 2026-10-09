@@ -224,7 +224,8 @@ const state = {
   lastDisplayPayload: null,
   wifiSsid: "",
   wifiSignal: 0,
-  wifiIp: ""
+  wifiIp: "",
+  deviceStatus: "unknown" // "online" | "offline" | "unknown"
 };
 
 // --- RIFERIMENTI DOM ---
@@ -232,6 +233,7 @@ const canvas = document.getElementById('paintCanvas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const statusDot = document.getElementById('statusDot');
 const deviceIdDisplay = document.getElementById('deviceIdDisplay');
+const deviceSubtitle = document.getElementById('deviceSubtitle');
 const payloadSizeBadge = document.getElementById('payloadSizeBadge');
 
 // Header
@@ -252,6 +254,11 @@ const overlayHintText = document.getElementById('overlayHintText');
 const feedBanner = document.getElementById('feedBanner');
 const feedStatusText = document.getElementById('feedStatusText');
 const stopFeedBtn = document.getElementById('stopFeedBtn');
+
+// Device Status Alert Banner
+const deviceOfflineBanner = document.getElementById('deviceOfflineBanner');
+const deviceOfflineText = document.getElementById('deviceOfflineText');
+const dismissOfflineBannerBtn = document.getElementById('dismissOfflineBannerBtn');
 
 // Top Bar Action Buttons
 const undoBtn = document.getElementById('undoBtn');
@@ -1373,7 +1380,17 @@ function renderGallery() {
     img.title = `${d.name} (${d.date})`;
     card.onclick = () => loadSavedDrawing(d.id);
 
+    const delBtn = document.createElement('button');
+    delBtn.className = 'gallery-card-del-btn';
+    delBtn.innerHTML = '🗑️';
+    delBtn.title = state.lang === 'it' ? 'Elimina disegno' : 'Delete drawing';
+    delBtn.onclick = (e) => {
+      e.stopPropagation();
+      deleteSavedDrawing(d.id);
+    };
+
     card.appendChild(img);
+    card.appendChild(delBtn);
     galleryGrid.appendChild(card);
   });
 }
@@ -1860,6 +1877,10 @@ function connectMQTT() {
           }
 
           if (state.deviceId) {
+            // Sottoscrizione allo stato hardware di Pixò (LWT online/offline)
+            const statusTopic = `pixo/device/${state.deviceId}/status`;
+            state.mqttClient.subscribe(statusTopic, { qos: 1 });
+
             // Sottoscrizione al topic di sincronizzazione disegno attuale
             const currentTopic = `pixo/device/${state.deviceId}/current`;
             state.mqttClient.subscribe(currentTopic, { qos: 0 });
@@ -1874,18 +1895,24 @@ function connectMQTT() {
             // Sottoscrizione al topic di telemetria Wi-Fi
             const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
             state.mqttClient.subscribe(wifiTopic, { qos: 0 });
+
+            // Timer di fallback all'avvio: se Pixò non invia online entro 3.5s, avvisa che è spento
+            scheduleStartupOfflineCheck();
           }
           resolve(true);
         });
 
-        // Ricezione messaggi Cloud (es. disegno attualmente a schermo, chiavi ospiti, telemetria Wi-Fi)
+        // Ricezione messaggi Cloud (es. stato hardware, disegno a schermo, chiavi, telemetria)
         state.mqttClient.on('message', (topic, payload) => {
           if (!state.deviceId) return;
+          const statusTopic = `pixo/device/${state.deviceId}/status`;
           const currentTopic = `pixo/device/${state.deviceId}/current`;
           const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
           const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
 
-          if (topic === currentTopic) {
+          if (topic === statusTopic) {
+            handleDeviceStatusSync(payload);
+          } else if (topic === currentTopic) {
             handleCurrentDisplaySync(payload);
           } else if (topic === keysDataTopic && !state.isGuestMode) {
             handleGuestKeysSyncFromCloud(payload);
@@ -1955,6 +1982,75 @@ function connectMQTT() {
 }
 
 let lastLocalSendTime = 0;
+
+// ==========================================================================
+//  SINCRONIZZAZIONE STATO HARDWARE PIXO' (ONLINE / OFFLINE LWT)
+// ==========================================================================
+let startupOfflineTimer = null;
+let hasShownOfflineAlert = false;
+
+function updateDeviceStatusUI(isOnline) {
+  if (isOnline) {
+    statusDot.className = "status-pulse status-dot online";
+    statusDot.title = "Pixò Online e Connesso";
+    if (deviceSubtitle) {
+      deviceSubtitle.textContent = "Online";
+      deviceSubtitle.style.color = "var(--accent-green)";
+    }
+    deviceOfflineBanner?.classList.add('hidden');
+  } else {
+    statusDot.className = "status-pulse status-dot offline";
+    statusDot.title = "Il Pixò è spento o non collegato";
+    if (deviceSubtitle) {
+      deviceSubtitle.textContent = "Spento / Offline";
+      deviceSubtitle.style.color = "var(--accent-red)";
+    }
+    deviceOfflineBanner?.classList.remove('hidden');
+  }
+}
+
+function handleDeviceStatusSync(payload) {
+  const status = (typeof payload === 'string')
+    ? payload.trim().toLowerCase()
+    : new TextDecoder().decode(payload).trim().toLowerCase();
+
+  console.log(`[MQTT] Stato hardware Pixò ricevuto: ${status}`);
+
+  if (startupOfflineTimer) {
+    clearTimeout(startupOfflineTimer);
+    startupOfflineTimer = null;
+  }
+
+  if (status === 'online') {
+    state.deviceStatus = 'online';
+    updateDeviceStatusUI(true);
+    if (hasShownOfflineAlert) {
+      showToast("🟢 Pixò è ora acceso e collegato!", "success");
+      hasShownOfflineAlert = false;
+    }
+  } else if (status === 'offline') {
+    state.deviceStatus = 'offline';
+    updateDeviceStatusUI(false);
+    if (!hasShownOfflineAlert) {
+      hasShownOfflineAlert = true;
+      showToast("⚠️ Il Pixò è spento o non collegato", "warning");
+    }
+  }
+}
+
+function scheduleStartupOfflineCheck() {
+  if (startupOfflineTimer) clearTimeout(startupOfflineTimer);
+  startupOfflineTimer = setTimeout(() => {
+    if (state.deviceId && state.deviceStatus !== 'online') {
+      state.deviceStatus = 'offline';
+      updateDeviceStatusUI(false);
+      if (!hasShownOfflineAlert) {
+        hasShownOfflineAlert = true;
+        showToast("⚠️ Il Pixò è spento o non collegato", "warning");
+      }
+    }
+  }, 3500);
+}
 
 // ==========================================================================
 //  SINCRONIZZAZIONE STATO ATTUALE DISPLAY (MQTT Retained)
@@ -2178,6 +2274,11 @@ function setupEventListeners() {
 
   // Ferma Feed
   stopFeedBtn.addEventListener('click', stopAutomaticFeed);
+
+  // Chiudi banner offline
+  dismissOfflineBannerBtn?.addEventListener('click', () => {
+    deviceOfflineBanner?.classList.add('hidden');
+  });
 
   // Palette Colori
   document.querySelectorAll('.color-btn').forEach(btn => {
