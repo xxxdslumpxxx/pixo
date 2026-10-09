@@ -225,6 +225,9 @@ const state = {
   wifiSsid: "",
   wifiSignal: 0,
   wifiIp: "",
+  firmwareVersion: "1.0.0",
+  otaStatus: "ready", // "ready" | "updating" | "error"
+  otaProgress: 0,
   deviceStatus: "unknown", // "online" | "offline" | "unknown"
   guestAuthorized: null, // null = verifica in corso, true = autorizzato, false = revocato/non autorizzato
   lastKnownGuestKeys: null
@@ -311,6 +314,18 @@ const newWifiSsidInput = document.getElementById('newWifiSsidInput');
 const newWifiPassInput = document.getElementById('newWifiPassInput');
 const btnCancelNewWifi = document.getElementById('btnCancelNewWifi');
 const btnApplyNewWifi = document.getElementById('btnApplyNewWifi');
+
+// Gestione Aggiornamento Firmware Remoto (OTA)
+const otaManagementSection = document.getElementById('otaManagementSection');
+const currentFwDesc = document.getElementById('currentFwDesc');
+const currentFwBadge = document.getElementById('currentFwBadge');
+const btnCheckFwUpdate = document.getElementById('btnCheckFwUpdate');
+const otaStatusBox = document.getElementById('otaStatusBox');
+const otaStatusText = document.getElementById('otaStatusText');
+const otaFormBox = document.getElementById('otaFormBox');
+const otaUrlInput = document.getElementById('otaUrlInput');
+const btnCancelOta = document.getElementById('btnCancelOta');
+const btnStartOta = document.getElementById('btnStartOta');
 
 // Modal Onboarding e Connessione Pixò
 const onboardingModal = document.getElementById('onboardingModal');
@@ -553,6 +568,10 @@ function updateSettingsUI() {
       currentWifiBadge.style.display = 'inline-block';
       currentWifiBadge.textContent = 'Collegato';
     }
+  }
+
+  if (currentFwBadge) {
+    currentFwBadge.textContent = `v${state.firmwareVersion || '1.0.0'}`;
   }
 
   if (screensaverToggle) screensaverToggle.checked = state.screensaverEnabled;
@@ -1841,6 +1860,185 @@ function handleOpenWifiPortal() {
 }
 
 // ==========================================================================
+//  7b. AGGIORNAMENTO FIRMWARE OVER-THE-AIR (OTA)
+// ==========================================================================
+function handleOtaStatusSync(payload) {
+  try {
+    const uint8 = (payload instanceof Uint8Array)
+      ? new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength)
+      : new Uint8Array(payload);
+    const text = new TextDecoder().decode(uint8).trim();
+    if (!text) return;
+    const data = JSON.parse(text);
+
+    if (data.version && currentFwBadge) {
+      state.firmwareVersion = data.version;
+      currentFwBadge.textContent = `v${data.version}`;
+    }
+
+    if (data.status === 'updating') {
+      state.otaStatus = 'updating';
+      if (otaStatusBox) {
+        otaStatusBox.style.display = 'block';
+        otaStatusBox.style.background = 'rgba(255,149,0,0.15)';
+        otaStatusBox.style.borderColor = 'rgba(255,149,0,0.35)';
+      }
+      if (otaStatusText) {
+        otaStatusText.innerHTML = `⚡ <strong>Download ed installazione in corso...</strong> Pixò si riavvierà al termine. Non spegnere!`;
+      }
+      if (btnCheckFwUpdate) btnCheckFwUpdate.disabled = true;
+    } else if (data.status === 'ready') {
+      state.otaStatus = 'ready';
+      if (btnCheckFwUpdate) btnCheckFwUpdate.disabled = false;
+    } else if (data.status === 'error') {
+      state.otaStatus = 'error';
+      if (otaStatusBox) {
+        otaStatusBox.style.display = 'block';
+        otaStatusBox.style.background = 'rgba(255,69,58,0.15)';
+        otaStatusBox.style.borderColor = 'rgba(255,69,58,0.35)';
+      }
+      if (otaStatusText) {
+        otaStatusText.innerHTML = `⚠️ <strong>Errore aggiornamento:</strong> ${escapeHtml(data.error || 'Errore sconosciuto')}`;
+      }
+      if (btnCheckFwUpdate) btnCheckFwUpdate.disabled = false;
+      showToast("Aggiornamento OTA fallito!", "error");
+    }
+  } catch (err) {
+    console.warn('[OTA] Errore parsing stato OTA:', err);
+  }
+}
+
+function handleDiagSync(payload) {
+  try {
+    const uint8 = (payload instanceof Uint8Array)
+      ? new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength)
+      : new Uint8Array(payload);
+    const text = new TextDecoder().decode(uint8).trim();
+    if (!text) return;
+    const data = JSON.parse(text);
+    if (data.fw_ver && currentFwBadge) {
+      state.firmwareVersion = data.fw_ver;
+      currentFwBadge.textContent = `v${data.fw_ver}`;
+    }
+  } catch (err) {
+    console.warn('[DIAG] Errore parsing telemetria diagnostica:', err);
+  }
+}
+
+async function handleCheckFwUpdate() {
+  if (state.isGuestMode) {
+    alert("Operazione non consentita in modalità ospite.");
+    return;
+  }
+  if (!state.deviceId) return;
+
+  btnCheckFwUpdate.disabled = true;
+  btnCheckFwUpdate.textContent = "Verifica...";
+
+  try {
+    // 1. Verifica release ufficiali su GitHub Releases Pixò
+    const resp = await fetch("https://api.github.com/repos/xxxdslumpxxx/pixo/releases/latest", {
+      headers: { "Accept": "application/vnd.github.v3+json" }
+    });
+
+    if (resp.ok) {
+      const release = await resp.json();
+      const latestTag = (release.tag_name || "").replace(/^v/, "");
+      const binAsset = (release.assets || []).find(a => a.name.endsWith(".bin"));
+
+      if (latestTag && latestTag !== state.firmwareVersion && binAsset && binAsset.browser_download_url) {
+        if (otaStatusBox) {
+          otaStatusBox.style.display = 'block';
+          otaStatusBox.style.background = 'rgba(52,199,89,0.15)';
+          otaStatusBox.style.borderColor = 'rgba(52,199,89,0.35)';
+        }
+        if (otaStatusText) {
+          otaStatusText.innerHTML = `🎉 <strong>Nuova versione disponibile: v${latestTag}</strong><br><small>${escapeHtml(release.name || '')}</small>`;
+        }
+        if (otaUrlInput) otaUrlInput.value = binAsset.browser_download_url;
+        if (otaFormBox) otaFormBox.style.display = 'block';
+        showToast(`Disponibile aggiornamento v${latestTag}!`, "info");
+      } else {
+        if (otaStatusBox) {
+          otaStatusBox.style.display = 'block';
+          otaStatusBox.style.background = 'rgba(10,132,255,0.12)';
+          otaStatusBox.style.borderColor = 'rgba(10,132,255,0.25)';
+        }
+        if (otaStatusText) {
+          otaStatusText.innerHTML = `✅ <strong>Il tuo Pixò è già aggiornato</strong> (v${state.firmwareVersion}).`;
+        }
+        // Mostra comunque l'opzione per URL personalizzato / forzatura
+        if (otaFormBox) otaFormBox.style.display = 'block';
+      }
+    } else {
+      // Se non ci sono release GitHub ancora caricate, apri il box per consentire l'URL diretto
+      if (otaStatusBox) {
+        otaStatusBox.style.display = 'block';
+        otaStatusBox.style.background = 'rgba(10,132,255,0.12)';
+        otaStatusBox.style.borderColor = 'rgba(10,132,255,0.25)';
+      }
+      if (otaStatusText) {
+        otaStatusText.innerHTML = `💡 Inserisci l'indirizzo URL del file .bin compilato per aggiornare da remoto.`;
+      }
+      if (otaFormBox) otaFormBox.style.display = 'block';
+    }
+  } catch (err) {
+    console.warn("[OTA] Errore controllo GitHub Releases:", err);
+    if (otaFormBox) otaFormBox.style.display = 'block';
+    if (otaStatusBox) {
+      otaStatusBox.style.display = 'block';
+      otaStatusBox.style.background = 'rgba(10,132,255,0.12)';
+      otaStatusBox.style.borderColor = 'rgba(10,132,255,0.25)';
+    }
+    if (otaStatusText) {
+      otaStatusText.innerHTML = `💡 Inserisci l'indirizzo URL del file .bin compilato per aggiornare da remoto.`;
+    }
+  } finally {
+    btnCheckFwUpdate.disabled = false;
+    btnCheckFwUpdate.textContent = "Verifica";
+  }
+}
+
+function handleStartOta() {
+  if (state.isGuestMode) {
+    alert("Operazione non consentita in modalità ospite.");
+    return;
+  }
+  const url = (otaUrlInput ? otaUrlInput.value.trim() : "");
+  if (!url) {
+    alert("Inserisci l'URL completo del file firmware .bin (es. https://.../firmware.bin)");
+    return;
+  }
+
+  const ok = confirm(`🚀 Sei sicuro di voler avviare l'aggiornamento firmware di "${state.deviceId}"?\n\n• Sorgente: ${url}\n• Il display mostrerà la barra di avanzamento e si riavvierà automaticamente.\n• Non togliere l'alimentazione a Pixò durante il processo.\n\nProcedere?`);
+  if (!ok) return;
+
+  if (state.mqttClient && state.mqttClient.connected && state.deviceId) {
+    const pin = state.devicePin || "1234";
+    const payload = JSON.stringify({
+      url: url,
+      version: "update",
+      pin: pin
+    });
+
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/${pin}/ota`, payload, { qos: 0 });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/ota`, payload, { qos: 0 });
+
+    if (otaStatusBox) {
+      otaStatusBox.style.display = 'block';
+      otaStatusBox.style.background = 'rgba(255,149,0,0.15)';
+      otaStatusBox.style.borderColor = 'rgba(255,149,0,0.35)';
+    }
+    if (otaStatusText) {
+      otaStatusText.innerHTML = `⏳ <strong>Comando inviato!</strong> Pixò sta avviando il download...`;
+    }
+    showToast("Comando OTA inviato a Pixò!", "info");
+  } else {
+    showToast("Disconnesso dal Cloud. Impossibile inviare.", "error");
+  }
+}
+
+// ==========================================================================
 //  8. CONTROLLO LUMINOSITÀ HARDWARE (PWM VIA MQTT)
 // ==========================================================================
 function sendBrightness(percent) {
@@ -1959,6 +2157,12 @@ function connectMQTT() {
               const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
               state.mqttClient.subscribe(wifiTopic, { qos: 0 });
 
+              // Sottoscrizione a stato OTA e telemetria diagnostica
+              const otaStatusTopic = `pixo/device/${state.deviceId}/ota/status`;
+              state.mqttClient.subscribe(otaStatusTopic, { qos: 0 });
+              const diagTopic = `pixo/device/${state.deviceId}/diag`;
+              state.mqttClient.subscribe(diagTopic, { qos: 0 });
+
               // Timer di fallback all'avvio: se Pixò non invia online entro 3.5s, avvisa che è spento
               scheduleStartupOfflineCheck();
             }
@@ -1976,6 +2180,8 @@ function connectMQTT() {
           const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
           const guestAckTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`;
           const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
+          const otaStatusTopic = `pixo/device/${state.deviceId}/ota/status`;
+          const diagTopic = `pixo/device/${state.deviceId}/diag`;
 
           if (topic === accessKeysTopic && state.isGuestMode) {
             handleGuestAccessKeysMessage(payload);
@@ -1996,6 +2202,10 @@ function connectMQTT() {
             handleGuestKeysSyncFromCloud(payload);
           } else if (topic === wifiTopic && !state.isGuestMode) {
             handleWifiStatusSync(payload);
+          } else if (topic === otaStatusTopic && !state.isGuestMode) {
+            handleOtaStatusSync(payload);
+          } else if (topic === diagTopic && !state.isGuestMode) {
+            handleDiagSync(payload);
           }
         });
 
@@ -2736,6 +2946,21 @@ function setupEventListeners() {
 
   if (btnOpenWifiPortal) {
     btnOpenWifiPortal.addEventListener('click', handleOpenWifiPortal);
+  }
+
+  // Gestione Aggiornamento Firmware Remoto (OTA - Solo Proprietario)
+  if (btnCheckFwUpdate) {
+    btnCheckFwUpdate.addEventListener('click', handleCheckFwUpdate);
+  }
+
+  if (btnCancelOta) {
+    btnCancelOta.addEventListener('click', () => {
+      if (otaFormBox) otaFormBox.style.display = 'none';
+    });
+  }
+
+  if (btnStartOta) {
+    btnStartOta.addEventListener('click', handleStartOta);
   }
 
   // Gestione Chiusura Onboarding (se già associato)
