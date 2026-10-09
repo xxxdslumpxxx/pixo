@@ -224,6 +224,21 @@ body {
   color: #80c4ff;
 }
 
+.ios-banner.offline {
+  background: rgba(255, 69, 58, 0.15);
+  border: 1px solid rgba(255, 69, 58, 0.4);
+}
+.ios-banner.offline .banner-pulse {
+  background: var(--accent-red);
+}
+.ios-banner.offline .banner-text {
+  color: #ff9f97;
+}
+.ios-banner.offline .banner-stop-btn {
+  color: #ff9f97;
+  border-color: rgba(255, 69, 58, 0.35);
+}
+
 .banner-stop-btn {
   padding: 4px 10px;
   border-radius: var(--radius-pill);
@@ -677,6 +692,36 @@ body[data-active-tab="panelSettings"] .canvas-stage,
 }
 
 .gallery-thumb-card:active { transform: scale(0.96); }
+
+.gallery-card-del-btn {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: transform 0.15s, background 0.15s;
+  z-index: 2;
+  padding: 0;
+}
+.gallery-card-del-btn:hover {
+  background: rgba(255, 59, 48, 0.85);
+  border-color: rgba(255, 59, 48, 0.9);
+  transform: scale(1.1);
+}
+.gallery-card-del-btn:active {
+  transform: scale(0.9);
+}
 
 /* LISTA IMPOSTAZIONI */
 .settings-list {
