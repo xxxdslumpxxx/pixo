@@ -225,7 +225,9 @@ const state = {
   wifiSsid: "",
   wifiSignal: 0,
   wifiIp: "",
-  deviceStatus: "unknown" // "online" | "offline" | "unknown"
+  deviceStatus: "unknown", // "online" | "offline" | "unknown"
+  guestAuthorized: null, // null = verifica in corso, true = autorizzato, false = revocato/non autorizzato
+  lastKnownGuestKeys: null
 };
 
 // --- RIFERIMENTI DOM ---
@@ -259,6 +261,11 @@ const stopFeedBtn = document.getElementById('stopFeedBtn');
 const deviceOfflineBanner = document.getElementById('deviceOfflineBanner');
 const deviceOfflineText = document.getElementById('deviceOfflineText');
 const dismissOfflineBannerBtn = document.getElementById('dismissOfflineBannerBtn');
+
+// Overlay Blocco Ospiti Revocati
+const guestRevokedOverlay = document.getElementById('guestRevokedOverlay');
+const guestRevokedReason = document.getElementById('guestRevokedReason');
+const retryGuestAuthBtn = document.getElementById('retryGuestAuthBtn');
 
 // Top Bar Action Buttons
 const undoBtn = document.getElementById('undoBtn');
@@ -501,6 +508,15 @@ function updateSettingsUI() {
     if (devicePinInput) devicePinInput.value = "";
     if (factoryResetSection) factoryResetSection.style.display = 'none';
     if (wifiManagementSection) wifiManagementSection.style.display = 'none';
+
+    // Agli ospiti nascondiamo i controlli hardware (Luce stanza, Feed meteo/orologio, Impostazioni)
+    if (lightToggleBtn) lightToggleBtn.style.display = 'none';
+    if (weatherBtn) weatherBtn.style.display = 'none';
+    if (clockBtn) clockBtn.style.display = 'none';
+    const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
+    if (settingsTab) settingsTab.style.display = 'none';
+    const galleryTab = document.querySelector('.tab-item[data-tab="panelGallery"]');
+    if (galleryTab) galleryTab.style.display = 'none';
   } else {
     deviceIdDisplay.textContent = state.deviceName || state.deviceId || "Collega Pixò";
     if (openSettingsBtn) openSettingsBtn.style.display = 'none';
@@ -512,6 +528,14 @@ function updateSettingsUI() {
     if (devicePinInput) devicePinInput.value = state.devicePin;
     if (factoryResetSection) factoryResetSection.style.display = 'block';
     if (wifiManagementSection) wifiManagementSection.style.display = 'flex';
+
+    if (lightToggleBtn) lightToggleBtn.style.display = '';
+    if (weatherBtn) weatherBtn.style.display = '';
+    if (clockBtn) clockBtn.style.display = '';
+    const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
+    if (settingsTab) settingsTab.style.display = '';
+    const galleryTab = document.querySelector('.tab-item[data-tab="panelGallery"]');
+    if (galleryTab) galleryTab.style.display = '';
   }
 
   deviceNameInput.value = state.deviceName;
@@ -1472,13 +1496,19 @@ async function sendLedConfig(enabled) {
 }
 
 async function toggleContinuousLight() {
+  if (state.isGuestMode) {
+    showToast(state.lang === 'it' ? "Solo il proprietario può controllare la luce LED" : "Only the owner can control the LED light", "warning");
+    return;
+  }
   if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
     await connectMQTT();
   }
   state.lightOn = !state.lightOn;
   if (!state.deviceId) return;
 
-  const topic = `pixo/device/${state.deviceId}/led`;
+  const topic = (state.devicePin && state.devicePin !== "1234")
+    ? `pixo/device/${state.deviceId}/${state.devicePin}/led`
+    : `pixo/device/${state.deviceId}/led`;
   const cmd = state.lightOn ? "LIGHT:ON" : "LIGHT:OFF";
   if (state.mqttClient && state.mqttClient.connected) {
     state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
@@ -1877,27 +1907,47 @@ function connectMQTT() {
           }
 
           if (state.deviceId) {
-            // Sottoscrizione allo stato hardware di Pixò (LWT online/offline)
-            const statusTopic = `pixo/device/${state.deviceId}/status`;
-            state.mqttClient.subscribe(statusTopic, { qos: 1 });
+            if (state.isGuestMode) {
+              // IN MODALITÀ OSPITE:
+              // 1. Sottoscrizione alle chiavi autorizzate e allo stato di abilitazione
+              const accessKeysTopic = `pixo/device/${state.deviceId}/access/keys`;
+              const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
+              const guestAckTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`;
+              state.mqttClient.subscribe(accessKeysTopic, { qos: 1 });
+              state.mqttClient.subscribe(accessStatusTopic, { qos: 1 });
+              state.mqttClient.subscribe(guestAckTopic, { qos: 0 });
 
-            // Sottoscrizione al topic di sincronizzazione disegno attuale
-            const currentTopic = `pixo/device/${state.deviceId}/current`;
-            state.mqttClient.subscribe(currentTopic, { qos: 0 });
+              // Timer di timeout verifica: se entro 4s non riceve conferma autorizzazione, blocca
+              if (guestAuthTimeout) clearTimeout(guestAuthTimeout);
+              guestAuthTimeout = setTimeout(() => {
+                if (state.guestAuthorized === null) {
+                  setGuestAccessAuthorized(false, state.lang === 'it' 
+                    ? "Impossibile verificare l'autorizzazione di questo link di invito." 
+                    : "Unable to verify this invitation link.");
+                }
+              }, 4000);
+            } else {
+              // IN MODALITÀ PROPRIETARIO:
+              // Sottoscrizione allo stato hardware di Pixò (LWT online/offline)
+              const statusTopic = `pixo/device/${state.deviceId}/status`;
+              state.mqttClient.subscribe(statusTopic, { qos: 1 });
 
-            // Sottoscrizione al topic cloud chiavi ospiti con etichette se proprietario
-            if (!state.isGuestMode) {
+              // Sottoscrizione al topic di sincronizzazione disegno attuale
+              const currentTopic = `pixo/device/${state.deviceId}/current`;
+              state.mqttClient.subscribe(currentTopic, { qos: 0 });
+
+              // Sottoscrizione al topic cloud chiavi ospiti con etichette se proprietario
               const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
-              state.mqttClient.subscribe(keysDataTopic, { qos: 0 });
+              state.mqttClient.subscribe(keysDataTopic, { qos: 1 });
               syncGuestKeysToDevice(false);
+
+              // Sottoscrizione al topic di telemetria Wi-Fi
+              const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
+              state.mqttClient.subscribe(wifiTopic, { qos: 0 });
+
+              // Timer di fallback all'avvio: se Pixò non invia online entro 3.5s, avvisa che è spento
+              scheduleStartupOfflineCheck();
             }
-
-            // Sottoscrizione al topic di telemetria Wi-Fi
-            const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
-            state.mqttClient.subscribe(wifiTopic, { qos: 0 });
-
-            // Timer di fallback all'avvio: se Pixò non invia online entro 3.5s, avvisa che è spento
-            scheduleStartupOfflineCheck();
           }
           resolve(true);
         });
@@ -1908,15 +1958,29 @@ function connectMQTT() {
           const statusTopic = `pixo/device/${state.deviceId}/status`;
           const currentTopic = `pixo/device/${state.deviceId}/current`;
           const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
+          const accessKeysTopic = `pixo/device/${state.deviceId}/access/keys`;
+          const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
+          const guestAckTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`;
           const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
 
-          if (topic === statusTopic) {
-            handleDeviceStatusSync(payload);
-          } else if (topic === currentTopic) {
+          if (topic === accessKeysTopic && state.isGuestMode) {
+            handleGuestAccessKeysMessage(payload);
+          } else if (topic === accessStatusTopic && state.isGuestMode) {
+            handleGuestAccessStatusMessage(payload);
+          } else if (topic === guestAckTopic && state.isGuestMode) {
+            const ack = new TextDecoder().decode(payload).trim();
+            if (ack.startsWith("REJECTED")) {
+              setGuestAccessAuthorized(false, "Disegno rifiutato da Pixò: il link è stato revocato!");
+            }
+          } else if (topic === statusTopic) {
+            if (!state.isGuestMode || state.guestAuthorized === true) {
+              handleDeviceStatusSync(payload);
+            }
+          } else if (topic === currentTopic && !state.isGuestMode) {
             handleCurrentDisplaySync(payload);
           } else if (topic === keysDataTopic && !state.isGuestMode) {
             handleGuestKeysSyncFromCloud(payload);
-          } else if (topic === wifiTopic) {
+          } else if (topic === wifiTopic && !state.isGuestMode) {
             handleWifiStatusSync(payload);
           }
         });
@@ -2053,6 +2117,90 @@ function scheduleStartupOfflineCheck() {
 }
 
 // ==========================================================================
+//  VERIFICA AUTORIZZAZIONE OSPITI & GESTIONE LINK REVOCATI
+// ==========================================================================
+let guestAuthTimeout = null;
+
+function setGuestAccessAuthorized(authorized, reason) {
+  if (!state.isGuestMode) return;
+  state.guestAuthorized = authorized;
+
+  if (guestAuthTimeout) {
+    clearTimeout(guestAuthTimeout);
+    guestAuthTimeout = null;
+  }
+
+  if (authorized) {
+    guestRevokedOverlay?.classList.add('hidden');
+    // Quando autorizzato, può sottoscrivere e monitorare se Pixò è online
+    if (state.mqttClient && state.mqttClient.connected) {
+      const statusTopic = `pixo/device/${state.deviceId}/status`;
+      state.mqttClient.subscribe(statusTopic, { qos: 1 });
+    }
+  } else {
+    // BLOCCO TOTALE ACCESSO PER OSPITE REVOCATO O NON AUTORIZZATO
+    if (guestRevokedReason) {
+      guestRevokedReason.textContent = reason || (state.lang === 'it'
+        ? "Non possiedi più l'autorizzazione per accedere a questo Pixò."
+        : "You no longer have permission to access this Pixò.");
+    }
+    guestRevokedOverlay?.classList.remove('hidden');
+
+    // Reset indicatori: l'ospite revocato non deve vedere lo stato online di Pixò
+    statusDot.className = "status-pulse status-dot";
+    statusDot.title = "Accesso non autorizzato";
+    if (deviceSubtitle) {
+      deviceSubtitle.textContent = "Non autorizzato";
+      deviceSubtitle.style.color = "var(--accent-red)";
+    }
+    deviceOfflineBanner?.classList.add('hidden');
+  }
+}
+
+function verifyGuestKeyAgainstList(keysStr) {
+  if (!state.isGuestMode) return;
+  if (!keysStr || keysStr === "NONE") {
+    setGuestAccessAuthorized(false, state.lang === 'it'
+      ? "Nessun link ospite è attualmente attivo per questo Pixò."
+      : "No guest links are currently active for this Pixò.");
+    return;
+  }
+  const keys = keysStr.split(',').map(k => k.trim()).filter(Boolean);
+  if (keys.includes(state.guestKey)) {
+    setGuestAccessAuthorized(true);
+  } else {
+    setGuestAccessAuthorized(false, state.lang === 'it'
+      ? "Questo link di invito non è valido o è stato revocato dal proprietario."
+      : "This invitation link is not valid or has been revoked by the owner.");
+  }
+}
+
+function handleGuestAccessStatusMessage(payload) {
+  const text = (typeof payload === 'string')
+    ? payload.trim()
+    : new TextDecoder().decode(payload).trim();
+
+  if (text === "DISABLE" || text === "GUEST:DISABLE") {
+    setGuestAccessAuthorized(false, state.lang === 'it'
+      ? "Il proprietario ha disabilitato l'accesso ai disegni da parte degli ospiti."
+      : "The owner has disabled guest access.");
+  } else if (text === "ENABLE" || text === "GUEST:ENABLE") {
+    if (state.lastKnownGuestKeys) {
+      verifyGuestKeyAgainstList(state.lastKnownGuestKeys);
+    }
+  }
+}
+
+function handleGuestAccessKeysMessage(payload) {
+  const text = (typeof payload === 'string')
+    ? payload.trim()
+    : new TextDecoder().decode(payload).trim();
+
+  state.lastKnownGuestKeys = text;
+  verifyGuestKeyAgainstList(text);
+}
+
+// ==========================================================================
 //  SINCRONIZZAZIONE STATO ATTUALE DISPLAY (MQTT Retained)
 // ==========================================================================
 function handleCurrentDisplaySync(payload) {
@@ -2140,6 +2288,12 @@ async function sendCanvasMqtt() {
     if (!state.mqttConnected) return;
   }
 
+  // Verifica autorizzazione ospite prima dell'invio
+  if (state.isGuestMode && state.guestAuthorized !== true) {
+    showToast(state.lang === 'it' ? "Non sei autorizzato a inviare disegni a questo Pixò." : "You are not authorized to send drawings to this Pixò.", "error");
+    return;
+  }
+
   // Blocco di concorrenza anti-crash
   if (state.isSending) return;
 
@@ -2167,11 +2321,13 @@ async function sendCanvasMqtt() {
         }
       });
 
-      // Mantiene aggiornato il Cloud (Retained) per sincronizzare istantaneamente l'app quando viene aperta
-      lastLocalSendTime = Date.now();
-      const currentTopic = `pixo/device/${state.deviceId}/current`;
-      state.mqttClient.publish(currentTopic, uint8Array, { qos: 0, retain: true });
-      state.lastDisplayPayload = uint8Array;
+      // Mantiene aggiornato il Cloud (Retained) SOLO per il proprietario (l'ESP32 aggiorna current topic per gli ospiti)
+      if (!state.isGuestMode) {
+        lastLocalSendTime = Date.now();
+        const currentTopic = `pixo/device/${state.deviceId}/current`;
+        state.mqttClient.publish(currentTopic, uint8Array, { qos: 0, retain: true });
+        state.lastDisplayPayload = uint8Array;
+      }
     } else {
       state.isSending = false;
       sendBtn.disabled = false;
@@ -2278,6 +2434,21 @@ function setupEventListeners() {
   // Chiudi banner offline
   dismissOfflineBannerBtn?.addEventListener('click', () => {
     deviceOfflineBanner?.classList.add('hidden');
+  });
+
+  // Riprova verifica autorizzazione ospite
+  retryGuestAuthBtn?.addEventListener('click', () => {
+    state.guestAuthorized = null;
+    showToast(state.lang === 'it' ? "Verifica autorizzazione in corso..." : "Checking authorization...", "info");
+    if (state.mqttClient && state.mqttClient.connected) {
+      const accessKeysTopic = `pixo/device/${state.deviceId}/access/keys`;
+      const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
+      state.mqttClient.unsubscribe([accessKeysTopic, accessStatusTopic]);
+      state.mqttClient.subscribe(accessKeysTopic, { qos: 1 });
+      state.mqttClient.subscribe(accessStatusTopic, { qos: 1 });
+    } else {
+      connectMQTT();
+    }
   });
 
   // Palette Colori
