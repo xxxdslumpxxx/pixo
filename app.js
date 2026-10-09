@@ -2240,6 +2240,13 @@ function handleCurrentDisplaySync(payload) {
     ? new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength)
     : new Uint8Array(payload);
 
+  // Auto-riparazione header: se il buffer dell'ESP32 ha anteposto 'kOK' sui primi 3 byte (\xFF\xD8\xFF)
+  if (uint8.length >= 7 && uint8[0] === 0x6B && uint8[1] === 0x4F && uint8[2] === 0x4B) {
+    uint8[0] = 0xFF;
+    uint8[1] = 0xD8;
+    uint8[2] = 0xFF;
+  }
+
   // Verifica se è un'immagine JPEG valida (Magic Bytes 0xFF 0xD8)
   if (uint8.length >= 2 && uint8[0] === 0xFF && uint8[1] === 0xD8) {
     const blob = new Blob([uint8], { type: 'image/jpeg' });
@@ -2338,13 +2345,11 @@ async function sendCanvasMqtt() {
         }
       });
 
-      // Mantiene aggiornato il Cloud (Retained) SOLO per il proprietario (l'ESP32 aggiorna current topic per gli ospiti)
-      if (!state.isGuestMode) {
-        lastLocalSendTime = Date.now();
-        const currentTopic = `pixo/device/${state.deviceId}/current`;
-        state.mqttClient.publish(currentTopic, uint8Array, { qos: 0, retain: true });
-        state.lastDisplayPayload = uint8Array;
-      }
+      // Mantiene aggiornato il Cloud (Retained) per tutti i dispositivi in tempo reale
+      lastLocalSendTime = Date.now();
+      const currentTopic = `pixo/device/${state.deviceId}/current`;
+      state.mqttClient.publish(currentTopic, uint8Array, { qos: 0, retain: true });
+      state.lastDisplayPayload = uint8Array;
     } else {
       state.isSending = false;
       sendBtn.disabled = false;
