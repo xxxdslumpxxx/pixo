@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 
   <!-- Stili Apple Design -->
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
@@ -50,6 +50,15 @@
           <span class="banner-text" id="feedStatusText">Feed attivo...</span>
         </div>
         <button class="banner-stop-btn" id="stopFeedBtn">Interrompi</button>
+      </div>
+
+      <!-- Device Offline Banner -->
+      <div class="ios-banner offline hidden" id="deviceOfflineBanner">
+        <div class="banner-content">
+          <span class="banner-pulse"></span>
+          <span class="banner-text" id="deviceOfflineText">Il Pixò è spento o non collegato</span>
+        </div>
+        <button class="banner-stop-btn" id="dismissOfflineBannerBtn">Chiudi</button>
       </div>
 
       <!-- Canvas Card (La cornice elegante del display fisico) -->
