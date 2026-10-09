@@ -705,6 +705,7 @@ function clearCanvas() {
     const bg = getCanvasBgColor();
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    state.userHasDrawnLocally = false;
     saveState();
     updatePayloadPreview();
     showToast(t("toastCleared"));
@@ -1686,13 +1687,26 @@ function syncGuestKeysToDevice(forcePublishData = true) {
   const keysStr = keysArray.length > 0 ? keysArray.join(',') : 'NONE';
 
   if (state.mqttConnected && state.mqttClient && state.mqttClient.connected) {
-    // 1. Topic hardware per ESP32 (elenco chiavi separate da virgola)
+    // 1. Topic hardware per la WebApp e client cloud
     state.mqttClient.publish(`pixo/device/${state.deviceId}/access/keys`, keysStr, { qos: 0, retain: true });
     // Retrocompatibilità con firmware legacy
     const firstKey = keysArray.length > 0 ? keysArray[0] : 'NONE';
     state.mqttClient.publish(`pixo/device/${state.deviceId}/access/key`, firstKey, { qos: 0, retain: true });
 
-    // 2. Topic Cloud con nomi ed etichette per sincronizzare tutti i dispositivi del proprietario (PC, cellulare)
+    // 2. FONDAMENTALE PER ESP32: L'ESP32 è sottoscritto al topic base `access`!
+    // Invia il comando GUEST:KEYS:<elenco> che aggiorna la memoria NVS dell'ESP32 in tempo reale
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/access`, `GUEST:KEYS:${keysStr}`, { qos: 0, retain: true });
+    if (firstKey !== 'NONE') {
+      state.mqttClient.publish(`pixo/device/${state.deviceId}/access`, `GUEST:KEY:${firstKey}`, { qos: 0, retain: false });
+    }
+
+    // Assicura che l'accesso ospiti sia abilitato sull'ESP32 se impostato su true
+    if (state.allowGuests !== false) {
+      state.mqttClient.publish(`pixo/device/${state.deviceId}/access/status`, "ENABLE", { qos: 0, retain: true });
+      state.mqttClient.publish(`pixo/device/${state.deviceId}/access`, "GUEST:ENABLE", { qos: 0, retain: false });
+    }
+
+    // 3. Topic Cloud con nomi ed etichette per sincronizzare tutti i dispositivi del proprietario (PC, cellulare)
     if (forcePublishData) {
       const keysJson = JSON.stringify(state.guestKeys || []);
       state.mqttClient.publish(`pixo/device/${state.deviceId}/access/keys_data`, keysJson, { qos: 0, retain: true });
@@ -1876,8 +1890,8 @@ function connectMQTT() {
     clientId: clientId,
     clean: true,
     connectTimeout: 7000,
-    reconnectPeriod: 1000,
-    keepalive: 60,
+    reconnectPeriod: 2000,
+    keepalive: 20,
     username: state.brokerUser,
     password: state.brokerPass
   };
@@ -1976,7 +1990,7 @@ function connectMQTT() {
             if (!state.isGuestMode || state.guestAuthorized === true) {
               handleDeviceStatusSync(payload);
             }
-          } else if (topic === currentTopic && !state.isGuestMode) {
+          } else if (topic === currentTopic && (!state.isGuestMode || state.guestAuthorized === true)) {
             handleCurrentDisplaySync(payload);
           } else if (topic === keysDataTopic && !state.isGuestMode) {
             handleGuestKeysSyncFromCloud(payload);
@@ -2136,6 +2150,8 @@ function setGuestAccessAuthorized(authorized, reason) {
     if (state.mqttClient && state.mqttClient.connected) {
       const statusTopic = `pixo/device/${state.deviceId}/status`;
       state.mqttClient.subscribe(statusTopic, { qos: 1 });
+      const currentTopic = `pixo/device/${state.deviceId}/current`;
+      state.mqttClient.subscribe(currentTopic, { qos: 0 });
     }
   } else {
     // BLOCCO TOTALE ACCESSO PER OSPITE REVOCATO O NON AUTORIZZATO
@@ -2315,6 +2331,7 @@ async function sendCanvasMqtt() {
         sendBtn.querySelector('.send-label').textContent = t("sendToDisplay");
 
         if (!err) {
+          state.userHasDrawnLocally = false;
           const elapsed = Math.round(performance.now() - sendStart);
           const kb = (uint8Array.length / 1024).toFixed(1);
           showToast(t("toastSentSuccess", { name: state.deviceName || state.deviceId, kb: kb, ms: elapsed }), "success");
@@ -2398,6 +2415,7 @@ async function sendStandbyCommand() {
     const currentTopic = `pixo/device/${state.deviceId}/current`;
     state.mqttClient.publish(currentTopic, clearCmd, { qos: 0, retain: true });
     state.lastDisplayPayload = null;
+    state.userHasDrawnLocally = false;
   }
 }
 
@@ -3018,21 +3036,59 @@ function registerServiceWorker() {
 
 // Sveglia socket MQTT alla riapertura dell'app / cambio tab / sblocco schermo su smartphone
 let wakeDebounceTimer = null;
+let lastHiddenTimestamp = Date.now();
+
 function handleAppWakeup() {
   if (wakeDebounceTimer) clearTimeout(wakeDebounceTimer);
   wakeDebounceTimer = setTimeout(() => {
+    const timeSuspended = Date.now() - lastHiddenTimestamp;
+    console.log(`[WAKEUP] Pagina risvegliata (sospesa per ${Math.round(timeSuspended / 1000)}s). Verifica connessione...`);
+
+    // Se la pagina è rimasta in background per più di 15 secondi, i browser mobili (Chrome/Safari)
+    // tagliano i socket TCP lasciando il client MQTT in uno stato 'zombie' (crede di essere connesso ma non riceve).
+    if (timeSuspended > 15000) {
+      console.log('[WAKEUP] Sospensione prolungata: riavvio pulito della connessione MQTT.');
+      if (state.mqttClient) {
+        try {
+          state.mqttClient.end(true);
+        } catch(e) {}
+        state.mqttClient = null;
+        state.mqttConnected = false;
+        state.mqttConnecting = false;
+      }
+      connectMQTT();
+      return;
+    }
+
+    // Se il client è esplicitamente disconnesso:
     if (!state.mqttClient || (!state.mqttClient.connected && !state.mqttConnecting)) {
       connectMQTT();
+    } else if (state.deviceId && state.mqttClient && state.mqttClient.connected) {
+      // Se il client è attivo, forza il broker MQTT a rispedire l'ultimo disegno (messaggio retained)
+      const currentTopic = `pixo/device/${state.deviceId}/current`;
+      try {
+        state.mqttClient.unsubscribe(currentTopic, () => {
+          if (state.mqttClient && state.mqttClient.connected) {
+            state.mqttClient.subscribe(currentTopic, { qos: 0 });
+          }
+        });
+      } catch(e) {
+        console.warn('[WAKEUP] Errore riallineamento topic display, riconnessione:', e);
+        connectMQTT();
+      }
     }
-  }, 400);
+  }, 300);
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
+  if (document.visibilityState === 'hidden') {
+    lastHiddenTimestamp = Date.now();
+  } else if (document.visibilityState === 'visible') {
     handleAppWakeup();
   }
 });
 window.addEventListener('focus', handleAppWakeup);
+window.addEventListener('pageshow', handleAppWakeup);
 window.addEventListener('online', handleAppWakeup);
 
 // ==========================================================================
