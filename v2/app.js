@@ -326,6 +326,7 @@ const otaFormBox = document.getElementById('otaFormBox');
 const otaUrlInput = document.getElementById('otaUrlInput');
 const btnCancelOta = document.getElementById('btnCancelOta');
 const btnStartOta = document.getElementById('btnStartOta');
+const btnBroadcastOta = document.getElementById('btnBroadcastOta');
 
 // Modal Onboarding e Connessione Pixò
 const onboardingModal = document.getElementById('onboardingModal');
@@ -2038,6 +2039,52 @@ function handleStartOta() {
   }
 }
 
+function handleBroadcastOta() {
+  if (state.isGuestMode) {
+    alert("Operazione riservata al proprietario master.");
+    return;
+  }
+  const url = (otaUrlInput ? otaUrlInput.value.trim() : "");
+  if (!url) {
+    alert("Inserisci l'URL completo del file firmware .bin.");
+    return;
+  }
+
+  // Verifica password master personale
+  const enteredPass = prompt("🔐 INSERISCI LA MASTER KEY AMMINISTRATORE PER AGGIORNARE TUTTI I DISPOSITIVI:");
+  if (!enteredPass) return;
+
+  if (enteredPass !== "pixo_master_2026") {
+    alert("❌ Master Key errata! Operazione annullata.");
+    return;
+  }
+
+  const ok = confirm(`⚠️ ATTENZIONE: Sei sicuro di voler forzare l'aggiornamento OTA su TUTTI i dispositivi Pixò connessi al Cloud?\n\n• Sorgente: ${url}\n• Tutti i Pixò riceveranno il comando contemporaneamente.\n\nVuoi procedere?`);
+  if (!ok) return;
+
+  if (state.mqttClient && state.mqttClient.connected) {
+    const payload = JSON.stringify({
+      url: url,
+      version: "fleet_update",
+      master_pin: "pixo_master_2026"
+    });
+
+    state.mqttClient.publish("pixo/global/ota", payload, { qos: 0 });
+
+    if (otaStatusBox) {
+      otaStatusBox.style.display = 'block';
+      otaStatusBox.style.background = 'rgba(255,149,0,0.15)';
+      otaStatusBox.style.borderColor = 'rgba(255,149,0,0.35)';
+    }
+    if (otaStatusText) {
+      otaStatusText.innerHTML = `🚀 <strong>Comando Broadcast inviato!</strong> Tutta la flotta Pixò è in aggiornamento...`;
+    }
+    showToast("Comando broadcast inviato a tutta la flotta Pixò!", "success");
+  } else {
+    showToast("Disconnesso dal Cloud. Impossibile inviare.", "error");
+  }
+}
+
 // ==========================================================================
 //  8. CONTROLLO LUMINOSITÀ HARDWARE (PWM VIA MQTT)
 // ==========================================================================
@@ -2961,6 +3008,10 @@ function setupEventListeners() {
 
   if (btnStartOta) {
     btnStartOta.addEventListener('click', handleStartOta);
+  }
+
+  if (btnBroadcastOta) {
+    btnBroadcastOta.addEventListener('click', handleBroadcastOta);
   }
 
   // Gestione Chiusura Onboarding (se già associato)
