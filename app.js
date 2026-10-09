@@ -1891,7 +1891,7 @@ function connectMQTT() {
     clean: true,
     connectTimeout: 7000,
     reconnectPeriod: 2000,
-    keepalive: 20,
+    keepalive: 60,
     username: state.brokerUser,
     password: state.brokerPass
   };
@@ -2224,14 +2224,14 @@ function handleCurrentDisplaySync(payload) {
 
   state.lastDisplayPayload = payload;
 
-  // Se l'invio è avvenuto da noi in questa sessione da meno di 6 secondi, ignora l'eco di ritorno
-  if (Date.now() - lastLocalSendTime < 6000) {
+  // Se l'invio è avvenuto da noi in questa sessione da meno di 4 secondi, ignora l'eco di ritorno
+  if (Date.now() - lastLocalSendTime < 4000) {
     return;
   }
 
-  // Se l'utente ha già iniziato a disegnare o modificare il canvas in questa sessione, non sovrascrivere
-  if (state.userHasDrawnLocally) {
-    console.log("[SYNC] Ricevuto stato display dal Cloud, ma l'utente sta già disegnando.");
+  // Se l'utente sta disegnando attivamente in questo istante, non interrompere il tratto
+  if (state.isDrawing) {
+    console.log("[SYNC] Ricevuto stato display dal Cloud, ma l'utente sta disegnando in questo istante.");
     return;
   }
 
@@ -3036,59 +3036,23 @@ function registerServiceWorker() {
 
 // Sveglia socket MQTT alla riapertura dell'app / cambio tab / sblocco schermo su smartphone
 let wakeDebounceTimer = null;
-let lastHiddenTimestamp = Date.now();
 
 function handleAppWakeup() {
   if (wakeDebounceTimer) clearTimeout(wakeDebounceTimer);
   wakeDebounceTimer = setTimeout(() => {
-    const timeSuspended = Date.now() - lastHiddenTimestamp;
-    console.log(`[WAKEUP] Pagina risvegliata (sospesa per ${Math.round(timeSuspended / 1000)}s). Verifica connessione...`);
-
-    // Se la pagina è rimasta in background per più di 15 secondi, i browser mobili (Chrome/Safari)
-    // tagliano i socket TCP lasciando il client MQTT in uno stato 'zombie' (crede di essere connesso ma non riceve).
-    if (timeSuspended > 15000) {
-      console.log('[WAKEUP] Sospensione prolungata: riavvio pulito della connessione MQTT.');
-      if (state.mqttClient) {
-        try {
-          state.mqttClient.end(true);
-        } catch(e) {}
-        state.mqttClient = null;
-        state.mqttConnected = false;
-        state.mqttConnecting = false;
-      }
-      connectMQTT();
-      return;
-    }
-
-    // Se il client è esplicitamente disconnesso:
     if (!state.mqttClient || (!state.mqttClient.connected && !state.mqttConnecting)) {
+      console.log('[WAKEUP] Connessione MQTT assente o caduta, riconnessione...');
       connectMQTT();
-    } else if (state.deviceId && state.mqttClient && state.mqttClient.connected) {
-      // Se il client è attivo, forza il broker MQTT a rispedire l'ultimo disegno (messaggio retained)
-      const currentTopic = `pixo/device/${state.deviceId}/current`;
-      try {
-        state.mqttClient.unsubscribe(currentTopic, () => {
-          if (state.mqttClient && state.mqttClient.connected) {
-            state.mqttClient.subscribe(currentTopic, { qos: 0 });
-          }
-        });
-      } catch(e) {
-        console.warn('[WAKEUP] Errore riallineamento topic display, riconnessione:', e);
-        connectMQTT();
-      }
     }
   }, 300);
 }
 
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden') {
-    lastHiddenTimestamp = Date.now();
-  } else if (document.visibilityState === 'visible') {
+  if (document.visibilityState === 'visible') {
     handleAppWakeup();
   }
 });
 window.addEventListener('focus', handleAppWakeup);
-window.addEventListener('pageshow', handleAppWakeup);
 window.addEventListener('online', handleAppWakeup);
 
 // ==========================================================================
