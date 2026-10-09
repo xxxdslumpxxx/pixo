@@ -90,6 +90,10 @@ const TRANSLATIONS = {
     toastConnected: "Connesso a Pixò Cloud",
     toastSentSuccess: "Inviato a {name} ({kb} KB in {ms}ms)!",
     confirmClear: "Vuoi davvero cancellare tutto il disegno?",
+    kidsModeLabel: "🛡️ Filtro Bambini & Protezione",
+    kidsModeSub: "Blocca bestemmie, volgarità e foto non adatte inviate da ospiti o amici",
+    toastKidsModeBlocked: "⚠️ Messaggio bloccato dal Filtro Bambini: contiene linguaggio inappropriato!",
+    toastKidsModeImgBlocked: "⚠️ Immagine bloccata dal Filtro Bambini: rilevato contenuto non appropriato!",
     feedWeatherActive: "🌦️ Meteo attivo ({city}) • Aggiornamento automatico ogni 15 min",
     feedNewsActive: "📰 Notizia {current} di {total} su Pixò (prossima tra 15s)...",
     feedClockActive: "⏰ Orologio Digitale attivo sul Display (Nativo)",
@@ -135,6 +139,8 @@ const TRANSLATIONS = {
     screensaverSub: "Return to cartoon face after 30 min of inactivity",
     ledLabel: "💡 Notification LED Blink (GPIO 5)",
     ledSub: "Blinks the LED when receiving a new drawing or message",
+    kidsModeLabel: "🛡️ Kids Safe Mode & Protection",
+    kidsModeSub: "Blocks profanities, blasphemy, and inappropriate photos from guests",
     allowGuestsTitle: "Allow Guest Submissions",
     guestStatusSub: "Guests can send drawings to Pixò",
     guestLinkLabel: "Guest Invitation Link:",
@@ -157,6 +163,8 @@ const TRANSLATIONS = {
     toastSettingsSaved: "Settings saved",
     toastConnected: "Connected to Pixò Cloud",
     toastSentSuccess: "Sent to {name} ({kb} KB in {ms}ms)!",
+    toastKidsModeBlocked: "⚠️ Message blocked by Kids Safe Filter: inappropriate content detected!",
+    toastKidsModeImgBlocked: "⚠️ Image blocked by Kids Safe Filter: inappropriate content detected!",
     confirmClear: "Do you really want to clear the entire canvas?",
     feedWeatherActive: "🌦️ Weather active ({city}) • Auto-refresh every 15 min",
     feedNewsActive: "📰 Story {current} of {total} on Pixò (next in 15s)...",
@@ -205,9 +213,10 @@ const state = {
   guestKeys: [],
   allowGuests: true,
 
-  // Screensaver & LED
+  // Screensaver & LED & Protezione Bambini
   screensaverEnabled: true,
   ledEnabled: true,
+  kidsModeEnabled: true,
   lightOn: false,
   savedDrawings: [],
 
@@ -299,6 +308,7 @@ const themeSelect = document.getElementById('themeSelect');
 const weatherCityInput = document.getElementById('weatherCityInput');
 const screensaverToggle = document.getElementById('screensaverToggle');
 const ledToggle = document.getElementById('ledToggle');
+const kidsModeToggle = document.getElementById('kidsModeToggle');
 const changeDeviceBtn = document.getElementById('changeDeviceBtn');
 const factoryResetBtn = document.getElementById('factoryResetBtn');
 const factoryResetSection = document.getElementById('factoryResetSection');
@@ -494,6 +504,7 @@ function initDeviceAndSettings() {
   state.allowGuests = localStorage.getItem('pixo_allow_guests') !== 'false';
   state.screensaverEnabled = localStorage.getItem('pixo_screensaver') !== 'false';
   state.ledEnabled = localStorage.getItem('pixo_led') !== 'false';
+  state.kidsModeEnabled = localStorage.getItem('pixo_kids_mode') !== 'false'; // Default attivo!
 
   state.deviceName = localStorage.getItem('pixo_device_name') || DEFAULT_CONFIG.defaultDeviceName;
   state.brightness = parseInt(localStorage.getItem('pixo_brightness') || DEFAULT_CONFIG.defaultBrightness, 10);
@@ -577,6 +588,7 @@ function updateSettingsUI() {
 
   if (screensaverToggle) screensaverToggle.checked = state.screensaverEnabled;
   if (ledToggle) ledToggle.checked = state.ledEnabled;
+  if (kidsModeToggle) kidsModeToggle.checked = state.kidsModeEnabled;
   if (allowGuestsToggle) allowGuestsToggle.checked = state.allowGuests;
 }
 
@@ -1112,10 +1124,154 @@ function wrapText(context, text, maxWidth) {
   return lines;
 }
 
+// ==========================================================================
+//  5b. FILTRO BAMBINI & PROTEZIONE CONTENUTI (BESTEMMIE, VOLGARITÀ, NSFW)
+// ==========================================================================
+const PROFANITY_PATTERNS = [
+  // Bestemmie e offese sacre
+  /d[i1!l]o\s*(c[a4]n[e3]|p[o0]rc[o0]|b[o0]i[a4]|m[a4]i[a4]l[e3]|l[a4]dr[o0]|m[e3]rd[a4]|sch[i1]f[o0]|b[a4]st[a4]rd[o0]|str[o0]nz[o0]|serpente|cane)/i,
+  /p[o0]rc[o0]\s*d[i1!l]o/i,
+  /p[o0]rc[a4]\s*m[a4]d[o0]nn[a4]/i,
+  /m[a4]d[o0]nn[a4]\s*(p[u0]tt[a4]n[a4]|tr[o0]i[a4]|c[a4]n[e3]|p[o0]rc[a4]|v[a4]cc[a4]|b[o0]i[a4]|sch[i1]f[o0])/i,
+  /d[i1!l]o\s*b[e3]st[i1]a/i,
+  /d[i1!l]o\s*c[a4]gn[a4]cc[i1]o/i,
+  /d[i1!l]o\s*f[a4]sc[i1]st[a4]/i,
+  /m[a4]d[o0]nn[a4]\s*l[a4]dr[a4]/i,
+  /c[hH]r[i1!l]st[o0]\s*(d[i1!l]o|c[a4]n[e3]|p[o0]rc[o0]|b[a4]st[a4]rd[o0])/i,
+  /p[o0]rc[o0]\s*c[hH]r[i1!l]st[o0]/i,
+  /p[o0]rc[o0]\s*d[i1!l][e3]u/i,
+  /p[o0]rc[o0]\s*zz[i1]o/i,
+  // Volgarità esplicite pesanti
+  /\bc[a4]zz[o0i1]\b/i,
+  /\bstr[o0]nz[o0i1a4]\b/i,
+  /\bv[a4]ff[a4]nc[u0]l[o0]\b/i,
+  /\bf[a4]nc[u0]l[o0]\b/i,
+  /\bp[u0]tt[a4]n[a4e3]\b/i,
+  /\btr[o0]i[a4e3]\b/i,
+  /\bb[o0]cc[hH][i1]n[o0i1]\b/i,
+  /\bsb[o0]rr[a4e3]\b/i,
+  /\bsp[e3]rm[a4]\b/i,
+  /\bp[e3]n[e3i1]\b/i,
+  /\bv[a4]g[i1]n[a4]\b/i,
+  /\bt[e3]tt[e3]\b/i,
+  /\bc[u0]l[o0]\b/i,
+  /\benc[u0]l[a4]/i,
+  /\bincul[a4o0]/i,
+  /\bricchi[o0]n[e3i1]\b/i,
+  /\bfr[o0]ci[o0]\b/i,
+  /\bnegro\b/i,
+  /\bnegri\b/i,
+  /\bfuck\b/i,
+  /\bshit\b/i,
+  /\bbitch\b/i,
+  /\bcunt\b/i,
+  /\bdick\b/i,
+  /\bpussy\b/i,
+  /\bwhore\b/i,
+  /\bslut\b/i
+];
+
+function normalizeTextForProfanity(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .replace(/[@]/g, 'a')
+    .replace(/[3]/g, 'e')
+    .replace(/[1!|]/g, 'i')
+    .replace(/[0]/g, 'o')
+    .replace(/[$5]/g, 's')
+    .replace(/[+]/g, 't')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function checkProfanity(text) {
+  if (!state.kidsModeEnabled) return { clean: true };
+  if (!text) return { clean: true };
+
+  const raw = text.toLowerCase();
+  const normalized = normalizeTextForProfanity(text);
+
+  for (const pattern of PROFANITY_PATTERNS) {
+    if (pattern.test(raw) || pattern.test(normalized)) {
+      return { clean: false, blocked: true };
+    }
+  }
+
+  // Verifica anche senza spazi intermedi (es. "p-o-r-c-o-d-i-o" o "porcodio")
+  const compact = raw.replace(/[^a-z0-9]/g, '');
+  const compactNorm = normalized.replace(/[^a-z0-9]/g, '');
+  for (const pattern of PROFANITY_PATTERNS) {
+    if (pattern.test(compact) || pattern.test(compactNorm)) {
+      return { clean: false, blocked: true };
+    }
+  }
+
+  return { clean: true };
+}
+
+function checkImageSafety(imgOrCanvas) {
+  if (!state.kidsModeEnabled) return { safe: true };
+
+  try {
+    const testCanvas = document.createElement('canvas');
+    testCanvas.width = 120;
+    testCanvas.height = 120;
+    const tCtx = testCanvas.getContext('2d', { willReadFrequently: true });
+    tCtx.drawImage(imgOrCanvas, 0, 0, 120, 120);
+
+    const imgData = tCtx.getImageData(0, 0, 120, 120);
+    const data = imgData.data;
+    const totalPixels = 120 * 120;
+    let skinPixels = 0;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = data[i + 3];
+
+      if (a < 50) continue; // Trasparente
+
+      // Euristica universale per tonalità pelle (RGB & HSV bounding box)
+      const max = Math.max(r, g, b);
+      const min = Math.min(r, g, b);
+      const isSkinRGB = (r > 95) && (g > 40) && (b > 20) &&
+                        ((max - min) > 15) &&
+                        (Math.abs(r - g) > 15) &&
+                        (r > g) && (r > b);
+
+      if (isSkinRGB) {
+        skinPixels++;
+      }
+    }
+
+    const skinRatio = skinPixels / totalPixels;
+    // Se più del 48% dell'immagine è tonalità di pelle, blocca per protezione bambini
+    if (skinRatio > 0.48) {
+      console.warn(`[FILTRO BAMBINI] Immagine bloccata: rapporto tonalità pelle ${Math.round(skinRatio * 100)}% (soglia 48%)`);
+      return { safe: false, ratio: skinRatio };
+    }
+
+    return { safe: true, ratio: skinRatio };
+  } catch(e) {
+    console.warn('[FILTRO BAMBINI] Errore analisi immagine:', e);
+    return { safe: true };
+  }
+}
+
 function applyCustomText() {
   stopAutomaticFeed();
   const text = customTextInput.value.trim();
   if (!text) return;
+
+  // Controllo Filtro Bambini su Testo
+  const check = checkProfanity(text);
+  if (!check.clean) {
+    showToast(t("toastKidsModeBlocked"), "error");
+    return;
+  }
 
   textModal.classList.add('hidden');
   customTextInput.value = '';
@@ -1516,6 +1672,24 @@ async function sendLedConfig(enabled) {
     "success");
 }
 
+async function sendKidsModeConfig(enabled) {
+  state.kidsModeEnabled = enabled;
+  localStorage.setItem('pixo_kids_mode', enabled ? 'true' : 'false');
+  if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
+    await connectMQTT();
+  }
+  if (!state.deviceId) return;
+  const topic = `pixo/device/${state.deviceId}/kids_mode`;
+  const val = enabled ? "ON" : "OFF";
+  if (state.mqttClient && state.mqttClient.connected) {
+    state.mqttClient.publish(topic, val, { qos: 1, retain: true });
+  }
+  showToast(enabled 
+    ? (state.lang === 'it' ? "🛡️ Filtro Bambini ATTIVATO: bestemmie e immagini non adatte bloccate!" : "🛡️ Kids Safe Filter ENABLED: profanities and NSFW blocked!")
+    : (state.lang === 'it' ? "Filtro Bambini DISATTIVATO" : "Kids Safe Filter DISABLED"),
+    enabled ? "success" : "info");
+}
+
 async function toggleContinuousLight() {
   if (state.isGuestMode) {
     showToast(state.lang === 'it' ? "Solo il proprietario può controllare la luce LED" : "Only the owner can control the LED light", "warning");
@@ -1731,6 +1905,10 @@ function syncGuestKeysToDevice(forcePublishData = true) {
       const keysJson = JSON.stringify(state.guestKeys || []);
       state.mqttClient.publish(`pixo/device/${state.deviceId}/access/keys_data`, keysJson, { qos: 0, retain: true });
     }
+
+    // 4. Sincronizzazione stato Filtro Bambini (Retained) per gli ospiti
+    const kidsVal = state.kidsModeEnabled !== false ? "ON" : "OFF";
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/kids_mode`, kidsVal, { qos: 1, retain: true });
   }
 }
 
@@ -1750,6 +1928,23 @@ function handleGuestKeysSyncFromCloud(payload) {
     }
   } catch (e) {
     console.warn('[SYNC] Errore sync chiavi ospiti dal cloud:', e);
+  }
+}
+
+function handleKidsModeSyncMessage(payload) {
+  try {
+    const text = (typeof payload === 'string')
+      ? payload.trim().toUpperCase()
+      : new TextDecoder().decode(payload).trim().toUpperCase();
+    const isEnabled = (text === 'ON' || text === '1' || text === 'TRUE');
+    state.kidsModeEnabled = isEnabled;
+    localStorage.setItem('pixo_kids_mode', isEnabled ? 'true' : 'false');
+    if (kidsModeToggle) {
+      kidsModeToggle.checked = isEnabled;
+    }
+    console.log(`[SYNC] Filtro Bambini sincronizzato da Cloud: ${isEnabled ? 'ON' : 'OFF'}`);
+  } catch(e) {
+    console.warn('[SYNC] Errore sync kids mode:', e);
   }
 }
 
@@ -2172,9 +2367,11 @@ function connectMQTT() {
               const accessKeysTopic = `pixo/device/${state.deviceId}/access/keys`;
               const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
               const guestAckTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`;
+              const kidsModeTopic = `pixo/device/${state.deviceId}/kids_mode`;
               state.mqttClient.subscribe(accessKeysTopic, { qos: 1 });
               state.mqttClient.subscribe(accessStatusTopic, { qos: 1 });
               state.mqttClient.subscribe(guestAckTopic, { qos: 0 });
+              state.mqttClient.subscribe(kidsModeTopic, { qos: 1 });
 
               // Timer di timeout verifica: se entro 4s non riceve conferma autorizzazione, blocca
               if (guestAuthTimeout) clearTimeout(guestAuthTimeout);
@@ -2229,8 +2426,11 @@ function connectMQTT() {
           const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
           const otaStatusTopic = `pixo/device/${state.deviceId}/ota/status`;
           const diagTopic = `pixo/device/${state.deviceId}/diag`;
+          const kidsModeTopic = `pixo/device/${state.deviceId}/kids_mode`;
 
-          if (topic === accessKeysTopic && state.isGuestMode) {
+          if (topic === kidsModeTopic) {
+            handleKidsModeSyncMessage(payload);
+          } else if (topic === accessKeysTopic && state.isGuestMode) {
             handleGuestAccessKeysMessage(payload);
           } else if (topic === accessStatusTopic && state.isGuestMode) {
             handleGuestAccessStatusMessage(payload);
@@ -2577,6 +2777,18 @@ async function sendCanvasMqtt() {
   // Blocco di concorrenza anti-crash
   if (state.isSending) return;
 
+  // Controllo Filtro Bambini su tutto il Canvas (sia per foto sia per disegni)
+  if (state.kidsModeEnabled) {
+    const safety = checkImageSafety(canvas);
+    if (!safety.safe) {
+      showToast(t("toastKidsModeImgBlocked"), "error");
+      sendBtn.disabled = false;
+      const lbl = sendBtn.querySelector('.send-label');
+      if (lbl) lbl.textContent = t("sendToDisplay");
+      return;
+    }
+  }
+
   state.isSending = true;
   const sendStart = performance.now();
 
@@ -2821,9 +3033,12 @@ function setupEventListeners() {
     revokeGuestsBtn.addEventListener('click', revokeAllGuestKeys);
   }
 
-  // SCREENSAVER (30 min) & LED (GPIO 5)
+  // SCREENSAVER (30 min) & LED (GPIO 5) & FILTRO BAMBINI
   screensaverToggle.addEventListener('change', (e) => sendScreensaverConfig(e.target.checked));
   ledToggle.addEventListener('change', (e) => sendLedConfig(e.target.checked));
+  if (kidsModeToggle) {
+    kidsModeToggle.addEventListener('change', (e) => sendKidsModeConfig(e.target.checked));
+  }
 
   // Stop Feed Button
   stopFeedBtn.addEventListener('click', stopAutomaticFeed);
@@ -2839,6 +3054,11 @@ function setupEventListeners() {
     reader.onload = (event) => {
       const img = new Image();
       img.onload = () => {
+        const safety = checkImageSafety(img);
+        if (!safety.safe) {
+          showToast(t("toastKidsModeImgBlocked"), "error");
+          return;
+        }
         startInteractiveOverlay('image', img);
       };
       img.src = event.target.result;
