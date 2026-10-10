@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#0a0c10">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Commander">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Pixò Master Fleet Commander</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon-commander.svg">
@@ -30,6 +32,9 @@
       <label class="remember-label">
         <input type="checkbox" id="rememberAuth"> Resta connesso su questo dispositivo
       </label>
+      <div style="margin-top: 16px; text-align: center;">
+        <button id="btnInstallAuth" class="btn primary mini" style="display:none; width:100%; border-radius:10px; padding:10px;">📲 Installa App Commander su Smartphone</button>
+      </div>
     </div>
   </div>
 
@@ -42,6 +47,7 @@
         <h1>Pixò Commander</h1>
       </div>
       <div class="header-actions">
+        <button id="btnInstallApp" class="btn primary mini" style="display:none;" title="Installa PWA">📲 Installa</button>
         <div id="cloudStatusBadge" class="status-badge connecting">
           <span class="status-dot"></span>
           <span id="cloudStatusText">Connessione...</span>
