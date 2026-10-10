@@ -34,8 +34,20 @@ const statMsgCount = document.getElementById('statMsgCount');
 
 const globalOtaUrl = document.getElementById('globalOtaUrl');
 const btnGlobalOta = document.getElementById('btnGlobalOta');
+const btnCheckFw = document.getElementById('btnCheckFw');
+const latestFwBadge = document.getElementById('latestFwBadge');
+const otaTargetCount = document.getElementById('otaTargetCount');
+const otaHelperText = document.getElementById('otaHelperText');
 const btnGlobalStandby = document.getElementById('btnGlobalStandby');
 const btnGlobalClock = document.getElementById('btnGlobalClock');
+
+// Informazioni ultima release GitHub
+let latestRelease = {
+  tag: '1.1.1',
+  rawTag: 'v1.1.1',
+  binUrl: 'https://github.com/xxxdslumpxxx/pixo/releases/download/v1.1.1/firmware.bin',
+  publishedAt: null
+};
 
 const searchInput = document.getElementById('searchInput');
 const filterPills = document.querySelectorAll('.filter-pill');
@@ -127,6 +139,7 @@ function unlockConsole() {
   adminApp.classList.remove('hidden');
   loadSavedData();
   connectMQTT();
+  checkLatestGitHubRelease(true);
 }
 
 function lockConsole() {
@@ -371,6 +384,28 @@ function renderDashboard() {
     }
   });
 
+  // Calcolo dispositivi online che necessitano di aggiornamento
+  const targetTag = (latestRelease.tag || '').replace(/^v/, '');
+  const outdatedOnline = allList.filter(d => {
+    const isOnline = (d.status === 'online' && (now - (d.lastSeen || 0)) <= 35000);
+    const dVer = (d.fwVer || '').replace(/^v/, '');
+    return isOnline && targetTag && dVer !== targetTag;
+  });
+
+  if (otaTargetCount) {
+    otaTargetCount.textContent = outdatedOnline.length;
+  }
+  if (otaHelperText) {
+    if (outdatedOnline.length > 0) {
+      const devNames = outdatedOnline.map(d => `${d.id} (v${d.fwVer || '?'})`).join(', ');
+      otaHelperText.innerHTML = `⚠️ <strong style="color:var(--accent-orange);">${outdatedOnline.length} dispositivo/i online</strong> da aggiornare a v${targetTag}: <code>${devNames}</code>`;
+    } else if (onlineCount > 0) {
+      otaHelperText.innerHTML = `✅ Tutti i <strong>${onlineCount}</strong> dispositivi online sono già aggiornati all'ultima versione (v${targetTag}).`;
+    } else {
+      otaHelperText.innerHTML = `Nessun dispositivo attualmente online. Ultima versione disponibile: <strong>v${targetTag}</strong>.`;
+    }
+  }
+
   statTotal.textContent = allList.length;
   statOnline.textContent = onlineCount;
   statOffline.textContent = offlineCount;
@@ -564,6 +599,72 @@ window.sendDeviceOta = function(deviceId) {
   addLog('OUTBOUND', `Inviato comando OTA a [${deviceId}] (URL: ${url})`);
 };
 
+// --- CONTROLLO RELEASE GITHUB & GESTIONE VERSIONI ---
+async function checkLatestGitHubRelease(silent = false) {
+  if (latestFwBadge) {
+    latestFwBadge.textContent = 'Controllo FW...';
+    latestFwBadge.className = 'badge info';
+  }
+
+  try {
+    const res = await fetch('https://api.github.com/repos/xxxdslumpxxx/pixo/releases/latest', {
+      headers: { 'Accept': 'application/vnd.github.v3+json' }
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const rawTag = data.tag_name || 'v1.1.1';
+    const cleanTag = rawTag.replace(/^v/, '');
+
+    let binUrl = '';
+    if (data.assets && Array.isArray(data.assets)) {
+      const binAsset = data.assets.find(a => a.name && a.name.endsWith('.bin'));
+      if (binAsset && binAsset.browser_download_url) {
+        binUrl = binAsset.browser_download_url;
+      }
+    }
+    if (!binUrl) {
+      binUrl = `https://github.com/xxxdslumpxxx/pixo/releases/download/${rawTag}/firmware.bin`;
+    }
+
+    latestRelease = {
+      tag: cleanTag,
+      rawTag: rawTag,
+      binUrl: binUrl,
+      publishedAt: data.published_at
+    };
+
+    if (globalOtaUrl) {
+      globalOtaUrl.value = binUrl;
+    }
+    if (latestFwBadge) {
+      latestFwBadge.textContent = `Disp: v${cleanTag}`;
+      latestFwBadge.className = 'badge success';
+      latestFwBadge.title = `Release ${rawTag} rilasciata il ${new Date(data.published_at).toLocaleString()}`;
+    }
+
+    if (!silent) {
+      showToast(`Ultimo firmware disponibile: v${cleanTag}`, 'info');
+    }
+    scheduleRender();
+  } catch (err) {
+    console.warn('[GITHUB] Impossibile verificare ultima release:', err);
+    if (latestFwBadge) {
+      latestFwBadge.textContent = `Disp: v${latestRelease.tag}`;
+      latestFwBadge.className = 'badge warning';
+    }
+    if (!silent) {
+      showToast(`Controllo GitHub fallito, uso v${latestRelease.tag}`, 'warning');
+    }
+  }
+}
+
+if (btnCheckFw) {
+  btnCheckFw.addEventListener('click', () => {
+    checkLatestGitHubRelease(false);
+  });
+}
+
 // --- AZIONI GLOBALI FLOTTA ---
 
 btnGlobalOta.addEventListener('click', () => {
@@ -573,23 +674,77 @@ btnGlobalOta.addEventListener('click', () => {
     return;
   }
 
-  const ok = confirm(`⚠️ ATTENZIONE MASTER BROADCAST:\n\nForzare l'aggiornamento OTA su TUTTI i Pixò connessi?\n\n• Sorgente: ${url}\n\nProcedere?`);
-  if (!ok) return;
-
   if (!mqttClient || !mqttClient.connected) {
     showToast('MQTT Cloud non connesso!', 'error');
     return;
   }
 
-  const payload = JSON.stringify({
-    url: url,
-    version: "fleet_update",
-    master_pin: MASTER_KEY
+  const now = Date.now();
+  const allList = Object.values(devices);
+  const targetTag = (latestRelease.tag || '1.1.1').replace(/^v/, '');
+
+  // Trova tutti i dispositivi ONLINE che NON hanno installata la nuova versione
+  const outdatedOnline = allList.filter(d => {
+    const isOnline = (d.status === 'online' && (now - (d.lastSeen || 0)) <= 35000);
+    const dVer = (d.fwVer || '').replace(/^v/, '');
+    return isOnline && dVer !== targetTag;
   });
 
-  mqttClient.publish("pixo/global/ota", payload, { qos: 0 });
-  showToast("🚀 Master OTA inviato su tutta la flotta!", "success");
-  addLog('OUTBOUND', `BROADCAST MASTER OTA su 'pixo/global/ota'`);
+  const allOnline = allList.filter(d => (d.status === 'online' && (now - (d.lastSeen || 0)) <= 35000));
+
+  if (allOnline.length === 0) {
+    alert("⚠️ Nessun Pixò risulta attualmente ONLINE!\n\nAttendi che i dispositivi si colleghino prima di avviare l'aggiornamento.");
+    return;
+  }
+
+  let confirmMsg = "";
+  if (outdatedOnline.length > 0) {
+    const devDetails = outdatedOnline.map(d => `• ${d.id} (versione attuale: v${d.fwVer || 'ignota'} -> nuova: v${targetTag})`).join('\n');
+    confirmMsg = `🚀 AGGIORNAMENTO FLOTTA A v${targetTag}\n\n` +
+                 `Trovati ${outdatedOnline.length} dispositivo/i online da aggiornare:\n` +
+                 `${devDetails}\n\n` +
+                 `Firmware binary:\n${url}\n\n` +
+                 `I dispositivi già aggiornati a v${targetTag} verranno preservati.\n` +
+                 `Confermi l'avvio dell'aggiornamento OTA?`;
+  } else {
+    confirmMsg = `ℹ️ Tutti i ${allOnline.length} dispositivi online risultano GIÀ AGGIORNATI all'ultima versione (v${targetTag})!\n\n` +
+                 `Vuoi forzare comunque una reinstallazione globale su tutta la flotta?\n\n` +
+                 `URL: ${url}`;
+  }
+
+  const ok = confirm(confirmMsg);
+  if (!ok) return;
+
+  const targetDevices = (outdatedOnline.length > 0) ? outdatedOnline : allOnline;
+
+  // 1. Invio mirato su ciascun dispositivo obsoleto (garantisce PIN e ricezione)
+  targetDevices.forEach(d => {
+    const devPin = getDevicePin(d.id);
+    const devPayload = JSON.stringify({
+      url: url,
+      version: targetTag,
+      pin: devPin || "1234",
+      master_pin: MASTER_KEY
+    });
+
+    if (devPin && devPin.length > 0) {
+      mqttClient.publish(`pixo/device/${d.id}/${devPin}/ota`, devPayload, { qos: 0 });
+    }
+    mqttClient.publish(`pixo/device/${d.id}/ota`, devPayload, { qos: 0 });
+    addLog('OUTBOUND', `OTA inviato a [${d.id}] (v${d.fwVer} -> v${targetTag})`);
+  });
+
+  // 2. Invio broadcast su pixo/global/ota con Master PIN
+  const globalPayload = JSON.stringify({
+    url: url,
+    version: targetTag,
+    pin: MASTER_KEY,
+    master_pin: MASTER_KEY
+  });
+  mqttClient.publish("pixo/global/ota", globalPayload, { qos: 0 });
+  addLog('OUTBOUND', `BROADCAST MASTER OTA inviato su 'pixo/global/ota' (target v${targetTag})`);
+
+  showToast(`🚀 OTA avviato su ${targetDevices.length} Pixò!`, "success");
 });
 
 btnGlobalStandby.addEventListener('click', () => {
@@ -681,3 +836,4 @@ function showToast(message, type = 'info') {
 
 // Inizializzazione
 checkAuth();
+checkLatestGitHubRelease(true);
