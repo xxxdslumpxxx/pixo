@@ -1480,7 +1480,7 @@ async function fetchAndRenderWeather() {
     else if (wCode >= 95) { icon = "⚡"; desc = state.lang === 'it' ? "Temporale" : "Storm"; }
 
     // Disegno Scheda Meteo
-    ctx.fillStyle = "#0c101c";
+    ctx.fillStyle = "#000000";
     ctx.fillRect(0, 0, 240, 240);
 
     ctx.fillStyle = "#4361ee";
@@ -1754,7 +1754,7 @@ function drawYouTubeGlyph(targetCtx, cx, cy, w, h) {
 
 function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress) {
   const halfH = Math.floor(h / 2);
-  const r = 5;
+  const r = 4;
 
   function drawRoundedRectPath(ctxRef, rx, ry, rw, rh, radius) {
     ctxRef.beginPath();
@@ -1772,7 +1772,7 @@ function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress
 
   targetCtx.save();
 
-  // 1. Base card shadow / border (Nero assoluto con bordo visibile #3a3a40)
+  // 1. Base card border (Nero assoluto con profilo nitido #3a3a40)
   drawRoundedRectPath(targetCtx, x, y, w, h, r);
   targetCtx.fillStyle = "#000000";
   targetCtx.fill();
@@ -1786,12 +1786,11 @@ function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress
   targetCtx.rect(x, y, w, halfH);
   targetCtx.clip();
 
-  // Sfondo nero puro
   targetCtx.fillStyle = "#000000";
   targetCtx.fillRect(x, y, w, halfH);
 
-  // Cifra bianco puro 52px bold
-  targetCtx.font = "900 52px -apple-system, 'SF Pro Display', 'Arial Black', sans-serif";
+  // Cifra bianco puro 46px bold proporzionata all'altezza di 76px
+  targetCtx.font = "900 46px -apple-system, 'SF Pro Display', 'Arial Black', sans-serif";
   targetCtx.fillStyle = "#ffffff";
   targetCtx.textAlign = "center";
   targetCtx.textBaseline = "middle";
@@ -1804,88 +1803,17 @@ function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress
   targetCtx.rect(x, y + halfH, w, halfH);
   targetCtx.clip();
 
-  // Sfondo nero puro
   targetCtx.fillStyle = "#000000";
   targetCtx.fillRect(x, y + halfH, w, halfH);
 
-  // Cifra bianco puro 52px bold
-  targetCtx.font = "900 52px -apple-system, 'SF Pro Display', 'Arial Black', sans-serif";
+  targetCtx.font = "900 46px -apple-system, 'SF Pro Display', 'Arial Black', sans-serif";
   targetCtx.fillStyle = "#ffffff";
   targetCtx.textAlign = "center";
   targetCtx.textBaseline = "middle";
   targetCtx.fillText(progress >= 0.5 ? targChar : currChar, x + w / 2, y + halfH);
   targetCtx.restore();
 
-  // 4. ANIMAZIONE MECCANICA DELLA LAMELLA CHE CADE (Fold / Flip 3D)
-  if (progress > 0 && progress < 1) {
-    if (progress < 0.5) {
-      // Fase 1: La metà superiore cade verso la cerniera
-      const scaleY = Math.cos(progress * Math.PI);
-      targetCtx.save();
-      targetCtx.beginPath();
-      targetCtx.rect(x, y, w, halfH);
-      targetCtx.clip();
-
-      targetCtx.translate(x + w / 2, y + halfH);
-      targetCtx.scale(1, Math.max(0.04, scaleY));
-      targetCtx.translate(-(x + w / 2), -(y + halfH));
-
-      // Sfondo lamella nero puro
-      targetCtx.fillStyle = "#000000";
-      targetCtx.fillRect(x, y, w, halfH);
-
-      // Cifra precedente sulla lamella in discesa
-      targetCtx.font = "900 52px -apple-system, 'SF Pro Display', 'Arial Black', sans-serif";
-      targetCtx.fillStyle = "#e0e0e0";
-      targetCtx.textAlign = "center";
-      targetCtx.textBaseline = "middle";
-      targetCtx.fillText(currChar, x + w / 2, y + halfH);
-
-      // Bordo inferiore lamella che si solleva (evidenziazione rotazione meccanica)
-      targetCtx.strokeStyle = "#ffffff";
-      targetCtx.lineWidth = 2;
-      targetCtx.beginPath();
-      targetCtx.moveTo(x + 1, y + halfH - 1);
-      targetCtx.lineTo(x + w - 1, y + halfH - 1);
-      targetCtx.stroke();
-
-      targetCtx.restore();
-    } else {
-      // Fase 2: La nuova metà inferiore si apre dalla cerniera verso il basso
-      const scaleY = Math.sin((progress - 0.5) * Math.PI);
-      targetCtx.save();
-      targetCtx.beginPath();
-      targetCtx.rect(x, y + halfH, w, halfH);
-      targetCtx.clip();
-
-      targetCtx.translate(x + w / 2, y + halfH);
-      targetCtx.scale(1, Math.max(0.04, scaleY));
-      targetCtx.translate(-(x + w / 2), -(y + halfH));
-
-      // Sfondo lamella nero puro
-      targetCtx.fillStyle = "#000000";
-      targetCtx.fillRect(x, y + halfH, w, halfH);
-
-      // Nuova cifra sulla lamella in arrivo
-      targetCtx.font = "900 52px -apple-system, 'SF Pro Display', 'Arial Black', sans-serif";
-      targetCtx.fillStyle = "#ffffff";
-      targetCtx.textAlign = "center";
-      targetCtx.textBaseline = "middle";
-      targetCtx.fillText(targChar, x + w / 2, y + halfH);
-
-      // Bordo superiore lamella
-      targetCtx.strokeStyle = "#ffffff";
-      targetCtx.lineWidth = 2;
-      targetCtx.beginPath();
-      targetCtx.moveTo(x + 1, y + halfH + 1);
-      targetCtx.lineTo(x + w - 1, y + halfH + 1);
-      targetCtx.stroke();
-
-      targetCtx.restore();
-    }
-  }
-
-  // 5. Cerniera meccanica centrale orizzontale
+  // 4. Cerniera meccanica centrale orizzontale
   targetCtx.fillStyle = "#000000";
   targetCtx.fillRect(x, y + halfH - 1.5, w, 3);
   targetCtx.strokeStyle = "#3a3a40";
@@ -1903,16 +1831,16 @@ function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress
   targetCtx.restore();
 }
 
-function renderSplitFlapCanvas(platform, username, currentCount, targetCount, flipFraction = 0) {
+function renderSplitFlapCanvas(platform, username, currentCount, targetCount, flipFraction = 0, elapsedSec = 0) {
   const displayUser = (username || "PIXO").replace(/^@+/, '').toUpperCase();
 
   // 1. Sfondo base: NERO ASSOLUTO #000000 (0x0000 nativo ST7789)
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, 240, 240);
 
-  // 2. Barra Superiore Header - Solo Icona e Nome Account Molto Grande
+  // 2. Barra Superiore Header - Icona e Nome Account Maxi
   ctx.fillStyle = "#000000";
-  ctx.fillRect(0, 0, 240, 48);
+  ctx.fillRect(0, 0, 240, 44);
 
   if (platform === 'tiktok') {
     // Accenti TikTok Neon in alto (Ciano & Magenta)
@@ -1924,19 +1852,19 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
     // Icona TikTok grande
     ctx.save();
     ctx.fillStyle = "#00f2fe";
-    drawTikTokGlyph(ctx, 22, 26, 1.15);
+    drawTikTokGlyph(ctx, 22, 24, 1.15);
     ctx.fillStyle = "#fe2c55";
-    drawTikTokGlyph(ctx, 24, 28, 1.15);
+    drawTikTokGlyph(ctx, 24, 26, 1.15);
     ctx.fillStyle = "#ffffff";
-    drawTikTokGlyph(ctx, 23, 27, 1.15);
+    drawTikTokGlyph(ctx, 23, 25, 1.15);
     ctx.restore();
 
-    // Username MAXI (24px bold) senza scritte inutili
+    // Username MAXI 24px bold (pulito, senza altre scritte)
     ctx.font = "bold 24px -apple-system, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(`@${displayUser}`, 46, 27);
+    ctx.fillText(`@${displayUser}`, 46, 25);
 
   } else if (platform === 'instagram') {
     const igGrad = ctx.createLinearGradient(0, 0, 240, 0);
@@ -1946,43 +1874,43 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
     ctx.fillStyle = igGrad;
     ctx.fillRect(0, 0, 240, 3);
 
-    drawInstagramGlyph(ctx, 23, 27, 26);
+    drawInstagramGlyph(ctx, 23, 25, 26);
 
     ctx.font = "bold 24px -apple-system, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(`@${displayUser}`, 46, 27);
+    ctx.fillText(`@${displayUser}`, 46, 25);
 
   } else { // youtube
     ctx.fillStyle = "#ff0000";
     ctx.fillRect(0, 0, 240, 3);
 
-    drawYouTubeGlyph(ctx, 23, 27, 30, 22);
+    drawYouTubeGlyph(ctx, 23, 25, 30, 22);
 
     ctx.font = "bold 24px -apple-system, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(displayUser, 46, 27);
+    ctx.fillText(displayUser, 46, 25);
   }
 
   // Linea divisoria superiore sottile
   ctx.strokeStyle = "#222226";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, 50);
-  ctx.lineTo(240, 50);
+  ctx.moveTo(0, 45);
+  ctx.lineTo(240, 45);
   ctx.stroke();
 
-  // 3. Tessere Split-Flap MAXI (6 tessere da 35px larghezza per 102px altezza)
+  // 3. Tessere Split-Flap Ben Proporzionate (Altezza: 76px, Larghezza: 34px)
   const currStr = String(Math.max(0, Math.floor(targetCount || currentCount || 0))).padStart(6, ' ');
 
-  const tileW = 35;
-  const tileH = 102; // Altezza maggiorata a 102px
+  const tileW = 34;
+  const tileH = 76; // Altezza armoniosa e non eccessiva
   const gap = 4;
-  const totalW = 6 * tileW + 5 * gap; // 230px
-  const startX = Math.round((240 - totalW) / 2); // 5px
+  const totalW = 6 * tileW + 5 * gap; // 224px
+  const startX = Math.round((240 - totalW) / 2); // 8px
   const tileY = 58;
 
   // Cornice protettiva delle tessere
@@ -1992,38 +1920,64 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
   for (let i = 0; i < 6; i++) {
     const x = startX + i * (tileW + gap);
     const char = currStr[i] || ' ';
-    // Disegno statico istantaneo senza rotazione/animazione
     drawSingleSplitFlap(ctx, x, tileY, tileW, tileH, char, char, 0);
   }
 
-  // 4. Barra di Stato Inferiore con scritta FOLLOWERS chiara
+  // 4. Linea divisoria inferiore
   ctx.strokeStyle = "#222226";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, 182);
-  ctx.lineTo(240, 182);
+  ctx.moveTo(0, 146);
+  ctx.lineTo(240, 146);
   ctx.stroke();
 
-  // Pallino LIVE pulsante (raggio 5px)
+  // 5. Riquadro FOLLOWERS & Conteggio Totale (Y: 154 - 184)
   const dotColor = platform === 'tiktok' ? "#00f2fe" : (platform === 'youtube' ? "#ff3b30" : "#34c759");
   ctx.fillStyle = dotColor;
   ctx.beginPath();
-  ctx.arc(16, 211, 5, 0, Math.PI * 2);
+  ctx.arc(18, 168, 5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Scritta FOLLOWERS in grande e nitida
   ctx.font = "900 15px -apple-system, sans-serif";
-  ctx.fillStyle = "#a0a4b0";
+  ctx.fillStyle = "#9ba1b0";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("FOLLOWERS", 28, 211);
+  ctx.fillText("FOLLOWERS", 30, 168);
 
-  // Totale Follower Formattato a Destra (19px monospace bold bianco brillante)
   ctx.font = "900 19px monospace, sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "right";
   const formattedNum = Number(targetCount || currentCount || 0).toLocaleString('it-IT');
-  ctx.fillText(formattedNum, 228, 211);
+  ctx.fillText(formattedNum, 226, 168);
+
+  // 6. Barra di Progresso Aggiornamento stile Orologio Nativo (Y: 194 - 230)
+  const intervalSec = Math.max(5, state.followerInterval || 30);
+  const currentSec = Math.max(0, Math.min(intervalSec, elapsedSec));
+  const remainingSec = Math.max(0, intervalSec - currentSec);
+
+  // Cornice arrotondata per la barra di progresso (stessa geometria dell'orologio ESP32)
+  ctx.strokeStyle = "#424248";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(18, 194, 204, 10, 4);
+  ctx.stroke();
+
+  // Riempimento dinamico della barra (Ciano Neon #03ffff)
+  const maxBarWidth = 200;
+  const barWidth = Math.round((currentSec / intervalSec) * maxBarWidth);
+  if (barWidth > 0) {
+    ctx.fillStyle = "#00f2fe";
+    ctx.beginPath();
+    ctx.roundRect(20, 196, Math.min(maxBarWidth, barWidth), 6, 2);
+    ctx.fill();
+  }
+
+  // Indicatore dei secondi rimanenti centrato sotto la barra
+  ctx.font = "bold 13px monospace, -apple-system, sans-serif";
+  ctx.fillStyle = "#00b4d8";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`Aggiornamento tra: ${remainingSec}s`, 120, 222);
 
   saveState();
   updatePayloadPreview();
@@ -2105,13 +2059,14 @@ async function triggerFollowerFlip(oldCount, newCount, onComplete) {
   const plat = state.followerPlatform || 'tiktok';
   const user = state.followerUsername || '';
 
-  // Renderizza subito il nuovo numero a schermo locale e invia un singolo fotogramma immediato a Pixò
-  renderSplitFlapCanvas(plat, user, newCount, newCount, 0);
+  followerElapsedSeconds = 0;
+  renderSplitFlapCanvas(plat, user, newCount, newCount, 0, 0);
   await sendFollowerFrameToPixo(0.94);
 
   if (onComplete) onComplete();
 }
 
+let followerElapsedSeconds = 0;
 async function activateFollowerMode() {
   stopAutomaticFeed();
   state.activeFeedType = "follower";
@@ -2127,11 +2082,12 @@ async function activateFollowerMode() {
   localStorage.setItem('pixo_follower_user', user);
   localStorage.setItem('pixo_follower_interval', String(state.followerInterval));
 
+  followerElapsedSeconds = 0;
   let count = await fetchSocialFollowerCount(plat, user);
   state.followerCount = count;
   state.followerTarget = count;
 
-  renderSplitFlapCanvas(plat, user, count, count, 0);
+  renderSplitFlapCanvas(plat, user, count, count, 0, 0);
   await sendFollowerFrameToPixo(0.94);
 
   if (feedPlusOneBtn) feedPlusOneBtn.style.display = '';
@@ -2146,33 +2102,41 @@ async function activateFollowerMode() {
   feedBanner.classList.remove('hidden');
   showToast(t("toastFollowerSent"), "success");
 
+  // Timer di scansione ad ogni secondo: fa avanzare la barra di progresso e invia l'aggiornamento quando scade
   state.feedTimer = setInterval(async () => {
     if (state.activeFeedType !== "follower") return;
 
-    if (state.followerMode === 'test') {
-      state.followerTarget = state.followerCount + 1;
-    } else {
-      const newCount = await fetchSocialFollowerCount(state.followerPlatform, state.followerUsername);
-      if (newCount > 0) {
-        state.followerTarget = newCount;
+    followerElapsedSeconds++;
+
+    // Ogni secondo aggiorna il canvas locale con l'avanzamento della barra
+    renderSplitFlapCanvas(state.followerPlatform, state.followerUsername, state.followerCount, state.followerCount, 0, followerElapsedSeconds);
+
+    // Quando raggiungiamo l'intervallo scelto, interroghiamo la rete ed inviamo il frame a Pixò
+    if (followerElapsedSeconds >= state.followerInterval) {
+      followerElapsedSeconds = 0;
+
+      let newCount = state.followerCount;
+      if (state.followerMode === 'test') {
+        newCount = state.followerCount + 1;
+      } else {
+        const fetched = await fetchSocialFollowerCount(state.followerPlatform, state.followerUsername);
+        if (fetched > 0) newCount = fetched;
       }
-    }
 
-    if (state.followerTarget !== state.followerCount) {
-      const oldVal = state.followerCount;
-      const newVal = state.followerTarget;
-      state.followerCount = newVal;
+      state.followerCount = newCount;
+      state.followerTarget = newCount;
 
-      triggerFollowerFlip(oldVal, newVal, () => {
-        feedStatusText.textContent = t("feedFollowerActive", {
-          platform: platName,
-          user: `@${user.replace(/^@+/, '')}`,
-          count: newVal.toLocaleString('it-IT'),
-          interval: state.followerInterval
-        });
+      renderSplitFlapCanvas(state.followerPlatform, state.followerUsername, newCount, newCount, 0, 0);
+      await sendFollowerFrameToPixo(0.94);
+
+      feedStatusText.textContent = t("feedFollowerActive", {
+        platform: platName,
+        user: `@${user.replace(/^@+/, '')}`,
+        count: newCount.toLocaleString('it-IT'),
+        interval: state.followerInterval
       });
     }
-  }, state.followerInterval * 1000);
+  }, 1000);
 }
 
 function incrementFollowerManually(amount = 1) {
