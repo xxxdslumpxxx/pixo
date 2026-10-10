@@ -288,7 +288,8 @@ const standbyBtn = document.getElementById('standbyBtn');
 const textToolBtn = document.getElementById('textToolBtn');
 const stickerToggleBtn = document.getElementById('stickerToggleBtn');
 const photoBtn = document.getElementById('photoBtn');
-const photoInput = document.getElementById('photoInput');
+const photoInputCamera = document.getElementById('photoInputCamera');
+const photoInputGallery = document.getElementById('photoInputGallery');
 const weatherBtn = document.getElementById('weatherBtn');
 const clockBtn = document.getElementById('clockBtn');
 const lightToggleBtn = document.getElementById('lightToggleBtn');
@@ -570,19 +571,31 @@ function updateSettingsUI() {
     if (openSettingsBtn) openSettingsBtn.style.display = 'none';
     if (shareBtn) shareBtn.style.display = 'none';
     if (devicePill) {
-      devicePill.style.cursor = 'default';
-      devicePill.removeAttribute('title');
+      devicePill.style.cursor = 'pointer';
+      devicePill.title = "Apri opzioni e notifiche";
     }
     if (devicePinInput) devicePinInput.value = "";
     if (factoryResetSection) factoryResetSection.style.display = 'none';
     if (wifiManagementSection) wifiManagementSection.style.display = 'none';
 
-    // Agli ospiti nascondiamo i controlli hardware (Luce stanza, Feed meteo/orologio, Impostazioni)
+    // Agli ospiti nascondiamo i controlli hardware (Luce stanza, Feed meteo/orologio)
     if (lightToggleBtn) lightToggleBtn.style.display = 'none';
     if (weatherBtn) weatherBtn.style.display = 'none';
     if (clockBtn) clockBtn.style.display = 'none';
+    
+    // Per gli ospiti mostriamo la tab come "Opzioni" per gestire notifiche e lingua
     const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
-    if (settingsTab) settingsTab.style.display = 'none';
+    if (settingsTab) {
+      settingsTab.style.display = '';
+      const tabSpan = settingsTab.querySelector('span');
+      if (tabSpan) tabSpan.textContent = state.lang === 'it' ? 'Opzioni' : 'Options';
+    }
+    const settingsTitle = document.querySelector('#panelSettings .card-title');
+    if (settingsTitle) settingsTitle.textContent = state.lang === 'it' ? 'Opzioni Pixò' : 'Pixò Options';
+
+    // Nasconde tutti i controlli riservati al proprietario
+    document.querySelectorAll('.owner-only-setting').forEach(el => el.style.display = 'none');
+
     // La tab Galleria resta visibile sia per gli ospiti che per i proprietari
     const galleryTab = document.querySelector('.tab-item[data-tab="panelGallery"]');
     if (galleryTab) galleryTab.style.display = '';
@@ -601,8 +614,20 @@ function updateSettingsUI() {
     if (lightToggleBtn) lightToggleBtn.style.display = '';
     if (weatherBtn) weatherBtn.style.display = '';
     if (clockBtn) clockBtn.style.display = '';
+
+    // Per il proprietario mostra la tab come "Dispositivo"
     const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
-    if (settingsTab) settingsTab.style.display = '';
+    if (settingsTab) {
+      settingsTab.style.display = '';
+      const tabSpan = settingsTab.querySelector('span');
+      if (tabSpan) tabSpan.textContent = state.lang === 'it' ? 'Dispositivo' : 'Device';
+    }
+    const settingsTitle = document.querySelector('#panelSettings .card-title');
+    if (settingsTitle) settingsTitle.textContent = t("settingsTitle");
+
+    // Mostra tutti i controlli del proprietario
+    document.querySelectorAll('.owner-only-setting').forEach(el => el.style.display = '');
+
     const galleryTab = document.querySelector('.tab-item[data-tab="panelGallery"]');
     if (galleryTab) galleryTab.style.display = '';
   }
@@ -2733,18 +2758,19 @@ function handleGuestAccessKeysMessage(payload) {
 }
 
 // ==========================================================================
-//  NOTIFICHE DI SISTEMA SUL CELLULARE
+//  NOTIFICHE DI SISTEMA SUL CELLULARE & PUSH STANDBY
 // ==========================================================================
 function sendSystemNotification(title, body) {
   if (!state.phoneNotifications) return;
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
+  const notifIcon = new URL('pixo_face.png', window.location.href).href;
   const options = {
     body: body,
-    icon: 'icon-192.png',
-    badge: 'icon-192.png',
+    icon: notifIcon,
     vibrate: [200, 100, 200],
-    tag: 'pixo-msg-' + Date.now()
+    tag: 'pixo-drawing-alert',
+    renotify: true
   };
 
   if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -2758,6 +2784,30 @@ function sendSystemNotification(title, body) {
       new Notification(title, options);
     } catch(e) {}
   }
+}
+
+// Invia notifica Push a canale ntfy per risvegliare smartphone in Standby
+function triggerStandbyPushNotification(senderName) {
+  if (!state.deviceId) return;
+  const topic = `pixo-${state.deviceId.toLowerCase()}`;
+  const notifIcon = new URL('pixo_face.png', window.location.href).href;
+  const bodyText = senderName
+    ? `Nuovo messaggio o disegno ricevuto da ${senderName}! 🎨`
+    : (state.isGuestMode ? "Nuovo disegno ricevuto da un ospite! 🎨" : "Nuovo disegno appena arrivato su Pixò! 🎨");
+
+  fetch(`https://ntfy.sh/${topic}`, {
+    method: 'POST',
+    headers: {
+      'Title': 'Pixò 🎨',
+      'Priority': 'high',
+      'Tags': 'art,framed_picture',
+      'Icon': notifIcon,
+      'Click': window.location.href
+    },
+    body: bodyText
+  }).catch(err => {
+    console.warn('[PUSH] Notifica standby ntfy fallita:', err);
+  });
 }
 
 // ==========================================================================
@@ -2910,6 +2960,10 @@ async function sendCanvasMqtt() {
       state.userHasDrawnLocally = false;
       lastLocalSendTime = Date.now();
       state.lastDisplayPayload = uint8Array;
+
+      // Invia notifica Push immediata sul canale Standby (ntfy)
+      const senderName = state.isGuestMode ? (state.guestName || "Ospite") : (state.deviceName || "Proprietario");
+      triggerStandbyPushNotification(senderName);
 
       const elapsed = Math.round(performance.now() - sendStart);
       const kb = (uint8Array.length / 1024).toFixed(1);
@@ -3170,13 +3224,16 @@ function setupEventListeners() {
   // Stop Feed Button
   stopFeedBtn.addEventListener('click', stopAutomaticFeed);
 
-  // Foto con Manipolazione Touch (Ingrandimento & Spostamento con dita)
-  photoBtn.addEventListener('click', () => photoInput.click());
-  photoInput.addEventListener('change', (e) => {
-    stopAutomaticFeed();
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Foto con Scelta Esplicita: Fotocamera vs Galleria
+  const photoSourceModal = document.getElementById('photoSourceModal');
+  const closePhotoSourceBtn = document.getElementById('closePhotoSourceBtn');
+  const closePhotoSourceBackdrop = document.getElementById('closePhotoSourceBackdrop');
+  const btnSourceCamera = document.getElementById('btnSourceCamera');
+  const btnSourceGallery = document.getElementById('btnSourceGallery');
 
+  const handleIncomingPhotoFile = (file) => {
+    if (!file) return;
+    stopAutomaticFeed();
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
@@ -3191,8 +3248,86 @@ function setupEventListeners() {
       img.src = event.target.result;
     };
     reader.readAsDataURL(file);
-    photoInput.value = '';
-  });
+  };
+
+  if (photoBtn && photoSourceModal) {
+    photoBtn.addEventListener('click', () => {
+      photoSourceModal.classList.remove('hidden');
+    });
+  }
+  if (closePhotoSourceBtn && photoSourceModal) {
+    closePhotoSourceBtn.addEventListener('click', () => {
+      photoSourceModal.classList.add('hidden');
+    });
+  }
+  if (closePhotoSourceBackdrop && photoSourceModal) {
+    closePhotoSourceBackdrop.addEventListener('click', () => {
+      photoSourceModal.classList.add('hidden');
+    });
+  }
+  if (btnSourceCamera && photoInputCamera) {
+    btnSourceCamera.addEventListener('click', () => {
+      photoSourceModal?.classList.add('hidden');
+      photoInputCamera.click();
+    });
+    photoInputCamera.addEventListener('change', (e) => {
+      handleIncomingPhotoFile(e.target.files?.[0]);
+      photoInputCamera.value = '';
+    });
+  }
+  if (btnSourceGallery && photoInputGallery) {
+    btnSourceGallery.addEventListener('click', () => {
+      photoSourceModal?.classList.add('hidden');
+      photoInputGallery.click();
+    });
+    photoInputGallery.addEventListener('change', (e) => {
+      handleIncomingPhotoFile(e.target.files?.[0]);
+      photoInputGallery.value = '';
+    });
+  }
+
+  // Modale Notifiche Standby (ntfy)
+  const standbyNotifModal = document.getElementById('standbyNotifModal');
+  const btnOpenStandbySetup = document.getElementById('btnOpenStandbySetup');
+  const closeStandbyNotifBtn = document.getElementById('closeStandbyNotifBtn');
+  const closeStandbyNotifBackdrop = document.getElementById('closeStandbyNotifBackdrop');
+  const standbyChannelBadge = document.getElementById('standbyChannelBadge');
+  const btnOpenWebPushSub = document.getElementById('btnOpenWebPushSub');
+  const btnOpenNtfyApp = document.getElementById('btnOpenNtfyApp');
+
+  const updateStandbyChannelUI = () => {
+    const ch = 'pixo-' + (state.deviceId ? state.deviceId.toLowerCase() : 'demo');
+    if (standbyChannelBadge) standbyChannelBadge.textContent = ch;
+  };
+
+  if (btnOpenStandbySetup && standbyNotifModal) {
+    btnOpenStandbySetup.addEventListener('click', () => {
+      updateStandbyChannelUI();
+      standbyNotifModal.classList.remove('hidden');
+    });
+  }
+  if (closeStandbyNotifBtn && standbyNotifModal) {
+    closeStandbyNotifBtn.addEventListener('click', () => {
+      standbyNotifModal.classList.add('hidden');
+    });
+  }
+  if (closeStandbyNotifBackdrop && standbyNotifModal) {
+    closeStandbyNotifBackdrop.addEventListener('click', () => {
+      standbyNotifModal.classList.add('hidden');
+    });
+  }
+  if (btnOpenWebPushSub) {
+    btnOpenWebPushSub.addEventListener('click', () => {
+      const topic = 'pixo-' + (state.deviceId ? state.deviceId.toLowerCase() : 'demo');
+      window.open(`https://ntfy.sh/${topic}`, '_blank');
+    });
+  }
+  if (btnOpenNtfyApp) {
+    btnOpenNtfyApp.addEventListener('click', () => {
+      const topic = 'pixo-' + (state.deviceId ? state.deviceId.toLowerCase() : 'demo');
+      window.open(`https://ntfy.sh/${topic}`, '_blank');
+    });
+  }
 
   // Sticker Drawer & Slider
   stickerToggleBtn.addEventListener('click', () => {
