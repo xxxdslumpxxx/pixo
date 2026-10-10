@@ -179,7 +179,7 @@
               <span class="smart-icon">📷</span>
               <div class="smart-text">
                 <strong data-i18n="photo">Foto</strong>
-                <small>Dalla galleria</small>
+                <small>Scatta o Galleria</small>
               </div>
             </button>
             <button class="smart-action-card" id="stickerToggleBtn">
@@ -211,7 +211,9 @@
               </div>
             </button>
           </div>
-          <input type="file" id="photoInput" accept="image/*" style="display: none;">
+          <!-- Dual Inputs: Fotocamera diretta con capture vs Galleria/File -->
+          <input type="file" id="photoInputCamera" accept="image/*" capture="environment" style="display: none;">
+          <input type="file" id="photoInputGallery" accept="image/*" style="display: none;">
         </div>
 
         <!-- TAB 3: GALLERIA DEI DISEGNI -->
@@ -241,24 +243,24 @@
             
             <div class="settings-list">
               <!-- Nome Dispositivo -->
-              <div class="ios-input-group">
+              <div class="ios-input-group owner-only-setting">
                 <label data-i18n="deviceNameLabel">Nome del tuo Pixò</label>
                 <input type="text" id="deviceNameInput" placeholder="es. Pixò Salotto">
               </div>
 
               <!-- PIN di Sicurezza -->
-              <div class="ios-input-group">
+              <div class="ios-input-group owner-only-setting">
                 <label>PIN di Sicurezza Personale</label>
                 <input type="password" id="devicePinInput" maxlength="8" placeholder="••••" style="letter-spacing: 4px; font-weight: bold; font-family: monospace;">
               </div>
 
               <!-- Città per Meteo -->
-              <div class="ios-input-group">
+              <div class="ios-input-group owner-only-setting">
                 <label data-i18n="cityLabel">Città Predefinita per il Meteo</label>
                 <input type="text" id="weatherCityInput" placeholder="es. Roma, Milano...">
               </div>
 
-              <!-- Lingua e Tema -->
+              <!-- Lingua e Tema (Comune a tutti) -->
               <div style="display:flex; gap:10px; margin-bottom:12px;">
                 <div class="ios-input-group" style="flex:1;">
                   <label data-i18n="langLabel">Lingua</label>
@@ -277,7 +279,7 @@
               </div>
 
               <!-- Slider Luminosità Display (Hardware PWM) -->
-              <div class="setting-item">
+              <div class="setting-item owner-only-setting">
                 <div class="setting-info">
                   <strong data-i18n="brightnessLabel">Luminosità Schermo</strong>
                   <small id="brightnessVal">100%</small>
@@ -286,7 +288,7 @@
               </div>
 
               <!-- Screensaver Standby 30 Minuti -->
-              <div class="setting-item">
+              <div class="setting-item owner-only-setting">
                 <div class="setting-info">
                   <strong data-i18n="screensaverLabel">Screensaver Standby (30 min)</strong>
                   <small data-i18n="screensaverSub">Torna alla faccina animata dopo 30 min di inattività</small>
@@ -298,7 +300,7 @@
               </div>
 
               <!-- LED Notifica Ausiliario (GPIO 5) -->
-              <div class="setting-item">
+              <div class="setting-item owner-only-setting">
                 <div class="setting-info">
                   <strong data-i18n="ledLabel">Lampeggio LED alla ricezione</strong>
                   <small data-i18n="ledSub">Doppio flash luminoso quando ricevi un nuovo disegno</small>
@@ -309,11 +311,14 @@
                 </label>
               </div>
 
-              <!-- Notifiche Push / Web sul Cellulare -->
+              <!-- Notifiche Push / Web sul Cellulare (Comune per Proprietario e Ospiti) -->
               <div class="setting-item" id="phoneNotificationsRow">
                 <div class="setting-info">
-                  <strong>🔔 Notifiche sul Cellulare</strong>
-                  <small>Ricevi un avviso push sul telefono ogni volta che arriva un nuovo disegno su Pixò</small>
+                  <strong style="display:flex; align-items:center; gap:8px;">
+                    <img src="./pixo_face.png" alt="Pixò" style="width:22px; height:22px; border-radius:50%;">
+                    Notifiche sul Cellulare
+                  </strong>
+                  <small>Ricevi un avviso sul telefono ogni volta che arriva un nuovo disegno</small>
                 </div>
                 <label class="ios-toggle">
                   <input type="checkbox" id="phoneNotificationsToggle">
@@ -321,8 +326,19 @@
                 </label>
               </div>
 
+              <!-- Notifiche in Standby a Schermo Spento (Comune per Proprietario e Ospiti) -->
+              <div class="setting-item" id="standbyNotifRow">
+                <div class="setting-info">
+                  <strong style="display:flex; align-items:center; gap:6px;">
+                    📲 Notifiche a Schermo Spento
+                  </strong>
+                  <small>Suono e notifica push anche con telefono bloccato in standby</small>
+                </div>
+                <button type="button" class="pill-btn primary mini" id="btnOpenStandbySetup">Canale Push</button>
+              </div>
+
               <!-- Accesso Ospiti & Link -->
-              <div class="setting-item" id="guestShareRow">
+              <div class="setting-item owner-only-setting" id="guestShareRow">
                 <div class="setting-info">
                   <strong data-i18n="share">Accesso Ospiti & Link</strong>
                   <small>Condividi link speciali per far disegnare gli amici</small>
@@ -331,7 +347,7 @@
               </div>
 
               <!-- Filtro Bambini & Sicurezza Contenuti -->
-              <div class="setting-item" id="kidsModeRow">
+              <div class="setting-item owner-only-setting" id="kidsModeRow">
                 <div class="setting-info">
                   <strong data-i18n="kidsModeLabel">🛡️ Filtro Bambini & Protezione</strong>
                   <small data-i18n="kidsModeSub">Blocca bestemmie, volgarità e foto non adatte inviate da ospiti o amici</small>
@@ -343,7 +359,7 @@
               </div>
 
               <!-- Salva Impostazioni -->
-              <button class="pill-btn primary full" id="saveSettingsBtn" style="margin-top:6px;">Salva Impostazioni</button>
+              <button class="pill-btn primary full owner-only-setting" id="saveSettingsBtn" style="margin-top:6px;">Salva Impostazioni</button>
 
               <!-- Hardware ID & Cambio Dispositivo -->
               <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:rgba(255,255,255,0.04); border-radius:var(--radius-md); border:1px solid var(--glass-border); margin-top:8px;">
@@ -616,11 +632,73 @@
       </div>
     </div>
 
+    <!-- Modale Scelta Sorgente Foto (Fotocamera vs Galleria) -->
+    <div class="ios-sheet hidden" id="photoSourceModal">
+      <div class="sheet-backdrop" id="closePhotoSourceBackdrop"></div>
+      <div class="sheet-card" style="max-width: 380px;">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h3>Carica Immagine</h3>
+          <button class="sheet-close-btn" id="closePhotoSourceBtn">&times;</button>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin: -4px 0 16px 0;">
+          Come desideri inserire la foto sul display di Pixò?
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <button type="button" class="pill-btn primary" id="btnSourceCamera" style="padding: 14px; font-size: 0.95rem; justify-content: center; gap: 10px;">
+            📸 Scatta con Fotocamera
+          </button>
+          <button type="button" class="pill-btn secondary" id="btnSourceGallery" style="padding: 14px; font-size: 0.95rem; justify-content: center; gap: 10px;">
+            🖼️ Scegli dalla Galleria / File
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modale Notifiche Push in Standby (ntfy) -->
+    <div class="ios-sheet hidden" id="standbyNotifModal">
+      <div class="sheet-backdrop" id="closeStandbyNotifBackdrop"></div>
+      <div class="sheet-card" style="max-width: 420px;">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <h3 style="display:flex; align-items:center; gap:8px;">
+            <img src="./pixo_face.png" alt="Pixò" style="width:26px; height:26px; border-radius:50%;">
+            Notifiche in Standby
+          </h3>
+          <button class="sheet-close-btn" id="closeStandbyNotifBtn">&times;</button>
+        </div>
+        <p style="color: var(--text-secondary); font-size: 0.88rem; margin: -4px 0 14px 0; line-height: 1.45;">
+          Per ricevere l'avviso sonoro anche a <strong>telefono bloccato, schermo spento</strong> o app chiusa:
+        </p>
+
+        <div style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px; text-align: center;">
+          <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 4px;">Canale Pixò Attivo</div>
+          <code id="standbyChannelBadge" style="font-size: 1.15rem; color: #ffd60a; font-weight: 700; letter-spacing: 1px;">pixo-XXXXXX</code>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Opzione 1: Iscrizione da Browser -->
+          <button type="button" class="pill-btn primary" id="btnOpenWebPushSub" style="padding: 13px; font-size: 0.92rem; justify-content: center; gap: 8px;">
+            🌐 1 Tap da Browser (Senza app)
+          </button>
+          
+          <!-- Opzione 2: App ntfy -->
+          <button type="button" class="pill-btn secondary" id="btnOpenNtfyApp" style="padding: 13px; font-size: 0.92rem; justify-content: center; gap: 8px;">
+            📱 Apri con App ntfy (Android / iOS)
+          </button>
+        </div>
+
+        <p style="color: var(--text-secondary); font-size: 0.76rem; margin-top: 14px; text-align: center; line-height: 1.4;">
+          💡 Gratuito e istantaneo: riceverai la notifica push con la faccina di Pixò ogni volta che arriva un nuovo disegno.
+        </p>
+      </div>
+    </div>
+
     <!-- Toast Notification in stile Dynamic Island di iOS -->
     <div class="ios-toast-container" id="toastContainer"></div>
 
   </div>
 
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>
