@@ -56,35 +56,59 @@ const chkAutoScroll = document.getElementById('chkAutoScroll');
 const toastContainer = document.getElementById('toastContainer');
 
 // --- PWA SERVICE WORKER REGISTRATION & INSTALL PROMPT ---
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator.standalone === true);
+const btnInstallApp = document.getElementById('btnInstallApp');
+const btnInstallAuth = document.getElementById('btnInstallAuth');
+const installModal = document.getElementById('installModal');
+const btnCloseInstallModal = document.getElementById('btnCloseInstallModal');
+const btnDismissInstallModal = document.getElementById('btnDismissInstallModal');
+
+function updateInstallButtons() {
+  if (isStandalone) {
+    if (btnInstallApp) btnInstallApp.style.display = 'none';
+    if (btnInstallAuth) btnInstallAuth.style.display = 'none';
+  } else {
+    if (btnInstallApp) btnInstallApp.style.display = 'inline-flex';
+    if (btnInstallAuth) btnInstallAuth.style.display = 'block';
+  }
+}
+updateInstallButtons();
+
 let deferredPrompt = null;
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault();
   deferredPrompt = e;
-  const btnApp = document.getElementById('btnInstallApp');
-  const btnAuth = document.getElementById('btnInstallAuth');
-  if (btnApp) btnApp.style.display = 'inline-flex';
-  if (btnAuth) btnAuth.style.display = 'block';
+  updateInstallButtons();
+});
 
-  const triggerInstall = async () => {
-    if (!deferredPrompt) return;
+const triggerInstall = async () => {
+  if (deferredPrompt) {
     deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
     if (choice.outcome === 'accepted') {
-      if (btnApp) btnApp.style.display = 'none';
-      if (btnAuth) btnAuth.style.display = 'none';
+      if (btnInstallApp) btnInstallApp.style.display = 'none';
+      if (btnInstallAuth) btnInstallAuth.style.display = 'none';
       showToast('App Commander installata con successo!', 'success');
     }
     deferredPrompt = null;
-  };
+  } else {
+    // Guida interattiva per l'installazione manuale su Android o iOS
+    if (installModal) installModal.classList.remove('hidden');
+  }
+};
 
-  if (btnApp) btnApp.onclick = triggerInstall;
-  if (btnAuth) btnAuth.onclick = triggerInstall;
-});
+if (btnInstallApp) btnInstallApp.onclick = triggerInstall;
+if (btnInstallAuth) btnInstallAuth.onclick = triggerInstall;
+if (btnCloseInstallModal) btnCloseInstallModal.onclick = () => installModal.classList.add('hidden');
+if (btnDismissInstallModal) btnDismissInstallModal.onclick = () => installModal.classList.add('hidden');
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js', { scope: './' })
-      .then(reg => console.log('[Commander SW] Registrato con successo:', reg.scope))
+    navigator.serviceWorker.register('./sw.js?v=10', { scope: './' })
+      .then(reg => {
+        console.log('[Commander SW] Registrato con successo:', reg.scope);
+        reg.update();
+      })
       .catch(err => console.warn('[Commander SW] Errore registrazione:', err));
   });
 }
@@ -510,10 +534,12 @@ window.sendDeviceLight = function(deviceId, turnOn) {
   const cmd = turnOn ? "LIGHT:ON" : "LIGHT:OFF";
   const numCmd = turnOn ? "100" : "0";
   const basicCmd = turnOn ? "ON" : "OFF";
+  const brightnessVal = turnOn ? "100" : "20"; // 100% piena luce / 20% soffusa
 
   // Raccogli tutti i PIN possibili per garantire la ricezione al 100%
   const pinList = Array.from(new Set([pin, userPin, "1234", MASTER_KEY])).filter(Boolean);
 
+  // A. Controllo LED ausiliario (GPIO 5) su tutti i canali e PIN
   pinList.forEach(p => {
     mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, cmd, { qos: 0 });
     mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, numCmd, { qos: 0 });
@@ -521,28 +547,68 @@ window.sendDeviceLight = function(deviceId, turnOn) {
     mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, basicCmd, { qos: 0 });
   });
 
-  // Invia anche al topic generico pixo/device/<ID>/led
+  // Topic generico pixo/device/<ID>/led (nessun PIN richiesto)
   mqttClient.publish(`pixo/device/${deviceId}/led`, cmd, { qos: 0 });
   mqttClient.publish(`pixo/device/${deviceId}/led`, numCmd, { qos: 0 });
   mqttClient.publish(`pixo/device/${deviceId}/led`, `LED:${cmd}`, { qos: 0 });
   mqttClient.publish(`pixo/device/${deviceId}/led`, basicCmd, { qos: 0 });
+
+  // B. Controllo Retroilluminazione Display ST7789 (TFT_BL GPIO 10)
+  mqttClient.publish(`pixo/device/${deviceId}/brightness`, brightnessVal, { qos: 0 });
 
   if (devices[deviceId]) {
     devices[deviceId].lightState = turnOn;
   }
   renderDashboard();
 
-  showToast(turnOn ? `Luce ACCESA su ${deviceId} 💡` : `Luce SPENTA su ${deviceId} 🌑`, 'success');
-  addLog('OUTBOUND', `Comando Luce ${turnOn ? 'ON' : 'OFF'} inviato a [${deviceId}]`);
+  showToast(turnOn ? `Luce ACCESA su ${deviceId} 💡 (LED + Schermo 100%)` : `Luce SPENTA su ${deviceId} 🌑`, 'success');
+  addLog('OUTBOUND', `Comando Luce ${turnOn ? 'ON' : 'OFF'} inviato a [${deviceId}] (LED GPIO 5 + Schermo GPIO 10)`);
 };
 
 // 3. FLASH LUCE TEST (2 SECONDI)
 window.sendDeviceFlashLed = function(deviceId) {
+  if (!mqttClient || !mqttClient.connected) {
+    showToast('MQTT Cloud non connesso!', 'error');
+    return;
+  }
+  // Accendi LED e Schermo al 100%
   sendDeviceLight(deviceId, true);
+
+  // Strobe / Lampeggio a impulsi visivi multipli per 2 secondi
+  setTimeout(() => {
+    if (mqttClient && mqttClient.connected) {
+      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "10", { qos: 0 });
+    }
+  }, 350);
+
+  setTimeout(() => {
+    if (mqttClient && mqttClient.connected) {
+      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "100", { qos: 0 });
+    }
+  }, 700);
+
+  setTimeout(() => {
+    if (mqttClient && mqttClient.connected) {
+      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "10", { qos: 0 });
+    }
+  }, 1050);
+
+  setTimeout(() => {
+    if (mqttClient && mqttClient.connected) {
+      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "100", { qos: 0 });
+    }
+  }, 1400);
+
+  // Fine test dopo 2.2 secondi: spegni LED e ripristina luminosità 50%
   setTimeout(() => {
     sendDeviceLight(deviceId, false);
-  }, 2000);
-  showToast(`Flash Test (2s) inviato a ${deviceId}`, 'info');
+    if (mqttClient && mqttClient.connected) {
+      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "50", { qos: 0 });
+    }
+    showToast(`Flash Test completato su ${deviceId} ⚡`, 'info');
+  }, 2200);
+
+  showToast(`⚡ Flash Test avviato su ${deviceId}!`, 'info');
 };
 
 // 4. OROLOGIO (CLOCK)
