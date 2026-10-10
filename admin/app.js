@@ -511,7 +511,6 @@ window.sendDeviceStandby = function(deviceId) {
     mqttClient.publish(`pixo/device/${deviceId}/1234/draw`, 'CLEAR', { qos: 0 });
   }
   mqttClient.publish(`pixo/device/${deviceId}/draw`, 'CLEAR', { qos: 0 });
-  mqttClient.publish(`pixo/device/${deviceId}/current`, 'CLEAR', { qos: 0, retain: true });
 
   showToast(`Standby inviato a ${deviceId}`, 'success');
   addLog('OUTBOUND', `Inviato CLEAR a [${deviceId}] (PIN: '${pin}')`);
@@ -532,7 +531,6 @@ window.sendDeviceClock = function(deviceId) {
     mqttClient.publish(`pixo/device/${deviceId}/1234/draw`, 'CLOCK', { qos: 0 });
   }
   mqttClient.publish(`pixo/device/${deviceId}/draw`, 'CLOCK', { qos: 0 });
-  mqttClient.publish(`pixo/device/${deviceId}/current`, 'CLOCK', { qos: 0, retain: true });
 
   showToast(`Orologio inviato a ${deviceId}`, 'success');
   addLog('OUTBOUND', `Inviato CLOCK a [${deviceId}]`);
