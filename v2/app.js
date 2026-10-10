@@ -239,7 +239,11 @@ const state = {
   otaProgress: 0,
   deviceStatus: "unknown", // "online" | "offline" | "unknown"
   guestAuthorized: null, // null = verifica in corso, true = autorizzato, false = revocato/non autorizzato
-  lastKnownGuestKeys: null
+  lastKnownGuestKeys: null,
+
+  // Flotta Dispositivi & Console Admin
+  isAdmin: false,
+  fleetDevices: {} // { [deviceId]: { id, name, status, lastSeen, ip, ssid, signal, fwVer, freeHeap, uptime, pin } }
 };
 
 // --- RIFERIMENTI DOM ---
@@ -337,6 +341,19 @@ const otaUrlInput = document.getElementById('otaUrlInput');
 const btnCancelOta = document.getElementById('btnCancelOta');
 const btnStartOta = document.getElementById('btnStartOta');
 const btnBroadcastOta = document.getElementById('btnBroadcastOta');
+
+// Console Flotta Admin
+const adminConsoleEntry = document.getElementById('adminConsoleEntry');
+const btnOpenAdminConsole = document.getElementById('btnOpenAdminConsole');
+const adminTabBtn = document.getElementById('adminTabBtn');
+const btnRefreshFleet = document.getElementById('btnRefreshFleet');
+const fleetTotalCount = document.getElementById('fleetTotalCount');
+const fleetOnlineCount = document.getElementById('fleetOnlineCount');
+const fleetOfflineCount = document.getElementById('fleetOfflineCount');
+const fleetDevicesList = document.getElementById('fleetDevicesList');
+const fleetLastScanTime = document.getElementById('fleetLastScanTime');
+const btnFleetBroadcastOta = document.getElementById('btnFleetBroadcastOta');
+const btnFleetClearAll = document.getElementById('btnFleetClearAll');
 
 // Modal Onboarding e Connessione Pixò
 const onboardingModal = document.getElementById('onboardingModal');
@@ -518,9 +535,29 @@ function initDeviceAndSettings() {
   state.canvasTheme = localStorage.getItem('pixo_canvas_theme') || DEFAULT_CONFIG.defaultTheme;
   state.weatherCity = localStorage.getItem('pixo_weather_city') || DEFAULT_CONFIG.defaultCity;
 
+  // Controllo Modalità Amministratore (Master Key da query param o localStorage)
+  const urlMaster = urlParams.get('master');
+  if (urlMaster === 'pixo_master_2026') {
+    state.isAdmin = true;
+    localStorage.setItem('pixo_is_admin', 'true');
+  } else {
+    state.isAdmin = localStorage.getItem('pixo_is_admin') === 'true';
+  }
+
+  // Ripristina dispositivi flotta conosciuti dal localStorage
+  try {
+    const storedFleet = localStorage.getItem('pixo_fleet_cache');
+    if (storedFleet) {
+      state.fleetDevices = JSON.parse(storedFleet);
+    }
+  } catch(e) {
+    state.fleetDevices = {};
+  }
+
   setLanguage(state.lang);
   updateSettingsUI();
   renderGuestKeysList();
+  updateAdminUI();
 }
 
 function updateSettingsUI() {
@@ -2281,6 +2318,225 @@ function handleBroadcastOta() {
 }
 
 // ==========================================================================
+//  7e. GESTIONE CONSOLE AMMINISTRATORE & TELEMETRIA FLOTTA PIXÒ
+// ==========================================================================
+function updateAdminUI() {
+  if (state.isAdmin) {
+    if (adminTabBtn) adminTabBtn.style.display = 'flex';
+    if (adminConsoleEntry) {
+      const btn = adminConsoleEntry.querySelector('button');
+      if (btn) {
+        btn.textContent = 'Dashboard';
+        btn.classList.add('primary');
+      }
+    }
+    renderFleetDashboard();
+  } else {
+    if (adminTabBtn) adminTabBtn.style.display = 'none';
+  }
+}
+
+function handleFleetMqttMessage(topic, payload) {
+  // Topic attesi:
+  // pixo/device/<DEVICE_ID>/status
+  // pixo/device/<DEVICE_ID>/wifi
+  // pixo/device/<DEVICE_ID>/diag
+  // pixo/device/<DEVICE_ID>/ota/status
+  const parts = topic.split('/');
+  if (parts.length < 4 || parts[0] !== 'pixo' || parts[1] !== 'device') return;
+  const devId = parts[2].toUpperCase();
+  const sub = parts.slice(3).join('/');
+
+  if (!state.fleetDevices[devId]) {
+    state.fleetDevices[devId] = {
+      id: devId,
+      name: devId === state.deviceId ? (state.deviceName || devId) : devId,
+      status: 'unknown',
+      lastSeen: Date.now(),
+      ip: '',
+      ssid: '',
+      signal: 0,
+      fwVer: '1.0.0',
+      freeHeap: 0,
+      uptime_s: 0,
+      otaStatus: 'ready'
+    };
+  }
+
+  const dev = state.fleetDevices[devId];
+  dev.lastSeen = Date.now();
+
+  try {
+    const text = (typeof payload === 'string') 
+      ? payload.trim() 
+      : new TextDecoder().decode(payload).trim();
+
+    if (sub === 'status') {
+      dev.status = text.toLowerCase();
+    } else if (sub === 'wifi') {
+      if (text.startsWith('{')) {
+        const data = JSON.parse(text);
+        if (data.ssid) dev.ssid = data.ssid;
+        if (data.ip) dev.ip = data.ip;
+        if (typeof data.signal === 'number') dev.signal = data.signal;
+        if (data.status === 'online') dev.status = 'online';
+      }
+    } else if (sub === 'diag') {
+      if (text.startsWith('{')) {
+        const data = JSON.parse(text);
+        if (data.fw_ver) dev.fwVer = data.fw_ver;
+        if (data.free_heap) dev.freeHeap = data.free_heap;
+        if (data.uptime_s) dev.uptime_s = data.uptime_s;
+        dev.status = 'online';
+      }
+    } else if (sub === 'ota/status') {
+      if (text.startsWith('{')) {
+        const data = JSON.parse(text);
+        if (data.status) dev.otaStatus = data.status;
+        if (data.version) dev.fwVer = data.version;
+      }
+    }
+  } catch(e) {
+    console.warn('[ADMIN] Errore parsing telemetria flotta:', e);
+  }
+
+  // Memorizza cache flotta per ritrovare i dispositivi offline
+  try {
+    localStorage.setItem('pixo_fleet_cache', JSON.stringify(state.fleetDevices));
+  } catch(e) {}
+
+  renderFleetDashboardDebounced();
+}
+
+let fleetRenderTimer = null;
+function renderFleetDashboardDebounced() {
+  if (fleetRenderTimer) return;
+  fleetRenderTimer = setTimeout(() => {
+    fleetRenderTimer = null;
+    renderFleetDashboard();
+  }, 300);
+}
+
+function renderFleetDashboard() {
+  if (!state.isAdmin || !fleetDevicesList) return;
+
+  const devices = Object.values(state.fleetDevices);
+  const now = Date.now();
+
+  let onlineCount = 0;
+  let offlineCount = 0;
+
+  devices.forEach(d => {
+    // Se non riceve battito entro 35 secondi e lo stato non era offline forzato, consideralo offline
+    if (d.status === 'online' && (now - d.lastSeen) > 35000) {
+      d.status = 'offline';
+    }
+    if (d.status === 'online') onlineCount++;
+    else offlineCount++;
+  });
+
+  if (fleetTotalCount) fleetTotalCount.textContent = devices.length;
+  if (fleetOnlineCount) fleetOnlineCount.textContent = onlineCount;
+  if (fleetOfflineCount) fleetOfflineCount.textContent = offlineCount;
+  if (fleetLastScanTime) {
+    fleetLastScanTime.textContent = `Aggiornato: ${new Date().toLocaleTimeString()}`;
+  }
+
+  if (devices.length === 0) {
+    fleetDevicesList.innerHTML = `
+      <div style="text-align:center; padding:30px 10px; color:var(--text-secondary);">
+        <p>📡 In ascolto sul Cloud MQTT...</p>
+        <small>Nessun Pixò rilevato al momento. I dispositivi appariranno automaticamente non appena trasmettono diagnostica.</small>
+      </div>`;
+    return;
+  }
+
+  // Ordina: prima gli online, poi i più recenti
+  devices.sort((a, b) => {
+    if (a.status === 'online' && b.status !== 'online') return -1;
+    if (b.status === 'online' && a.status !== 'online') return 1;
+    return (b.lastSeen || 0) - (a.lastSeen || 0);
+  });
+
+  fleetDevicesList.innerHTML = '';
+
+  devices.forEach(dev => {
+    const card = document.createElement('div');
+    card.className = 'fleet-card';
+
+    const isCurrent = (dev.id === state.deviceId);
+    const isOnline = (dev.status === 'online');
+
+    const uptimeMin = Math.round((dev.uptime_s || 0) / 60);
+    const uptimeStr = uptimeMin > 60 ? `${Math.floor(uptimeMin/60)}h ${uptimeMin%60}m` : `${uptimeMin} min`;
+    const heapKb = Math.round((dev.freeHeap || 0) / 1024);
+
+    card.innerHTML = `
+      <div class="fleet-card-header">
+        <div class="fleet-device-title">
+          <span class="fleet-device-id">${escapeHtml(dev.id)}</span>
+          ${isCurrent ? '<span style="font-size:0.68rem; background:rgba(10,132,255,0.18); color:var(--accent-blue); padding:1px 6px; border-radius:4px; font-weight:700;">ATTUALE</span>' : ''}
+        </div>
+        <span class="fleet-status-pill ${isOnline ? 'online' : 'offline'}">${isOnline ? 'ONLINE' : 'OFFLINE'}</span>
+      </div>
+
+      <div class="fleet-meta-grid">
+        <div class="fleet-meta-item">Firmware: <strong>v${escapeHtml(dev.fwVer || '1.0.0')}</strong></div>
+        <div class="fleet-meta-item">Wi-Fi: <strong>${dev.ssid ? escapeHtml(dev.ssid) + ' (' + dev.signal + '%)' : 'N/D'}</strong></div>
+        <div class="fleet-meta-item">IP: <strong>${dev.ip ? escapeHtml(dev.ip) : 'N/D'}</strong></div>
+        <div class="fleet-meta-item">RAM Libera: <strong>${heapKb > 0 ? heapKb + ' KB' : 'N/D'}</strong></div>
+        <div class="fleet-meta-item">Uptime: <strong>${uptimeMin > 0 ? uptimeStr : 'N/D'}</strong></div>
+        <div class="fleet-meta-item">Stato OTA: <strong>${escapeHtml(dev.otaStatus || 'ready')}</strong></div>
+      </div>
+
+      <div class="fleet-actions">
+        ${!isCurrent ? `<button type="button" class="pill-btn primary mini" onclick="selectFleetDevice('${dev.id}')">Gestisci Questo Pixò</button>` : ''}
+        <button type="button" class="pill-btn secondary mini" onclick="sendDirectStandby('${dev.id}')">Standby</button>
+        <button type="button" class="pill-btn secondary mini" onclick="flashDirectLed('${dev.id}')">💡 Flash LED</button>
+      </div>
+    `;
+
+    fleetDevicesList.appendChild(card);
+  });
+}
+
+// Funzioni globali di interazione dalla Dashboard Flotta
+window.selectFleetDevice = function(targetId) {
+  if (!confirm(`Vuoi passare la WebApp al controllo di Pixò [${targetId}]?`)) return;
+  state.deviceId = targetId;
+  localStorage.setItem('pixo_device_id', targetId);
+  deviceIdDisplay.textContent = state.deviceId;
+  if (hardwareIdDisplay) hardwareIdDisplay.textContent = state.deviceId;
+  // Riconnetti con il nuovo ID
+  if (state.mqttClient) {
+    state.mqttClient.end(true);
+    state.mqttClient = null;
+    connectMQTT();
+  }
+  showToast(`Controllo impostato su Pixò ${targetId}`, "success");
+  document.querySelector('.tab-item[data-tab="panelDraw"]')?.click();
+};
+
+window.sendDirectStandby = function(targetId) {
+  if (!state.mqttClient || !state.mqttClient.connected) {
+    showToast("Disconnesso dal Cloud", "error");
+    return;
+  }
+  state.mqttClient.publish(`pixo/device/${targetId}/draw`, "CLEAR", { qos: 0 });
+  state.mqttClient.publish(`pixo/device/${targetId}/current`, "CLEAR", { qos: 0, retain: true });
+  showToast(`Comando Standby inviato a ${targetId}`, "success");
+};
+
+window.flashDirectLed = function(targetId) {
+  if (!state.mqttClient || !state.mqttClient.connected) {
+    showToast("Disconnesso dal Cloud", "error");
+    return;
+  }
+  state.mqttClient.publish(`pixo/device/${targetId}/led`, "NOTIF:ON", { qos: 0 });
+  showToast(`Flash LED inviato a ${targetId}`, "success");
+};
+
+// ==========================================================================
 //  8. CONTROLLO LUMINOSITÀ HARDWARE (PWM VIA MQTT)
 // ==========================================================================
 function sendBrightness(percent) {
@@ -2411,6 +2667,16 @@ function connectMQTT() {
               scheduleStartupOfflineCheck();
             }
           }
+
+          // Se abilitata la modalità Admin, iscriviti ai topic di monitoraggio dell'intera flotta Pixò!
+          if (state.isAdmin) {
+            state.mqttClient.subscribe("pixo/device/+/status", { qos: 0 });
+            state.mqttClient.subscribe("pixo/device/+/wifi", { qos: 0 });
+            state.mqttClient.subscribe("pixo/device/+/diag", { qos: 0 });
+            state.mqttClient.subscribe("pixo/device/+/ota/status", { qos: 0 });
+            console.log('[ADMIN] Sottoscritto ai topic di telemetria dell\'intera flotta Pixò!');
+          }
+
           resolve(true);
         });
 
@@ -2427,6 +2693,10 @@ function connectMQTT() {
           const otaStatusTopic = `pixo/device/${state.deviceId}/ota/status`;
           const diagTopic = `pixo/device/${state.deviceId}/diag`;
           const kidsModeTopic = `pixo/device/${state.deviceId}/kids_mode`;
+
+          if (state.isAdmin) {
+            handleFleetMqttMessage(topic, payload);
+          }
 
           if (topic === kidsModeTopic) {
             handleKidsModeSyncMessage(payload);
@@ -3275,9 +3545,9 @@ function setupEventListeners() {
       const targetPanel = document.getElementById(targetId);
       if (targetPanel) targetPanel.classList.add('active');
 
-      // Se l'utente entra nella tab Impostazioni (Dispositivo), nascondi completamente la lavagna e il tasto invia!
+      // Se l'utente entra nella tab Impostazioni (Dispositivo) o Admin (Flotta), nascondi completamente la lavagna e il tasto invia!
       if (canvasStage) {
-        if (targetId === 'panelSettings') {
+        if (targetId === 'panelSettings' || targetId === 'panelAdmin') {
           canvasStage.style.display = 'none';
         } else {
           canvasStage.style.display = 'flex';
@@ -3287,8 +3557,61 @@ function setupEventListeners() {
       if (targetId === 'panelGallery') {
         renderGallery();
       }
+
+      if (targetId === 'panelAdmin') {
+        renderFleetDashboard();
+      }
     });
   });
+
+  // Binding Eventi Console Admin
+  if (btnOpenAdminConsole) {
+    btnOpenAdminConsole.addEventListener('click', () => {
+      if (!state.isAdmin) {
+        const pass = prompt("🔐 Inserisci la Master Key Amministratore per sbloccare la Console Flotta:");
+        if (pass === "pixo_master_2026") {
+          state.isAdmin = true;
+          localStorage.setItem('pixo_is_admin', 'true');
+          updateAdminUI();
+          if (state.mqttClient && state.mqttClient.connected) {
+            state.mqttClient.subscribe("pixo/device/+/status", { qos: 0 });
+            state.mqttClient.subscribe("pixo/device/+/wifi", { qos: 0 });
+            state.mqttClient.subscribe("pixo/device/+/diag", { qos: 0 });
+            state.mqttClient.subscribe("pixo/device/+/ota/status", { qos: 0 });
+          }
+          showToast("Accesso Amministratore confermato!", "success");
+        } else if (pass) {
+          alert("❌ Master Key non valida!");
+          return;
+        } else {
+          return;
+        }
+      }
+      document.querySelector('.tab-item[data-tab="panelAdmin"]')?.click();
+    });
+  }
+
+  if (btnRefreshFleet) {
+    btnRefreshFleet.addEventListener('click', () => {
+      renderFleetDashboard();
+      showToast("Dashboard Flotta aggiornata!", "info");
+    });
+  }
+
+  if (btnFleetBroadcastOta) {
+    btnFleetBroadcastOta.addEventListener('click', handleBroadcastOta);
+  }
+
+  if (btnFleetClearAll) {
+    btnFleetClearAll.addEventListener('click', () => {
+      if (!confirm("Vuoi inviare il comando di STANDBY a tutti i dispositivi Pixò rilevati?")) return;
+      const devs = Object.keys(state.fleetDevices);
+      devs.forEach(id => {
+        window.sendDirectStandby(id);
+      });
+      showToast(`Comando inviato a ${devs.length} dispositivi!`, "success");
+    });
+  }
 
   // Chiusura Bottom Sheets cliccando sul backdrop
   const closeBackdrop = (sheetId) => {
