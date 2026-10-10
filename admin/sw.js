@@ -1,11 +1,11 @@
 // Service Worker per Pixò Fleet Commander PWA
-const CACHE_NAME = 'pixo-commander-v21';
+const CACHE_NAME = 'pixo-commander-v22';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css',
-  './app.js',
-  './manifest.json',
+  './style.css?v=22',
+  './app.js?v=22',
+  './manifest.json?v=22',
   './icon-commander.svg',
   './icon-192.png',
   './icon-512.png',
