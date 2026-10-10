@@ -1978,6 +1978,12 @@ function handleWifiStatusSync(payload) {
         currentWifiBadge.style.color = 'var(--accent-orange)';
       }
     } else if (data.ssid) {
+      state.deviceStatus = 'online';
+      updateDeviceStatusUI(true);
+      if (startupOfflineTimer) {
+        clearTimeout(startupOfflineTimer);
+        startupOfflineTimer = null;
+      }
       state.wifiSsid = data.ssid;
       state.wifiSignal = data.signal || 0;
       state.wifiIp = data.ip || '';
@@ -2068,6 +2074,13 @@ function handleOtaStatusSync(payload) {
     if (!text) return;
     const data = JSON.parse(text);
 
+    state.deviceStatus = 'online';
+    updateDeviceStatusUI(true);
+    if (startupOfflineTimer) {
+      clearTimeout(startupOfflineTimer);
+      startupOfflineTimer = null;
+    }
+
     if (data.version) {
       state.firmwareVersion = data.version;
       localStorage.setItem('pixo_firmware_version', data.version);
@@ -2116,6 +2129,14 @@ function handleDiagSync(payload) {
     const text = new TextDecoder().decode(uint8).trim();
     if (!text) return;
     const data = JSON.parse(text);
+
+    state.deviceStatus = 'online';
+    updateDeviceStatusUI(true);
+    if (startupOfflineTimer) {
+      clearTimeout(startupOfflineTimer);
+      startupOfflineTimer = null;
+    }
+
     if (data.fw_ver) {
       state.firmwareVersion = data.fw_ver;
       localStorage.setItem('pixo_firmware_version', data.fw_ver);
@@ -2320,7 +2341,6 @@ function subscribeDeviceTopics() {
     state.mqttClient.subscribe(diagTopic, { qos: 0 });
 
     sendBrightness(state.brightness);
-    scheduleStartupOfflineCheck();
   }
 }
 
@@ -2358,6 +2378,11 @@ function connectMQTT() {
           mqttConnectPromise = null;
           statusDot.className = "status-pulse status-dot online";
           statusDot.title = "Connesso a Pixò Cloud";
+          if (deviceSubtitle) {
+            deviceSubtitle.textContent = "Online";
+            deviceSubtitle.style.color = "var(--accent-green)";
+          }
+          deviceOfflineBanner?.classList.add('hidden');
 
           // Mostra il toast di benvenuto una sola volta all'avvio, mai in loop
           if (!hasShownConnectedToast) {
@@ -2531,17 +2556,10 @@ function handleDeviceStatusSync(payload) {
 }
 
 function scheduleStartupOfflineCheck() {
-  if (startupOfflineTimer) clearTimeout(startupOfflineTimer);
-  startupOfflineTimer = setTimeout(() => {
-    if (state.deviceId && state.deviceStatus !== 'online') {
-      state.deviceStatus = 'offline';
-      updateDeviceStatusUI(false);
-      if (!hasShownOfflineAlert) {
-        hasShownOfflineAlert = true;
-        showToast("⚠️ Il Pixò è spento o non collegato", "warning");
-      }
-    }
-  }, 3500);
+  if (startupOfflineTimer) {
+    clearTimeout(startupOfflineTimer);
+    startupOfflineTimer = null;
+  }
 }
 
 // ==========================================================================
@@ -2635,6 +2653,13 @@ function handleGuestAccessKeysMessage(payload) {
 // ==========================================================================
 function handleCurrentDisplaySync(payload) {
   if (!payload || payload.length === 0) return;
+
+  state.deviceStatus = 'online';
+  updateDeviceStatusUI(true);
+  if (startupOfflineTimer) {
+    clearTimeout(startupOfflineTimer);
+    startupOfflineTimer = null;
+  }
 
   state.lastDisplayPayload = payload;
 
