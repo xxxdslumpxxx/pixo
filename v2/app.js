@@ -3396,7 +3396,60 @@ function showOnboardingError(msg) {
   onboardErrorText.style.display = "block";
 }
 
-function handleOnboardingLogin() {
+function verifyDeviceOnlineBeforeRegister(devId) {
+  return new Promise((resolve) => {
+    connectMQTT().then((connected) => {
+      if (!connected || !state.mqttClient || !state.mqttClient.connected) {
+        return resolve({ online: false, reason: "Impossibile connettersi a Pixò Cloud. Verifica la connessione Internet." });
+      }
+
+      const statusTopic = `pixo/device/${devId}/status`;
+      const wifiTopic = `pixo/device/${devId}/wifi`;
+      const diagTopic = `pixo/device/${devId}/diag`;
+
+      let resolved = false;
+      let timer = null;
+
+      const handler = (topic, payload) => {
+        if (topic === statusTopic) {
+          const st = new TextDecoder().decode(payload).trim().toLowerCase();
+          if (st === 'online' && !resolved) {
+            cleanup();
+            return resolve({ online: true });
+          } else if (st === 'offline' && !resolved) {
+            cleanup();
+            return resolve({ online: false, reason: `Il Pixò '${devId}' risulta spento o non collegato.` });
+          }
+        } else if ((topic === wifiTopic || topic === diagTopic) && !resolved) {
+          cleanup();
+          return resolve({ online: true });
+        }
+      };
+
+      function cleanup() {
+        resolved = true;
+        if (timer) clearTimeout(timer);
+        try {
+          state.mqttClient.removeListener('message', handler);
+        } catch(e) {}
+      }
+
+      state.mqttClient.on('message', handler);
+      state.mqttClient.subscribe(statusTopic, { qos: 1 });
+      state.mqttClient.subscribe(wifiTopic, { qos: 0 });
+      state.mqttClient.subscribe(diagTopic, { qos: 0 });
+
+      timer = setTimeout(() => {
+        if (!resolved) {
+          cleanup();
+          resolve({ online: false, reason: `Nessuna risposta dal Pixò '${devId}'. Il dispositivo non esiste o non è attualmente acceso e connesso al Wi-Fi.` });
+        }
+      }, 3000);
+    });
+  });
+}
+
+async function handleOnboardingLogin() {
   if (!onboardLoginDeviceId || !onboardLoginPin) return;
 
   let devId = onboardLoginDeviceId.value.trim().toUpperCase();
@@ -3422,9 +3475,17 @@ function handleOnboardingLogin() {
   }
 
   submitLoginBtn.disabled = true;
-  submitLoginBtn.textContent = "Connessione in corso...";
+  submitLoginBtn.textContent = "🔍 Verifica Pixò sul Cloud...";
 
-  // Salva credenziali localmente
+  const check = await verifyDeviceOnlineBeforeRegister(devId);
+  if (!check.online) {
+    submitLoginBtn.disabled = false;
+    submitLoginBtn.textContent = "🚀 Connetti e Disegna";
+    showOnboardingError(`⚠️ ${check.reason}`);
+    return;
+  }
+
+  // Salva credenziali localmente SOLO dopo verifica online riuscita
   state.deviceId = devId;
   state.devicePin = pin;
   localStorage.setItem('pixo_device_id', devId);
@@ -3438,12 +3499,12 @@ function handleOnboardingLogin() {
   submitLoginBtn.disabled = false;
   submitLoginBtn.textContent = "🚀 Connetti e Disegna";
 
-  // Connetti a Pixò Cloud via MQTT
+  // Connetti e sottoscrivi al Cloud
   connectMQTT();
-  showToast(`🎉 Connesso a Pixò ${devId}!`, "success");
+  showToast(`🎉 Pixò ${devId} verificato e connesso!`, "success");
 }
 
-function handleOnboardingSubmit() {
+async function handleOnboardingSubmit() {
   if (!onboardDeviceId || !onboardNewPin || !onboardConfirmPin) return;
 
   let devId = onboardDeviceId.value.trim().toUpperCase();
@@ -3453,6 +3514,9 @@ function handleOnboardingSubmit() {
   }
   if (!devId.startsWith("ESP32-")) {
     devId = "ESP32-" + devId;
+  }
+  if (devId === 'ESP32-5205D4') {
+    devId = 'ESP32-9205D4';
   }
 
   const factPin = (onboardFactoryPin ? onboardFactoryPin.value.trim() : "") || "1234";
@@ -3478,9 +3542,19 @@ function handleOnboardingSubmit() {
   }
 
   submitOnboardingBtn.disabled = true;
+  submitOnboardingBtn.textContent = "🔍 Verifica Pixò sul Cloud...";
+
+  const check = await verifyDeviceOnlineBeforeRegister(devId);
+  if (!check.online) {
+    submitOnboardingBtn.disabled = false;
+    submitOnboardingBtn.textContent = "🚀 Attiva e Connetti Pixò";
+    showOnboardingError(`⚠️ ${check.reason}`);
+    return;
+  }
+
   submitOnboardingBtn.textContent = "Attivazione e connessione...";
 
-  // Imposta lo stato locale
+  // Imposta lo stato locale solo dopo verifica
   state.deviceId = devId;
   state.devicePin = newPin;
   localStorage.setItem('pixo_device_id', devId);
