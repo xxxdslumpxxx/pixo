@@ -2522,7 +2522,19 @@ window.sendDirectStandby = function(targetId) {
     showToast("Disconnesso dal Cloud", "error");
     return;
   }
+  const dev = state.fleetDevices[targetId] || {};
+  const pin = dev.pin || (targetId === state.deviceId ? state.devicePin : "") || "1234";
+
+  // Invia sia sul topic generico che sul topic con PIN (e con il PIN di default 1234)
   state.mqttClient.publish(`pixo/device/${targetId}/draw`, "CLEAR", { qos: 0 });
+  if (pin) {
+    state.mqttClient.publish(`pixo/device/${targetId}/${pin}/draw`, "CLEAR", { qos: 0 });
+  }
+  if (pin !== "1234") {
+    state.mqttClient.publish(`pixo/device/${targetId}/1234/draw`, "CLEAR", { qos: 0 });
+  }
+
+  // Sincronizza lo stato corrente retained
   state.mqttClient.publish(`pixo/device/${targetId}/current`, "CLEAR", { qos: 0, retain: true });
   showToast(`Comando Standby inviato a ${targetId}`, "success");
 };
@@ -2532,8 +2544,31 @@ window.flashDirectLed = function(targetId) {
     showToast("Disconnesso dal Cloud", "error");
     return;
   }
-  state.mqttClient.publish(`pixo/device/${targetId}/led`, "NOTIF:ON", { qos: 0 });
-  showToast(`Flash LED inviato a ${targetId}`, "success");
+  const dev = state.fleetDevices[targetId] || {};
+  const pin = dev.pin || (targetId === state.deviceId ? state.devicePin : "") || "1234";
+
+  // Invia sia al topic diretto che al topic con PIN proprietario per superare il check del firmware
+  state.mqttClient.publish(`pixo/device/${targetId}/led`, "LIGHT:ON", { qos: 0 });
+  state.mqttClient.publish(`pixo/device/${targetId}/led`, "100", { qos: 0 });
+  if (pin) {
+    state.mqttClient.publish(`pixo/device/${targetId}/${pin}/led`, "LIGHT:ON", { qos: 0 });
+    state.mqttClient.publish(`pixo/device/${targetId}/${pin}/led`, "100", { qos: 0 });
+  }
+  if (pin !== "1234") {
+    state.mqttClient.publish(`pixo/device/${targetId}/1234/led`, "LIGHT:ON", { qos: 0 });
+    state.mqttClient.publish(`pixo/device/${targetId}/1234/led`, "100", { qos: 0 });
+  }
+
+  // Spegne dopo 2 secondi creando l'effetto flash
+  setTimeout(() => {
+    if (state.mqttClient && state.mqttClient.connected) {
+      state.mqttClient.publish(`pixo/device/${targetId}/led`, "LIGHT:OFF", { qos: 0 });
+      if (pin) state.mqttClient.publish(`pixo/device/${targetId}/${pin}/led`, "LIGHT:OFF", { qos: 0 });
+      if (pin !== "1234") state.mqttClient.publish(`pixo/device/${targetId}/1234/led`, "LIGHT:OFF", { qos: 0 });
+    }
+  }, 2000);
+
+  showToast(`Flash Luce LED (2s) inviato a ${targetId}`, "success");
 };
 
 // ==========================================================================
