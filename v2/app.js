@@ -234,7 +234,7 @@ const state = {
   wifiSsid: "",
   wifiSignal: 0,
   wifiIp: "",
-  firmwareVersion: "1.0.0",
+  firmwareVersion: "1.0.1",
   otaStatus: "ready", // "ready" | "updating" | "error"
   otaProgress: 0,
   deviceStatus: "unknown", // "online" | "offline" | "unknown"
@@ -518,6 +518,7 @@ function initDeviceAndSettings() {
   state.lang = localStorage.getItem('pixo_lang') || DEFAULT_CONFIG.defaultLang;
   state.canvasTheme = localStorage.getItem('pixo_canvas_theme') || DEFAULT_CONFIG.defaultTheme;
   state.weatherCity = localStorage.getItem('pixo_weather_city') || DEFAULT_CONFIG.defaultCity;
+  state.firmwareVersion = localStorage.getItem('pixo_firmware_version') || '1.0.1';
   setLanguage(state.lang);
   updateSettingsUI();
   renderGuestKeysList();
@@ -583,7 +584,7 @@ function updateSettingsUI() {
   }
 
   if (currentFwBadge) {
-    currentFwBadge.textContent = `v${state.firmwareVersion || '1.0.0'}`;
+    currentFwBadge.textContent = `v${state.firmwareVersion || '1.0.1'}`;
   }
 
   if (screensaverToggle) screensaverToggle.checked = state.screensaverEnabled;
@@ -2067,9 +2068,12 @@ function handleOtaStatusSync(payload) {
     if (!text) return;
     const data = JSON.parse(text);
 
-    if (data.version && currentFwBadge) {
+    if (data.version) {
       state.firmwareVersion = data.version;
-      currentFwBadge.textContent = `v${data.version}`;
+      localStorage.setItem('pixo_firmware_version', data.version);
+      if (currentFwBadge) {
+        currentFwBadge.textContent = `v${data.version}`;
+      }
     }
 
     if (data.status === 'updating') {
@@ -2112,9 +2116,12 @@ function handleDiagSync(payload) {
     const text = new TextDecoder().decode(uint8).trim();
     if (!text) return;
     const data = JSON.parse(text);
-    if (data.fw_ver && currentFwBadge) {
+    if (data.fw_ver) {
       state.firmwareVersion = data.fw_ver;
-      currentFwBadge.textContent = `v${data.fw_ver}`;
+      localStorage.setItem('pixo_firmware_version', data.fw_ver);
+      if (currentFwBadge) {
+        currentFwBadge.textContent = `v${data.fw_ver}`;
+      }
     }
   } catch (err) {
     console.warn('[DIAG] Errore parsing telemetria diagnostica:', err);
@@ -2270,8 +2277,56 @@ async function updatePayloadPreview() {
 let mqttConnectPromise = null;
 let hasShownConnectedToast = false;
 
+function subscribeDeviceTopics() {
+  if (!state.mqttClient || !state.mqttClient.connected || !state.deviceId) return;
+
+  if (state.isGuestMode) {
+    const accessKeysTopic = `pixo/device/${state.deviceId}/access/keys`;
+    const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
+    const guestAckTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`;
+    const kidsModeTopic = `pixo/device/${state.deviceId}/kids_mode`;
+    state.mqttClient.subscribe(accessKeysTopic, { qos: 1 });
+    state.mqttClient.subscribe(accessStatusTopic, { qos: 1 });
+    state.mqttClient.subscribe(guestAckTopic, { qos: 0 });
+    state.mqttClient.subscribe(kidsModeTopic, { qos: 1 });
+
+    if (guestAuthTimeout) clearTimeout(guestAuthTimeout);
+    guestAuthTimeout = setTimeout(() => {
+      if (state.guestAuthorized === null) {
+        setGuestAccessAuthorized(false, state.lang === 'it' 
+          ? "Impossibile verificare l'autorizzazione di questo link di invito." 
+          : "Unable to verify this invitation link.");
+      }
+    }, 4000);
+  } else {
+    // IN MODALITÀ PROPRIETARIO:
+    const statusTopic = `pixo/device/${state.deviceId}/status`;
+    state.mqttClient.subscribe(statusTopic, { qos: 1 });
+
+    const currentTopic = `pixo/device/${state.deviceId}/current`;
+    state.mqttClient.subscribe(currentTopic, { qos: 0 });
+
+    const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
+    state.mqttClient.subscribe(keysDataTopic, { qos: 1 });
+    syncGuestKeysToDevice(false);
+
+    const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
+    state.mqttClient.subscribe(wifiTopic, { qos: 0 });
+
+    const otaStatusTopic = `pixo/device/${state.deviceId}/ota/status`;
+    state.mqttClient.subscribe(otaStatusTopic, { qos: 0 });
+
+    const diagTopic = `pixo/device/${state.deviceId}/diag`;
+    state.mqttClient.subscribe(diagTopic, { qos: 0 });
+
+    sendBrightness(state.brightness);
+    scheduleStartupOfflineCheck();
+  }
+}
+
 function connectMQTT() {
   if (state.mqttConnected && state.mqttClient && state.mqttClient.connected) {
+    if (state.deviceId) subscribeDeviceTopics();
     return Promise.resolve(true);
   }
   if (mqttConnectPromise) return mqttConnectPromise;
@@ -2310,61 +2365,8 @@ function connectMQTT() {
             showToast(t("toastConnected"), "success");
           }
 
-          // Invia la luminosità memorizzata all'avvio solo se proprietario
-          if (!state.isGuestMode) {
-            sendBrightness(state.brightness);
-          }
-
           if (state.deviceId) {
-            if (state.isGuestMode) {
-              // IN MODALITÀ OSPITE:
-              // 1. Sottoscrizione alle chiavi autorizzate e allo stato di abilitazione
-              const accessKeysTopic = `pixo/device/${state.deviceId}/access/keys`;
-              const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
-              const guestAckTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`;
-              const kidsModeTopic = `pixo/device/${state.deviceId}/kids_mode`;
-              state.mqttClient.subscribe(accessKeysTopic, { qos: 1 });
-              state.mqttClient.subscribe(accessStatusTopic, { qos: 1 });
-              state.mqttClient.subscribe(guestAckTopic, { qos: 0 });
-              state.mqttClient.subscribe(kidsModeTopic, { qos: 1 });
-
-              // Timer di timeout verifica: se entro 4s non riceve conferma autorizzazione, blocca
-              if (guestAuthTimeout) clearTimeout(guestAuthTimeout);
-              guestAuthTimeout = setTimeout(() => {
-                if (state.guestAuthorized === null) {
-                  setGuestAccessAuthorized(false, state.lang === 'it' 
-                    ? "Impossibile verificare l'autorizzazione di questo link di invito." 
-                    : "Unable to verify this invitation link.");
-                }
-              }, 4000);
-            } else {
-              // IN MODALITÀ PROPRIETARIO:
-              // Sottoscrizione allo stato hardware di Pixò (LWT online/offline)
-              const statusTopic = `pixo/device/${state.deviceId}/status`;
-              state.mqttClient.subscribe(statusTopic, { qos: 1 });
-
-              // Sottoscrizione al topic di sincronizzazione disegno attuale
-              const currentTopic = `pixo/device/${state.deviceId}/current`;
-              state.mqttClient.subscribe(currentTopic, { qos: 0 });
-
-              // Sottoscrizione al topic cloud chiavi ospiti con etichette se proprietario
-              const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
-              state.mqttClient.subscribe(keysDataTopic, { qos: 1 });
-              syncGuestKeysToDevice(false);
-
-              // Sottoscrizione al topic di telemetria Wi-Fi
-              const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
-              state.mqttClient.subscribe(wifiTopic, { qos: 0 });
-
-              // Sottoscrizione a stato OTA e telemetria diagnostica
-              const otaStatusTopic = `pixo/device/${state.deviceId}/ota/status`;
-              state.mqttClient.subscribe(otaStatusTopic, { qos: 0 });
-              const diagTopic = `pixo/device/${state.deviceId}/diag`;
-              state.mqttClient.subscribe(diagTopic, { qos: 0 });
-
-              // Timer di fallback all'avvio: se Pixò non invia online entro 3.5s, avvisa che è spento
-              scheduleStartupOfflineCheck();
-            }
+            subscribeDeviceTopics();
           }
           resolve(true);
         });
