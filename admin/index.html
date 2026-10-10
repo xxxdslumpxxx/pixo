@@ -9,10 +9,10 @@
   <meta name="apple-mobile-web-app-title" content="Commander">
   <meta name="mobile-web-app-capable" content="yes">
   <title>Pixò Master Fleet Commander</title>
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="/pixo/admin/manifest.json?v=10">
   <link rel="icon" type="image/svg+xml" href="icon-commander.svg">
-  <link rel="apple-touch-icon" href="icon-192.png">
-  <link rel="stylesheet" href="style.css">
+  <link rel="apple-touch-icon" href="/pixo/admin/icon-192.png">
+  <link rel="stylesheet" href="style.css?v=10">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
@@ -33,7 +33,7 @@
         <input type="checkbox" id="rememberAuth"> Resta connesso su questo dispositivo
       </label>
       <div style="margin-top: 16px; text-align: center;">
-        <button id="btnInstallAuth" class="btn primary mini" style="display:none; width:100%; border-radius:10px; padding:10px;">📲 Installa App Commander su Smartphone</button>
+        <button id="btnInstallAuth" class="btn primary mini" style="width:100%; border-radius:10px; padding:10px;">📲 Installa App Commander su Smartphone</button>
       </div>
     </div>
   </div>
@@ -47,7 +47,7 @@
         <h1>Pixò Commander</h1>
       </div>
       <div class="header-actions">
-        <button id="btnInstallApp" class="btn primary mini" style="display:none;" title="Installa PWA">📲 Installa</button>
+        <button id="btnInstallApp" class="btn primary mini" title="Installa PWA">📲 Installa</button>
         <div id="cloudStatusBadge" class="status-badge connecting">
           <span class="status-dot"></span>
           <span id="cloudStatusText">Connessione...</span>
@@ -156,6 +156,40 @@
   <!-- Toast Notifiche -->
   <div id="toastContainer" class="toast-container"></div>
 
-  <script src="app.js"></script>
+  <!-- Modal Istruzioni Installazione Standalone -->
+  <div id="installModal" class="modal-overlay hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>📲 Installa Pixò Commander</h3>
+        <button id="btnCloseInstallModal" class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:0.92rem; line-height:1.6; color:#e0e6ed;">
+        <p>Installa la WebApp Master come <strong>applicazione indipendente</strong> separata da Pixò:</p>
+        
+        <div style="background:#131722; padding:12px; border-radius:10px; margin:10px 0; border:1px solid #232936;">
+          <h4 style="color:#00e5ff; margin-bottom:4px; font-size:0.95rem;">🤖 Android (Chrome):</h4>
+          <ol style="margin-left:18px; padding-left:0; font-size:0.88rem;">
+            <li>Tocca i <strong>tre puntini (⋮)</strong> in alto a destra nel browser.</li>
+            <li>Seleziona <strong>"Installa app"</strong> (oppure <em>"Aggiungi a schermata Home"</em>).</li>
+            <li>Conferma premendo <strong>Installa</strong>. Troverai l'icona nera <strong>Commander</strong> separata!</li>
+          </ol>
+        </div>
+
+        <div style="background:#131722; padding:12px; border-radius:10px; margin:10px 0; border:1px solid #232936;">
+          <h4 style="color:#ffb703; margin-bottom:4px; font-size:0.95rem;">🍏 iPhone (Safari):</h4>
+          <ol style="margin-left:18px; padding-left:0; font-size:0.88rem;">
+            <li>Tocca il tasto <strong>Condividi</strong> (icona quadrato con freccia in su ⎋ in basso al centro).</li>
+            <li>Scorri il menu e tocca <strong>"Aggiungi alla schermata Home"</strong>.</li>
+            <li>Tocca <strong>Aggiungi</strong> in alto a destra.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="modal-footer" style="text-align:right; margin-top:14px;">
+        <button id="btnDismissInstallModal" class="btn primary mini" style="padding:8px 20px;">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=10"></script>
 </body>
 </html>
