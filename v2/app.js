@@ -427,6 +427,39 @@ function t(key, params = {}) {
   return str;
 }
 
+// ==========================================================================
+//  FEEDBACK AUDIO TATTICO (Click Sintetizzato Senza Latenza Stile iOS)
+// ==========================================================================
+let audioFeedbackCtx = null;
+function playAudioClick() {
+  try {
+    const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtxClass) return;
+    if (!audioFeedbackCtx) {
+      audioFeedbackCtx = new AudioCtxClass();
+    }
+    if (audioFeedbackCtx.state === 'suspended') {
+      audioFeedbackCtx.resume();
+    }
+    const now = audioFeedbackCtx.currentTime;
+    const osc = audioFeedbackCtx.createOscillator();
+    const gain = audioFeedbackCtx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(950, now);
+    osc.frequency.exponentialRampToValueAtTime(140, now + 0.035);
+
+    gain.gain.setValueAtTime(0.28, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+
+    osc.connect(gain);
+    gain.connect(audioFeedbackCtx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.035);
+  } catch (err) {}
+}
+
 // Generatore token casuale per condivisione sicura
 function generateRandomGuestKey() {
   const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
@@ -703,6 +736,8 @@ function initCanvas() {
   canvas.addEventListener('pointerup', stopDrawing);
   canvas.addEventListener('pointercancel', stopDrawing);
   canvas.addEventListener('pointerleave', stopDrawing);
+  window.addEventListener('pointerup', (e) => { if (state.isDrawing) stopDrawing(e); });
+  window.addEventListener('pointercancel', (e) => { if (state.isDrawing) stopDrawing(e); });
 }
 
 function applyThemeChange(newTheme) {
@@ -777,6 +812,13 @@ function draw(e) {
 }
 
 function stopDrawing(e) {
+  if (e && e.pointerId) {
+    try {
+      if (canvas.hasPointerCapture && canvas.hasPointerCapture(e.pointerId)) {
+        canvas.releasePointerCapture(e.pointerId);
+      }
+    } catch (err) {}
+  }
   if (state.isDrawing) {
     state.isDrawing = false;
     saveState();
@@ -3065,6 +3107,7 @@ function setupEventListeners() {
   // Palette Colori
   document.querySelectorAll('.color-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      playAudioClick();
       document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.currentColor = btn.dataset.color;
@@ -3076,6 +3119,7 @@ function setupEventListeners() {
   // Spessori
   document.querySelectorAll('.stroke-btn').forEach(btn => {
     btn.addEventListener('click', () => {
+      playAudioClick();
       document.querySelectorAll('.stroke-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.currentStroke = parseInt(btn.dataset.size, 10);
@@ -3086,6 +3130,7 @@ function setupEventListeners() {
 
   // Gomma
   eraserBtn.addEventListener('click', () => {
+    playAudioClick();
     state.isEraser = !state.isEraser;
     eraserBtn.classList.toggle('active', state.isEraser);
     if (!state.isEraser) {
@@ -3093,11 +3138,32 @@ function setupEventListeners() {
     }
   });
 
-  // Top Bar
-  undoBtn.addEventListener('click', undo);
-  clearBtn.addEventListener('click', clearCanvas);
-  standbyBtn.addEventListener('click', sendStandbyCommand);
-  sendBtn.addEventListener('click', sendToDisplay);
+  // Top Bar con Feedback Audio e Invio Istantaneo al 1° tocco (Zero doppio tap)
+  undoBtn.addEventListener('click', () => {
+    playAudioClick();
+    undo();
+  });
+  clearBtn.addEventListener('click', () => {
+    playAudioClick();
+    clearCanvas();
+  });
+  standbyBtn.addEventListener('click', () => {
+    playAudioClick();
+    sendStandbyCommand();
+  });
+
+  let lastSendTriggerTime = 0;
+  const triggerSendAction = (e) => {
+    if (e && e.cancelable && e.type === 'touchstart') e.preventDefault();
+    const now = Date.now();
+    if (now - lastSendTriggerTime < 500) return;
+    lastSendTriggerTime = now;
+    playAudioClick();
+    if (navigator.vibrate) try { navigator.vibrate(25); } catch(v) {}
+    sendToDisplay();
+  };
+  sendBtn.addEventListener('pointerdown', triggerSendAction);
+  sendBtn.addEventListener('click', triggerSendAction);
 
   // METEO: Invio automatico immediato + refresh
   weatherBtn.addEventListener('click', activateWeatherMode);
