@@ -14,7 +14,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 
   <!-- Stili Apple Design -->
-  <link rel="stylesheet" href="style.css?v=31">
+  <link rel="stylesheet" href="style.css?v=32">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
@@ -429,7 +429,8 @@
                   </div>
                   <div style="display:flex; gap:8px; margin-bottom:10px;">
                     <button type="button" class="pill-btn secondary mini" id="btnCancelOta" style="flex:1;">Chiudi</button>
-                    <button type="button" class="pill-btn primary mini" id="btnStartOta" style="flex:2;">Aggiorna Questo Pixò</button>
+                    <button type="button" class="pill-btn primary mini" id="btnStartOta" style="flex:1;">Aggiorna Singolo</button>
+                    <button type="button" class="pill-btn warning mini" id="btnStartGlobalOta" style="flex:1; background:linear-gradient(135deg, #ff9500, #ff3b30); color:#fff; border:none; font-weight:700;">Broadcast Flotta</button>
                   </div>
 
                 </div>
@@ -759,6 +760,6 @@
 
   </div>
 
-  <script src="app.js?v=31"></script>
+  <script src="app.js?v=32"></script>
 </body>
 </html>
