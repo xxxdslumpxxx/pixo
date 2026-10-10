@@ -36,9 +36,6 @@ const globalOtaUrl = document.getElementById('globalOtaUrl');
 const btnGlobalOta = document.getElementById('btnGlobalOta');
 const btnGlobalStandby = document.getElementById('btnGlobalStandby');
 const btnGlobalClock = document.getElementById('btnGlobalClock');
-const btnGlobalLightOn = document.getElementById('btnGlobalLightOn');
-const btnGlobalLightOff = document.getElementById('btnGlobalLightOff');
-const btnGlobalFlashLed = document.getElementById('btnGlobalFlashLed');
 
 const searchInput = document.getElementById('searchInput');
 const filterPills = document.querySelectorAll('.filter-pill');
@@ -104,7 +101,7 @@ if (btnDismissInstallModal) btnDismissInstallModal.onclick = () => installModal.
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=10', { scope: './' })
+    navigator.serviceWorker.register('./sw.js?v=20', { scope: './' })
       .then(reg => {
         console.log('[Commander SW] Registrato con successo:', reg.scope);
         reg.update();
@@ -471,9 +468,6 @@ function renderDashboard() {
       <div class="card-actions-grid">
         <button class="btn secondary mini" onclick="sendDeviceStandby('${dev.id}')">✨ Standby</button>
         <button class="btn secondary mini" onclick="sendDeviceClock('${dev.id}')">🕒 Orologio</button>
-        <button class="btn ${isLightOn ? 'success' : 'secondary'} mini" onclick="sendDeviceLight('${dev.id}', true)">💡 Luce ON</button>
-        <button class="btn secondary mini" onclick="sendDeviceLight('${dev.id}', false)">🌑 Luce OFF</button>
-        <button class="btn secondary mini" onclick="sendDeviceFlashLed('${dev.id}')">⚡ Flash (2s)</button>
         <button class="btn danger mini" onclick="sendDeviceOta('${dev.id}')">🚀 Aggiorna OTA</button>
       </div>
 
@@ -523,95 +517,7 @@ window.sendDeviceStandby = function(deviceId) {
   addLog('OUTBOUND', `Inviato CLEAR a [${deviceId}] (PIN: '${pin}')`);
 };
 
-// 2. CONTROLLO LUCE (ON / OFF CONTINUO)
-window.sendDeviceLight = function(deviceId, turnOn) {
-  if (!mqttClient || !mqttClient.connected) {
-    showToast('MQTT Cloud non connesso!', 'error');
-    return;
-  }
-  const pin = getDevicePin(deviceId);
-  const userPin = localStorage.getItem('pixo_device_pin') || '';
-  const cmd = turnOn ? "LIGHT:ON" : "LIGHT:OFF";
-  const numCmd = turnOn ? "100" : "0";
-  const basicCmd = turnOn ? "ON" : "OFF";
-  const brightnessVal = turnOn ? "100" : "20"; // 100% piena luce / 20% soffusa
-
-  // Raccogli tutti i PIN possibili per garantire la ricezione al 100%
-  const pinList = Array.from(new Set([pin, userPin, "1234", MASTER_KEY])).filter(Boolean);
-
-  // A. Controllo LED ausiliario (GPIO 5) su tutti i canali e PIN
-  pinList.forEach(p => {
-    mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, cmd, { qos: 0 });
-    mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, numCmd, { qos: 0 });
-    mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, `LED:${cmd}`, { qos: 0 });
-    mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, basicCmd, { qos: 0 });
-  });
-
-  // Topic generico pixo/device/<ID>/led (nessun PIN richiesto)
-  mqttClient.publish(`pixo/device/${deviceId}/led`, cmd, { qos: 0 });
-  mqttClient.publish(`pixo/device/${deviceId}/led`, numCmd, { qos: 0 });
-  mqttClient.publish(`pixo/device/${deviceId}/led`, `LED:${cmd}`, { qos: 0 });
-  mqttClient.publish(`pixo/device/${deviceId}/led`, basicCmd, { qos: 0 });
-
-  // B. Controllo Retroilluminazione Display ST7789 (TFT_BL GPIO 10)
-  mqttClient.publish(`pixo/device/${deviceId}/brightness`, brightnessVal, { qos: 0 });
-
-  if (devices[deviceId]) {
-    devices[deviceId].lightState = turnOn;
-  }
-  renderDashboard();
-
-  showToast(turnOn ? `Luce ACCESA su ${deviceId} 💡 (LED + Schermo 100%)` : `Luce SPENTA su ${deviceId} 🌑`, 'success');
-  addLog('OUTBOUND', `Comando Luce ${turnOn ? 'ON' : 'OFF'} inviato a [${deviceId}] (LED GPIO 5 + Schermo GPIO 10)`);
-};
-
-// 3. FLASH LUCE TEST (2 SECONDI)
-window.sendDeviceFlashLed = function(deviceId) {
-  if (!mqttClient || !mqttClient.connected) {
-    showToast('MQTT Cloud non connesso!', 'error');
-    return;
-  }
-  // Accendi LED e Schermo al 100%
-  sendDeviceLight(deviceId, true);
-
-  // Strobe / Lampeggio a impulsi visivi multipli per 2 secondi
-  setTimeout(() => {
-    if (mqttClient && mqttClient.connected) {
-      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "10", { qos: 0 });
-    }
-  }, 350);
-
-  setTimeout(() => {
-    if (mqttClient && mqttClient.connected) {
-      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "100", { qos: 0 });
-    }
-  }, 700);
-
-  setTimeout(() => {
-    if (mqttClient && mqttClient.connected) {
-      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "10", { qos: 0 });
-    }
-  }, 1050);
-
-  setTimeout(() => {
-    if (mqttClient && mqttClient.connected) {
-      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "100", { qos: 0 });
-    }
-  }, 1400);
-
-  // Fine test dopo 2.2 secondi: spegni LED e ripristina luminosità 50%
-  setTimeout(() => {
-    sendDeviceLight(deviceId, false);
-    if (mqttClient && mqttClient.connected) {
-      mqttClient.publish(`pixo/device/${deviceId}/brightness`, "50", { qos: 0 });
-    }
-    showToast(`Flash Test completato su ${deviceId} ⚡`, 'info');
-  }, 2200);
-
-  showToast(`⚡ Flash Test avviato su ${deviceId}!`, 'info');
-};
-
-// 4. OROLOGIO (CLOCK)
+// 2. OROLOGIO (CLOCK)
 window.sendDeviceClock = function(deviceId) {
   if (!mqttClient || !mqttClient.connected) {
     showToast('MQTT Cloud non connesso!', 'error');
@@ -701,27 +607,6 @@ btnGlobalClock.addEventListener('click', () => {
   if (ids.length === 0) return showToast('Nessun dispositivo rilevato!', 'info');
   ids.forEach(id => window.sendDeviceClock(id));
   showToast(`Orologio inviato a ${ids.length} dispositivi!`, 'success');
-});
-
-btnGlobalLightOn.addEventListener('click', () => {
-  const ids = Object.keys(devices);
-  if (ids.length === 0) return showToast('Nessun dispositivo rilevato!', 'info');
-  ids.forEach(id => window.sendDeviceLight(id, true));
-  showToast(`Luce ACCESA su tutta la flotta! 💡`, 'success');
-});
-
-btnGlobalLightOff.addEventListener('click', () => {
-  const ids = Object.keys(devices);
-  if (ids.length === 0) return showToast('Nessun dispositivo rilevato!', 'info');
-  ids.forEach(id => window.sendDeviceLight(id, false));
-  showToast(`Luce SPENTA su tutta la flotta! 🌑`, 'info');
-});
-
-btnGlobalFlashLed.addEventListener('click', () => {
-  const ids = Object.keys(devices);
-  if (ids.length === 0) return showToast('Nessun dispositivo rilevato!', 'info');
-  ids.forEach(id => window.sendDeviceFlashLed(id));
-  showToast(`Flash Test inviato a ${ids.length} dispositivi!`, 'success');
 });
 
 // --- RICERCA & FILTRI ---
