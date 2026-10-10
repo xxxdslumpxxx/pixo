@@ -2786,30 +2786,6 @@ function sendSystemNotification(title, body) {
   }
 }
 
-// Invia notifica Push a canale ntfy per risvegliare smartphone in Standby
-function triggerStandbyPushNotification(senderName) {
-  if (!state.deviceId) return;
-  const topic = `pixo-${state.deviceId.toLowerCase()}`;
-  const notifIcon = new URL('pixo_face.png', window.location.href).href;
-  const bodyText = senderName
-    ? `Nuovo messaggio o disegno ricevuto da ${senderName}! 🎨`
-    : (state.isGuestMode ? "Nuovo disegno ricevuto da un ospite! 🎨" : "Nuovo disegno appena arrivato su Pixò! 🎨");
-
-  fetch(`https://ntfy.sh/${topic}`, {
-    method: 'POST',
-    headers: {
-      'Title': 'Pixò 🎨',
-      'Priority': 'high',
-      'Tags': 'art,framed_picture',
-      'Icon': notifIcon,
-      'Click': window.location.href
-    },
-    body: bodyText
-  }).catch(err => {
-    console.warn('[PUSH] Notifica standby ntfy fallita:', err);
-  });
-}
-
 // ==========================================================================
 //  SINCRONIZZAZIONE STATO ATTUALE DISPLAY (MQTT Retained)
 // ==========================================================================
@@ -2960,10 +2936,6 @@ async function sendCanvasMqtt() {
       state.userHasDrawnLocally = false;
       lastLocalSendTime = Date.now();
       state.lastDisplayPayload = uint8Array;
-
-      // Invia notifica Push immediata sul canale Standby (ntfy)
-      const senderName = state.isGuestMode ? (state.guestName || "Ospite") : (state.deviceName || "Proprietario");
-      triggerStandbyPushNotification(senderName);
 
       const elapsed = Math.round(performance.now() - sendStart);
       const kb = (uint8Array.length / 1024).toFixed(1);
@@ -3283,49 +3255,6 @@ function setupEventListeners() {
     photoInputGallery.addEventListener('change', (e) => {
       handleIncomingPhotoFile(e.target.files?.[0]);
       photoInputGallery.value = '';
-    });
-  }
-
-  // Modale Notifiche Standby (ntfy)
-  const standbyNotifModal = document.getElementById('standbyNotifModal');
-  const btnOpenStandbySetup = document.getElementById('btnOpenStandbySetup');
-  const closeStandbyNotifBtn = document.getElementById('closeStandbyNotifBtn');
-  const closeStandbyNotifBackdrop = document.getElementById('closeStandbyNotifBackdrop');
-  const standbyChannelBadge = document.getElementById('standbyChannelBadge');
-  const btnOpenWebPushSub = document.getElementById('btnOpenWebPushSub');
-  const btnOpenNtfyApp = document.getElementById('btnOpenNtfyApp');
-
-  const updateStandbyChannelUI = () => {
-    const ch = 'pixo-' + (state.deviceId ? state.deviceId.toLowerCase() : 'demo');
-    if (standbyChannelBadge) standbyChannelBadge.textContent = ch;
-  };
-
-  if (btnOpenStandbySetup && standbyNotifModal) {
-    btnOpenStandbySetup.addEventListener('click', () => {
-      updateStandbyChannelUI();
-      standbyNotifModal.classList.remove('hidden');
-    });
-  }
-  if (closeStandbyNotifBtn && standbyNotifModal) {
-    closeStandbyNotifBtn.addEventListener('click', () => {
-      standbyNotifModal.classList.add('hidden');
-    });
-  }
-  if (closeStandbyNotifBackdrop && standbyNotifModal) {
-    closeStandbyNotifBackdrop.addEventListener('click', () => {
-      standbyNotifModal.classList.add('hidden');
-    });
-  }
-  if (btnOpenWebPushSub) {
-    btnOpenWebPushSub.addEventListener('click', () => {
-      const topic = 'pixo-' + (state.deviceId ? state.deviceId.toLowerCase() : 'demo');
-      window.open(`https://ntfy.sh/${topic}`, '_blank');
-    });
-  }
-  if (btnOpenNtfyApp) {
-    btnOpenNtfyApp.addEventListener('click', () => {
-      const topic = 'pixo-' + (state.deviceId ? state.deviceId.toLowerCase() : 'demo');
-      window.open(`https://ntfy.sh/${topic}`, '_blank');
     });
   }
 
