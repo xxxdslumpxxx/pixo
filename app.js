@@ -97,6 +97,10 @@ const TRANSLATIONS = {
     feedWeatherActive: "🌦️ Meteo attivo ({city}) • Aggiornamento automatico ogni 15 min",
     feedNewsActive: "📰 Notizia {current} di {total} su Pixò (prossima tra 15s)...",
     feedClockActive: "⏰ Orologio Digitale attivo sul Display (Nativo)",
+    feedFollowerActive: "📊 Follower {platform} ({user}): {count} • Aggiornamento ogni {interval}s",
+    follower: "Follower",
+    followerTitle: "Contatore Follower Live",
+    toastFollowerSent: "Contatore Follower avviato su Pixò!",
     feedStopped: "Modalità automatica fermata"
   },
   en: {
@@ -169,6 +173,10 @@ const TRANSLATIONS = {
     feedWeatherActive: "🌦️ Weather active ({city}) • Auto-refresh every 15 min",
     feedNewsActive: "📰 Story {current} of {total} on Pixò (next in 15s)...",
     feedClockActive: "⏰ Digital Clock active on Display (Native)",
+    feedFollowerActive: "📊 {platform} Followers ({user}): {count} • Auto-refresh every {interval}s",
+    follower: "Followers",
+    followerTitle: "Live Follower Counter",
+    toastFollowerSent: "Follower Counter started on Pixò!",
     feedStopped: "Mode stopped"
   }
 };
@@ -203,9 +211,15 @@ const state = {
     color: '#ffffff'
   },
 
-  // Gestione Feed Automatici (Meteo & Orologio)
-  activeFeedType: null, // "weather" o "clock"
+  // Gestione Feed Automatici (Meteo, Orologio & Follower)
+  activeFeedType: null, // "weather", "clock" o "follower"
   feedTimer: null,
+  followerPlatform: localStorage.getItem('pixo_follower_platform') || 'tiktok',
+  followerUsername: localStorage.getItem('pixo_follower_user') || '',
+  followerInterval: parseInt(localStorage.getItem('pixo_follower_interval') || '30', 10),
+  followerMode: 'live',
+  followerCount: 0,
+  followerTarget: 0,
 
   // Modalità Ospite & Condivisione
   isGuestMode: false,
@@ -293,9 +307,27 @@ const photoInputGallery = document.getElementById('photoInputGallery');
 const weatherBtn = document.getElementById('weatherBtn');
 const clockBtn = document.getElementById('clockBtn');
 const lightToggleBtn = document.getElementById('lightToggleBtn');
+const followerBtn = document.getElementById('followerBtn');
 const saveCanvasBtn = document.getElementById('saveCanvasBtn');
 const galleryBtn = document.getElementById('galleryBtn');
 const shareBtn = document.getElementById('shareBtn');
+
+// Modale & Contatore Follower Live
+const followerModal = document.getElementById('followerModal');
+const closeFollowerModal = document.getElementById('closeFollowerModal');
+const closeFollowerBackdrop = document.getElementById('closeFollowerBackdrop');
+const startFollowerBtn = document.getElementById('startFollowerBtn');
+const followerUsernameInput = document.getElementById('followerUsernameInput');
+const followerUsernameLabel = document.getElementById('followerUsernameLabel');
+const followerPrefix = document.getElementById('followerPrefix');
+const followerIntervalSelect = document.getElementById('followerIntervalSelect');
+const followerModeSelect = document.getElementById('followerModeSelect');
+const followerInitialInput = document.getElementById('followerInitialInput');
+const followerInitialGroup = document.getElementById('followerInitialGroup');
+const feedPlusOneBtn = document.getElementById('feedPlusOneBtn');
+const socialCardTikTok = document.getElementById('socialCardTikTok');
+const socialCardInstagram = document.getElementById('socialCardInstagram');
+const socialCardYouTube = document.getElementById('socialCardYouTube');
 
 // Modali & Drawers
 const settingsModal = document.getElementById('settingsModal');
@@ -611,10 +643,11 @@ function updateSettingsUI() {
     if (factoryResetSection) factoryResetSection.style.display = 'none';
     if (wifiManagementSection) wifiManagementSection.style.display = 'none';
 
-    // Agli ospiti nascondiamo i controlli hardware (Luce stanza, Feed meteo/orologio)
+    // Agli ospiti nascondiamo i controlli hardware (Luce stanza, Feed meteo/orologio/follower)
     if (lightToggleBtn) lightToggleBtn.style.display = 'none';
     if (weatherBtn) weatherBtn.style.display = 'none';
     if (clockBtn) clockBtn.style.display = 'none';
+    if (followerBtn) followerBtn.style.display = 'none';
     
     // Per gli ospiti mostriamo la tab come "Opzioni" per gestire notifiche e lingua
     const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
@@ -647,6 +680,7 @@ function updateSettingsUI() {
     if (lightToggleBtn) lightToggleBtn.style.display = '';
     if (weatherBtn) weatherBtn.style.display = '';
     if (clockBtn) clockBtn.style.display = '';
+    if (followerBtn) followerBtn.style.display = '';
 
     // Per il proprietario mostra la tab come "Dispositivo"
     const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
@@ -1500,6 +1534,9 @@ function stopAutomaticFeed() {
     clearInterval(state.feedTimer);
     state.feedTimer = null;
   }
+  if (feedPlusOneBtn) {
+    feedPlusOneBtn.style.display = 'none';
+  }
   if (state.activeFeedType) {
     state.activeFeedType = null;
     feedBanner.classList.add('hidden');
@@ -1632,6 +1669,561 @@ async function sendClockCommand() {
     state.lastDisplayPayload = null;
     state.userHasDrawnLocally = false;
     console.log("[MQTT] Comando CLOCK inviato a Pixò!");
+  }
+}
+
+// ==========================================================================
+//  7b2. CONTATORE FOLLOWER MULTI-SOCIAL (TIKTOK, INSTAGRAM, YOUTUBE)
+//       CON TESSERE SPLIT-FLAP RETRO ANIMATE A 240x240 PX
+// ==========================================================================
+function drawTikTokGlyph(targetCtx, cx, cy, scale) {
+  targetCtx.save();
+  targetCtx.translate(cx, cy);
+  targetCtx.scale(scale, scale);
+  targetCtx.beginPath();
+  targetCtx.arc(-2, 5, 5, 0, Math.PI * 2);
+  targetCtx.fill();
+  targetCtx.fillRect(1, -9, 3, 14);
+  targetCtx.beginPath();
+  targetCtx.moveTo(4, -9);
+  targetCtx.bezierCurveTo(7, -9, 10, -5, 11, -3);
+  targetCtx.lineTo(11, 0);
+  targetCtx.bezierCurveTo(8, -1, 4, -4, 4, -5);
+  targetCtx.closePath();
+  targetCtx.fill();
+  targetCtx.restore();
+}
+
+function drawInstagramGlyph(targetCtx, cx, cy, size) {
+  targetCtx.save();
+  targetCtx.translate(cx - size / 2, cy - size / 2);
+  targetCtx.lineWidth = Math.max(1.5, size * 0.1);
+  targetCtx.strokeStyle = "#ffffff";
+  const r = size * 0.28;
+  targetCtx.beginPath();
+  targetCtx.moveTo(r, 0);
+  targetCtx.lineTo(size - r, 0);
+  targetCtx.quadraticCurveTo(size, 0, size, r);
+  targetCtx.lineTo(size, size - r);
+  targetCtx.quadraticCurveTo(size, size, size - r, size);
+  targetCtx.lineTo(r, size);
+  targetCtx.quadraticCurveTo(0, size, 0, size - r);
+  targetCtx.lineTo(0, r);
+  targetCtx.quadraticCurveTo(0, 0, r, 0);
+  targetCtx.closePath();
+  targetCtx.stroke();
+  targetCtx.beginPath();
+  targetCtx.arc(size / 2, size / 2, size * 0.26, 0, Math.PI * 2);
+  targetCtx.stroke();
+  targetCtx.fillStyle = "#ffffff";
+  targetCtx.beginPath();
+  targetCtx.arc(size * 0.76, size * 0.24, size * 0.07, 0, Math.PI * 2);
+  targetCtx.fill();
+  targetCtx.restore();
+}
+
+function drawYouTubeGlyph(targetCtx, cx, cy, w, h) {
+  targetCtx.save();
+  targetCtx.fillStyle = "#ff0000";
+  const r = 4;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  targetCtx.beginPath();
+  targetCtx.moveTo(x + r, y);
+  targetCtx.lineTo(x + w - r, y);
+  targetCtx.quadraticCurveTo(x + w, y, x + w, y + r);
+  targetCtx.lineTo(x + w, y + h - r);
+  targetCtx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  targetCtx.lineTo(x + r, y + h);
+  targetCtx.quadraticCurveTo(x, y + h, x, y + h - r);
+  targetCtx.lineTo(x, y + r);
+  targetCtx.quadraticCurveTo(x, y, x + r, y);
+  targetCtx.closePath();
+  targetCtx.fill();
+  targetCtx.fillStyle = "#ffffff";
+  targetCtx.beginPath();
+  const triH = h * 0.52;
+  const triW = w * 0.36;
+  targetCtx.moveTo(cx - triW / 2 + 1, cy - triH / 2);
+  targetCtx.lineTo(cx + triW / 2 + 1, cy);
+  targetCtx.lineTo(cx - triW / 2 + 1, cy + triH / 2);
+  targetCtx.closePath();
+  targetCtx.fill();
+  targetCtx.restore();
+}
+
+function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress) {
+  const halfH = h / 2;
+  const r = 4;
+
+  function drawRoundedRectPath(ctxRef, rx, ry, rw, rh, radius) {
+    ctxRef.beginPath();
+    ctxRef.moveTo(rx + radius, ry);
+    ctxRef.lineTo(rx + rw - radius, ry);
+    ctxRef.quadraticCurveTo(rx + rw, ry, rx + rw, ry + radius);
+    ctxRef.lineTo(rx + rw, ry + rh - radius);
+    ctxRef.quadraticCurveTo(rx + rw, ry + rh, rx + rw - radius, ry + rh);
+    ctxRef.lineTo(rx + radius, ry + rh);
+    ctxRef.quadraticCurveTo(rx, ry + rh, rx, ry + rh - radius);
+    ctxRef.lineTo(rx, ry + radius);
+    ctxRef.quadraticCurveTo(rx, ry, rx + radius, ry);
+    ctxRef.closePath();
+  }
+
+  targetCtx.save();
+
+  // 1. Base card shadow / border
+  drawRoundedRectPath(targetCtx, x, y, w, h, r);
+  targetCtx.fillStyle = "#15161c";
+  targetCtx.fill();
+  targetCtx.strokeStyle = "#2e313b";
+  targetCtx.lineWidth = 1;
+  targetCtx.stroke();
+
+  // 2. Metà superiore FISSA
+  targetCtx.save();
+  targetCtx.beginPath();
+  targetCtx.rect(x, y, w, halfH);
+  targetCtx.clip();
+
+  const gradTop = targetCtx.createLinearGradient(x, y, x, y + halfH);
+  gradTop.addColorStop(0, "#292c36");
+  gradTop.addColorStop(1, "#1c1e26");
+  targetCtx.fillStyle = gradTop;
+  targetCtx.fillRect(x, y, w, halfH);
+
+  targetCtx.font = "bold 38px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
+  targetCtx.fillStyle = "#f5f6f8";
+  targetCtx.textAlign = "center";
+  targetCtx.textBaseline = "middle";
+  targetCtx.fillText(progress > 0 ? targChar : currChar, x + w / 2, y + halfH);
+  targetCtx.restore();
+
+  // 3. Metà inferiore FISSA
+  targetCtx.save();
+  targetCtx.beginPath();
+  targetCtx.rect(x, y + halfH, w, halfH);
+  targetCtx.clip();
+
+  const gradBot = targetCtx.createLinearGradient(x, y + halfH, x, y + h);
+  gradBot.addColorStop(0, "#16171e");
+  gradBot.addColorStop(1, "#0d0e12");
+  targetCtx.fillStyle = gradBot;
+  targetCtx.fillRect(x, y + halfH, w, halfH);
+
+  targetCtx.font = "bold 38px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
+  targetCtx.fillStyle = "#f5f6f8";
+  targetCtx.textAlign = "center";
+  targetCtx.textBaseline = "middle";
+  targetCtx.fillText(progress >= 0.5 ? targChar : currChar, x + w / 2, y + halfH);
+  targetCtx.restore();
+
+  // 4. ANIMAZIONE SPLIT-FLAP (Rotazione prospettica della linguetta a 30-60 fps)
+  if (progress > 0 && progress < 1) {
+    if (progress < 0.5) {
+      const scaleY = Math.cos(progress * Math.PI);
+      targetCtx.save();
+      targetCtx.beginPath();
+      targetCtx.rect(x, y, w, halfH);
+      targetCtx.clip();
+
+      targetCtx.translate(x + w / 2, y + halfH);
+      targetCtx.scale(1, Math.max(0.02, scaleY));
+      targetCtx.translate(-(x + w / 2), -(y + halfH));
+
+      const gradFoldTop = targetCtx.createLinearGradient(x, y, x, y + halfH);
+      gradFoldTop.addColorStop(0, "#2c2f3b");
+      gradFoldTop.addColorStop(1, "#1c1e26");
+      targetCtx.fillStyle = gradFoldTop;
+      targetCtx.fillRect(x, y, w, halfH);
+
+      targetCtx.font = "bold 38px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
+      targetCtx.fillStyle = "#f5f6f8";
+      targetCtx.textAlign = "center";
+      targetCtx.textBaseline = "middle";
+      targetCtx.fillText(currChar, x + w / 2, y + halfH);
+
+      targetCtx.fillStyle = `rgba(0, 0, 0, ${progress * 1.5})`;
+      targetCtx.fillRect(x, y, w, halfH);
+      targetCtx.restore();
+    } else {
+      const scaleY = Math.sin((progress - 0.5) * Math.PI);
+      targetCtx.save();
+      targetCtx.beginPath();
+      targetCtx.rect(x, y + halfH, w, halfH);
+      targetCtx.clip();
+
+      targetCtx.translate(x + w / 2, y + halfH);
+      targetCtx.scale(1, Math.max(0.02, scaleY));
+      targetCtx.translate(-(x + w / 2), -(y + halfH));
+
+      const gradFoldBot = targetCtx.createLinearGradient(x, y + halfH, x, y + h);
+      gradFoldBot.addColorStop(0, "#1a1b22");
+      gradFoldBot.addColorStop(1, "#0f1015");
+      targetCtx.fillStyle = gradFoldBot;
+      targetCtx.fillRect(x, y + halfH, w, halfH);
+
+      targetCtx.font = "bold 38px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
+      targetCtx.fillStyle = "#f5f6f8";
+      targetCtx.textAlign = "center";
+      targetCtx.textBaseline = "middle";
+      targetCtx.fillText(targChar, x + w / 2, y + halfH);
+
+      targetCtx.fillStyle = `rgba(0, 0, 0, ${(1 - progress) * 1.5})`;
+      targetCtx.fillRect(x, y + halfH, w, halfH);
+      targetCtx.restore();
+    }
+  }
+
+  // 5. Cerniera meccanica centrale
+  targetCtx.fillStyle = "#0a0a0d";
+  targetCtx.fillRect(x - 1, y + halfH - 1, w + 2, 2);
+
+  targetCtx.fillStyle = "#3e4250";
+  targetCtx.fillRect(x - 2, y + halfH - 2, 2, 4);
+  targetCtx.fillRect(x + w, y + halfH - 2, 2, 4);
+
+  targetCtx.restore();
+}
+
+function renderSplitFlapCanvas(platform, username, currentCount, targetCount, flipFraction = 0) {
+  const displayUser = (username || "PIXO").replace(/^@+/, '').toUpperCase();
+
+  // 1. Sfondo base in base alla piattaforma
+  if (platform === 'tiktok') {
+    ctx.fillStyle = "#07080a";
+    ctx.fillRect(0, 0, 240, 240);
+
+    // Accenti Ciano e Magenta
+    ctx.fillStyle = "#00f2fe";
+    ctx.fillRect(0, 0, 120, 3);
+    ctx.fillStyle = "#fe2c55";
+    ctx.fillRect(120, 0, 120, 3);
+
+    // Icona Glitch TikTok
+    ctx.save();
+    ctx.fillStyle = "#00f2fe";
+    drawTikTokGlyph(ctx, 32, 23, 0.75);
+    ctx.fillStyle = "#fe2c55";
+    drawTikTokGlyph(ctx, 34, 25, 0.75);
+    ctx.fillStyle = "#ffffff";
+    drawTikTokGlyph(ctx, 33, 24, 0.75);
+    ctx.restore();
+
+    ctx.font = "bold 13px -apple-system, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`@${displayUser}`, 52, 25);
+
+    ctx.font = "bold 9px -apple-system, sans-serif";
+    ctx.fillStyle = "#fe2c55";
+    ctx.textAlign = "center";
+    ctx.fillText("TIKTOK LIVE", 120, 68);
+
+  } else if (platform === 'instagram') {
+    ctx.fillStyle = "#09060c";
+    ctx.fillRect(0, 0, 240, 240);
+
+    const igGrad = ctx.createLinearGradient(0, 0, 240, 0);
+    igGrad.addColorStop(0, "#f09433");
+    igGrad.addColorStop(0.5, "#dc2743");
+    igGrad.addColorStop(1, "#bc1888");
+    ctx.fillStyle = igGrad;
+    ctx.fillRect(0, 0, 240, 3);
+
+    drawInstagramGlyph(ctx, 32, 25, 20);
+
+    ctx.font = "bold 13px -apple-system, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`@${displayUser}`, 52, 25);
+
+    ctx.font = "bold 9px -apple-system, sans-serif";
+    ctx.fillStyle = "#e6683c";
+    ctx.textAlign = "center";
+    ctx.fillText("INSTAGRAM FOLLOWERS", 120, 68);
+
+  } else { // youtube
+    ctx.fillStyle = "#090506";
+    ctx.fillRect(0, 0, 240, 240);
+
+    ctx.fillStyle = "#ff0000";
+    ctx.fillRect(0, 0, 240, 3);
+
+    drawYouTubeGlyph(ctx, 32, 25, 24, 17);
+
+    ctx.font = "bold 13px -apple-system, sans-serif";
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText(displayUser, 52, 25);
+
+    ctx.font = "bold 9px -apple-system, sans-serif";
+    ctx.fillStyle = "#ff3b30";
+    ctx.textAlign = "center";
+    ctx.fillText("YOUTUBE SUBSCRIBERS", 120, 68);
+  }
+
+  // 2. Disegno 6 Tessere Split-Flap
+  const currStr = String(Math.max(0, Math.floor(currentCount))).padStart(6, ' ');
+  const targStr = String(Math.max(0, Math.floor(targetCount))).padStart(6, ' ');
+
+  const tileW = 32;
+  const tileH = 64;
+  const gap = 5;
+  const totalW = 6 * tileW + 5 * gap; // 217px
+  const startX = Math.round((240 - totalW) / 2); // ~12px
+  const tileY = 86;
+
+  // Cornice retro del blocco tessere
+  ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
+  ctx.fillRect(startX - 6, tileY - 6, totalW + 12, tileH + 12);
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.lineWidth = 1;
+  ctx.strokeRect(startX - 6, tileY - 6, totalW + 12, tileH + 12);
+
+  for (let i = 0; i < 6; i++) {
+    const x = startX + i * (tileW + gap);
+    const currChar = currStr[i] || ' ';
+    const targChar = targStr[i] || ' ';
+    const isFlipping = (currChar !== targChar);
+    const progress = isFlipping ? flipFraction : 0;
+
+    drawSingleSplitFlap(ctx, x, tileY, tileW, tileH, currChar, targChar, progress);
+  }
+
+  // 3. Barra di stato inferiore
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(14, 182);
+  ctx.lineTo(226, 182);
+  ctx.stroke();
+
+  const dotColor = platform === 'tiktok' ? "#00f2fe" : (platform === 'youtube' ? "#ff3b30" : "#34c759");
+  ctx.fillStyle = dotColor;
+  ctx.beginPath();
+  ctx.arc(32, 210, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.font = "bold 11px -apple-system, sans-serif";
+  ctx.fillStyle = "#8e95a5";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  const intervalSec = state.followerInterval || 30;
+  ctx.fillText(`LIVE • OGNI ${intervalSec}s`, 44, 210);
+
+  ctx.font = "bold 13px monospace";
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "right";
+  const formattedNum = Number(targetCount || currentCount || 0).toLocaleString('it-IT');
+  ctx.fillText(formattedNum, 226, 210);
+
+  saveState();
+  updatePayloadPreview();
+}
+
+async function fetchSocialFollowerCount(platform, username) {
+  const clean = (username || "").replace(/^@+/, '').trim();
+  if (!clean) return 0;
+
+  if (state.followerMode === 'test') {
+    if (state.followerCount <= 0) {
+      state.followerCount = parseInt(followerInitialInput.value, 10) || 1420;
+    }
+    return state.followerCount;
+  }
+
+  try {
+    if (platform === 'tiktok') {
+      const res = await fetch(`https://countik.com/api/exist/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(6000) });
+      if (res.ok) {
+        const d = await res.json();
+        if (d && d.sec_uid) {
+          const detailRes = await fetch(`https://countik.com/api/user/detail/${d.sec_uid}`, { signal: AbortSignal.timeout(6000) });
+          if (detailRes.ok) {
+            const detail = await detailRes.json();
+            if (detail && typeof detail.follower_count === 'number') {
+              return detail.follower_count;
+            }
+          }
+        }
+      }
+      const resB = await fetch(`https://tokcount.com/api/user/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(6000) });
+      if (resB.ok) {
+        const dB = await resB.json();
+        if (dB && typeof dB.follower_count === 'number') {
+          return dB.follower_count;
+        }
+      }
+    } else if (platform === 'youtube') {
+      const res = await fetch(`https://mixerno.space/api/youtube-channel-counter/user/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(6000) });
+      if (res.ok) {
+        const d = await res.json();
+        if (d && d.counts && typeof d.counts[0]?.count === 'number') {
+          return d.counts[0].count;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[FOLLOWER] Errore fetch online per", platform, clean, err);
+  }
+
+  if (state.followerCount > 0) return state.followerCount;
+  return parseInt(followerInitialInput.value, 10) || 1420;
+}
+
+function triggerFollowerFlip(oldCount, newCount, onComplete) {
+  const duration = 520;
+  const startT = performance.now();
+  playAudioClick();
+
+  function loop(now) {
+    const elapsed = now - startT;
+    const progress = Math.min(1, elapsed / duration);
+    const ease = progress < 0.5 
+      ? 2 * progress * progress 
+      : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+    renderSplitFlapCanvas(state.followerPlatform, state.followerUsername, oldCount, newCount, ease);
+
+    if (progress < 1) {
+      requestAnimationFrame(loop);
+    } else {
+      renderSplitFlapCanvas(state.followerPlatform, state.followerUsername, newCount, newCount, 0);
+      if (onComplete) onComplete();
+    }
+  }
+  requestAnimationFrame(loop);
+}
+
+async function activateFollowerMode() {
+  stopAutomaticFeed();
+  state.activeFeedType = "follower";
+  await connectMQTT();
+
+  const plat = state.followerPlatform || 'tiktok';
+  const user = (followerUsernameInput.value || state.followerUsername || "pixo").trim();
+  state.followerUsername = user;
+  state.followerInterval = parseInt(followerIntervalSelect.value, 10) || 30;
+  state.followerMode = followerModeSelect.value || 'live';
+
+  localStorage.setItem('pixo_follower_platform', plat);
+  localStorage.setItem('pixo_follower_user', user);
+  localStorage.setItem('pixo_follower_interval', String(state.followerInterval));
+
+  let count = await fetchSocialFollowerCount(plat, user);
+  state.followerCount = count;
+  state.followerTarget = count;
+
+  renderSplitFlapCanvas(plat, user, count, count, 0);
+  await sendCanvasMqtt(false);
+
+  if (feedPlusOneBtn) feedPlusOneBtn.style.display = '';
+
+  const platName = plat === 'tiktok' ? "TikTok" : (plat === 'instagram' ? "Instagram" : "YouTube");
+  feedStatusText.textContent = t("feedFollowerActive", {
+    platform: platName,
+    user: `@${user.replace(/^@+/, '')}`,
+    count: count.toLocaleString('it-IT'),
+    interval: state.followerInterval
+  });
+  feedBanner.classList.remove('hidden');
+  showToast(t("toastFollowerSent"), "success");
+
+  state.feedTimer = setInterval(async () => {
+    if (state.activeFeedType !== "follower") return;
+
+    if (state.followerMode === 'test') {
+      state.followerTarget = state.followerCount + 1;
+    } else {
+      const newCount = await fetchSocialFollowerCount(state.followerPlatform, state.followerUsername);
+      if (newCount > 0) {
+        state.followerTarget = newCount;
+      }
+    }
+
+    if (state.followerTarget !== state.followerCount) {
+      const oldVal = state.followerCount;
+      const newVal = state.followerTarget;
+      state.followerCount = newVal;
+
+      triggerFollowerFlip(oldVal, newVal, async () => {
+        await sendCanvasMqtt(false);
+        feedStatusText.textContent = t("feedFollowerActive", {
+          platform: platName,
+          user: `@${user.replace(/^@+/, '')}`,
+          count: newVal.toLocaleString('it-IT'),
+          interval: state.followerInterval
+        });
+      });
+    }
+  }, state.followerInterval * 1000);
+}
+
+function incrementFollowerManually(amount = 1) {
+  if (state.activeFeedType !== 'follower') return;
+  const oldVal = state.followerCount;
+  const newVal = oldVal + amount;
+  state.followerCount = newVal;
+  state.followerTarget = newVal;
+
+  triggerFollowerFlip(oldVal, newVal, async () => {
+    await sendCanvasMqtt(false);
+    const platName = state.followerPlatform === 'tiktok' ? "TikTok" : (state.followerPlatform === 'instagram' ? "Instagram" : "YouTube");
+    feedStatusText.textContent = t("feedFollowerActive", {
+      platform: platName,
+      user: `@${(state.followerUsername || '').replace(/^@+/, '')}`,
+      count: newVal.toLocaleString('it-IT'),
+      interval: state.followerInterval
+    });
+  });
+}
+
+function openFollowerModal() {
+  if (followerUsernameInput) {
+    followerUsernameInput.value = state.followerUsername || "";
+  }
+  if (followerIntervalSelect) {
+    followerIntervalSelect.value = String(state.followerInterval || 30);
+  }
+  updateFollowerModalUI();
+  if (followerModal) {
+    followerModal.classList.remove('hidden');
+  }
+}
+
+function closeFollowerModalSheet() {
+  if (followerModal) {
+    followerModal.classList.add('hidden');
+  }
+}
+
+function updateFollowerModalUI() {
+  const plat = state.followerPlatform || 'tiktok';
+  [socialCardTikTok, socialCardInstagram, socialCardYouTube].forEach(card => {
+    if (card) {
+      if (card.dataset.platform === plat) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
+    }
+  });
+
+  if (followerUsernameLabel) {
+    if (plat === 'tiktok') {
+      followerUsernameLabel.textContent = "Nome Utente TikTok:";
+      if (followerPrefix) followerPrefix.textContent = "@";
+    } else if (plat === 'instagram') {
+      followerUsernameLabel.textContent = "Nome Utente Instagram:";
+      if (followerPrefix) followerPrefix.textContent = "@";
+    } else {
+      followerUsernameLabel.textContent = "Nome Canale YouTube:";
+      if (followerPrefix) followerPrefix.textContent = "@";
+    }
   }
 }
 
@@ -3175,6 +3767,53 @@ function setupEventListeners() {
   const lightToggleBtn = document.getElementById('lightToggleBtn');
   if (lightToggleBtn) {
     lightToggleBtn.addEventListener('click', toggleContinuousLight);
+  }
+
+  // CONTATORE FOLLOWER MULTI-SOCIAL (TikTok, Instagram, YouTube)
+  if (followerBtn) {
+    followerBtn.addEventListener('click', () => {
+      playAudioClick();
+      openFollowerModal();
+    });
+  }
+
+  if (closeFollowerModal) closeFollowerModal.addEventListener('click', closeFollowerModalSheet);
+  if (closeFollowerBackdrop) closeFollowerBackdrop.addEventListener('click', closeFollowerModalSheet);
+
+  [socialCardTikTok, socialCardInstagram, socialCardYouTube].forEach(card => {
+    if (card) {
+      card.addEventListener('click', () => {
+        playAudioClick();
+        state.followerPlatform = card.dataset.platform;
+        updateFollowerModalUI();
+      });
+    }
+  });
+
+  if (followerModeSelect) {
+    followerModeSelect.addEventListener('change', () => {
+      if (followerInitialGroup) {
+        if (followerModeSelect.value === 'test') {
+          followerInitialGroup.classList.remove('hidden');
+        } else {
+          followerInitialGroup.classList.add('hidden');
+        }
+      }
+    });
+  }
+
+  if (startFollowerBtn) {
+    startFollowerBtn.addEventListener('click', () => {
+      playAudioClick();
+      closeFollowerModalSheet();
+      activateFollowerMode();
+    });
+  }
+
+  if (feedPlusOneBtn) {
+    feedPlusOneBtn.addEventListener('click', () => {
+      incrementFollowerManually(1);
+    });
   }
 
   // SALVATAGGIO & GALLERIA DISEGNI (Drawer da Crea & Feed)
