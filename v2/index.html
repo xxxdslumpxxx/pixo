@@ -405,10 +405,6 @@
                     <button type="button" class="pill-btn primary mini" id="btnStartOta" style="flex:2;">Aggiorna Questo Pixò</button>
                   </div>
 
-                  <!-- Sezione Riservata Amministratore (Master Broadcast) -->
-                  <div style="padding-top:8px; border-top:1px dashed var(--glass-border);">
-                    <button type="button" class="pill-btn danger mini full" id="btnBroadcastOta" style="font-size:0.78rem;">🚀 Forza Aggiornamento su TUTTI i Pixò (Master)</button>
-                  </div>
                 </div>
               </div>
 
@@ -421,66 +417,6 @@
                 <button class="pill-btn danger" id="factoryResetBtn">Ripristina</button>
               </div>
 
-              <!-- Accesso Rapido Admin Console -->
-              <div class="setting-item" id="adminConsoleEntry" style="margin-top:10px; padding:12px; border:1px solid rgba(255,159,10,0.3); border-radius:var(--radius-md); background:rgba(255,159,10,0.06);">
-                <div class="setting-info">
-                  <strong style="color:#ff9f0a; display:flex; align-items:center; gap:6px;">
-                    🛡️ Console Amministratore Flotta
-                  </strong>
-                  <small>Monitora tutti i Pixò online, telemetria e broadcast OTA</small>
-                </div>
-                <button type="button" class="pill-btn secondary mini" id="btnOpenAdminConsole">Accedi</button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- TAB 5: ADMIN FLEET MANAGEMENT -->
-        <div class="tab-panel" id="panelAdmin">
-          <div class="panel-card glass">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-              <h4 class="card-title" style="margin:0; display:flex; align-items:center; gap:8px;">
-                <span>🛰️ Dashboard Flotta Pixò</span>
-                <span class="admin-badge">Admin</span>
-              </h4>
-              <button class="pill-btn secondary mini" id="btnRefreshFleet">Aggiorna</button>
-            </div>
-
-            <!-- Statistiche Flotta -->
-            <div class="fleet-stat-grid">
-              <div class="fleet-stat-card">
-                <span class="fleet-stat-num" id="fleetTotalCount">0</span>
-                <span class="fleet-stat-label">Dispositivi</span>
-              </div>
-              <div class="fleet-stat-card">
-                <span class="fleet-stat-num" id="fleetOnlineCount" style="color:var(--accent-green);">0</span>
-                <span class="fleet-stat-label">Online</span>
-              </div>
-              <div class="fleet-stat-card">
-                <span class="fleet-stat-num" id="fleetOfflineCount" style="color:var(--accent-red);">0</span>
-                <span class="fleet-stat-label">Offline</span>
-              </div>
-            </div>
-
-            <!-- Azioni Globali Flotta -->
-            <div style="background:rgba(255,255,255,0.03); border:1px solid var(--glass-border); border-radius:var(--radius-md); padding:10px 12px; margin-bottom:12px;">
-              <small style="color:var(--text-secondary); display:block; margin-bottom:6px; font-weight:600;">AZIONI MASTER SU TUTTA LA FLOTTA</small>
-              <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                <button type="button" class="pill-btn danger mini" id="btnFleetBroadcastOta" style="flex:1;">🚀 Master OTA Update</button>
-                <button type="button" class="pill-btn secondary mini" id="btnFleetClearAll" style="flex:1;">✨ Standby Tutti</button>
-              </div>
-            </div>
-
-            <!-- Lista Dispositivi Rilevati -->
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <strong style="font-size:0.85rem; color:#fff;">Dispositivi Conosciuti & Attivi</strong>
-              <small id="fleetLastScanTime" style="color:var(--text-secondary); font-size:0.72rem;">Scansione in corso...</small>
-            </div>
-            <div id="fleetDevicesList">
-              <!-- Riempito dinamicamente da app.js -->
-            </div>
-          </div>
-        </div>
 
       </section>
 
@@ -510,10 +446,6 @@
           <span>Dispositivo</span>
         </button>
 
-        <button class="tab-item" data-tab="panelAdmin" id="adminTabBtn" style="display:none;">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>Flotta</span>
-        </button>
       </nav>
     </footer>
 
