@@ -3185,9 +3185,6 @@ function setupEventListeners() {
     btnStartOta.addEventListener('click', handleStartOta);
   }
 
-  if (btnBroadcastOta) {
-    btnBroadcastOta.addEventListener('click', handleBroadcastOta);
-  }
 
   // Gestione Chiusura Onboarding (se già associato)
   const closeOnboardingModal = document.getElementById('closeOnboardingModal');
