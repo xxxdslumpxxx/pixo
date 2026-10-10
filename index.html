@@ -326,17 +326,6 @@
                 </label>
               </div>
 
-              <!-- Notifiche in Standby a Schermo Spento (Comune per Proprietario e Ospiti) -->
-              <div class="setting-item" id="standbyNotifRow">
-                <div class="setting-info">
-                  <strong style="display:flex; align-items:center; gap:6px;">
-                    📲 Notifiche a Schermo Spento
-                  </strong>
-                  <small>Suono e notifica push anche con telefono bloccato in standby</small>
-                </div>
-                <button type="button" class="pill-btn primary mini" id="btnOpenStandbySetup">Canale Push</button>
-              </div>
-
               <!-- Accesso Ospiti & Link -->
               <div class="setting-item owner-only-setting" id="guestShareRow">
                 <div class="setting-info">
@@ -655,50 +644,11 @@
       </div>
     </div>
 
-    <!-- Modale Notifiche Push in Standby (ntfy) -->
-    <div class="ios-sheet hidden" id="standbyNotifModal">
-      <div class="sheet-backdrop" id="closeStandbyNotifBackdrop"></div>
-      <div class="sheet-card" style="max-width: 420px;">
-        <div class="sheet-grabber"></div>
-        <div class="sheet-header">
-          <h3 style="display:flex; align-items:center; gap:8px;">
-            <img src="./pixo_face.png" alt="Pixò" style="width:26px; height:26px; border-radius:50%;">
-            Notifiche in Standby
-          </h3>
-          <button class="sheet-close-btn" id="closeStandbyNotifBtn">&times;</button>
-        </div>
-        <p style="color: var(--text-secondary); font-size: 0.88rem; margin: -4px 0 14px 0; line-height: 1.45;">
-          Per ricevere l'avviso sonoro anche a <strong>telefono bloccato, schermo spento</strong> o app chiusa:
-        </p>
-
-        <div style="background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 12px; margin-bottom: 14px; text-align: center;">
-          <div style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); letter-spacing: 0.5px; margin-bottom: 4px;">Canale Pixò Attivo</div>
-          <code id="standbyChannelBadge" style="font-size: 1.15rem; color: #ffd60a; font-weight: 700; letter-spacing: 1px;">pixo-XXXXXX</code>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 10px;">
-          <!-- Opzione 1: Iscrizione da Browser -->
-          <button type="button" class="pill-btn primary" id="btnOpenWebPushSub" style="padding: 13px; font-size: 0.92rem; justify-content: center; gap: 8px;">
-            🌐 1 Tap da Browser (Senza app)
-          </button>
-          
-          <!-- Opzione 2: App ntfy -->
-          <button type="button" class="pill-btn secondary" id="btnOpenNtfyApp" style="padding: 13px; font-size: 0.92rem; justify-content: center; gap: 8px;">
-            📱 Apri con App ntfy (Android / iOS)
-          </button>
-        </div>
-
-        <p style="color: var(--text-secondary); font-size: 0.76rem; margin-top: 14px; text-align: center; line-height: 1.4;">
-          💡 Gratuito e istantaneo: riceverai la notifica push con la faccina di Pixò ogni volta che arriva un nuovo disegno.
-        </p>
-      </div>
-    </div>
-
     <!-- Toast Notification in stile Dynamic Island di iOS -->
     <div class="ios-toast-container" id="toastContainer"></div>
 
   </div>
 
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
