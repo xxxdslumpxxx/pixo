@@ -1,8 +1,10 @@
 {
+  "id": "pixo-public-cloud-app-v1",
   "name": "Pixò Cloud",
   "short_name": "Pixò",
   "description": "Invia disegni, messaggi, meteo e foto al tuo display Pixò in tempo reale via MQTT Cloud.",
-  "start_url": "./index.html",
+  "start_url": "/pixo/",
+  "scope": "/pixo/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#12141a",
