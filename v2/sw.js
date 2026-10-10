@@ -1,5 +1,5 @@
 // Service Worker per Pixò v2 PWA
-const CACHE_NAME = 'pixo-v2-cache-v20';
+const CACHE_NAME = 'pixo-v2-cache-v21';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -41,6 +41,10 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || event.request.url.startsWith('ws:') || event.request.url.startsWith('wss:')) {
+    return;
+  }
+  // Isola completamente l'area /admin/ lasciando la gestione al SW dedicato
+  if (event.request.url.includes('/admin/')) {
     return;
   }
   event.respondWith(
