@@ -2,9 +2,14 @@
 <html lang="it">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0c10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Pixò Master Fleet Commander</title>
-  <link rel="icon" type="image/svg+xml" href="../icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon-commander.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
@@ -30,30 +35,30 @@
 
   <!-- INTERFACCIA PRINCIPALE ADMIN -->
   <div id="adminApp" class="admin-app hidden">
-    <!-- Top Header -->
+    <!-- Top Header Cockpit -->
     <header class="admin-header">
       <div class="header-brand">
         <div class="brand-badge">MASTER</div>
-        <h1>Pixò Fleet Commander</h1>
+        <h1>Pixò Commander</h1>
       </div>
       <div class="header-actions">
         <div id="cloudStatusBadge" class="status-badge connecting">
           <span class="status-dot"></span>
-          <span id="cloudStatusText">Connessione Cloud...</span>
+          <span id="cloudStatusText">Connessione...</span>
         </div>
-        <button id="btnRefresh" class="btn secondary mini">🔄 Scansiona</button>
-        <button id="btnLogout" class="btn secondary mini">🔒 Esci</button>
+        <button id="btnRefresh" class="btn secondary mini icon-only" title="Aggiorna Scansione">🔄</button>
+        <button id="btnLogout" class="btn secondary mini icon-only" title="Esci">🔒</button>
       </div>
     </header>
 
     <!-- Main Content Container -->
     <main class="admin-main">
 
-      <!-- Metrics Row -->
+      <!-- Metrics Row (2x2 compatto su smartphone) -->
       <section class="metrics-grid">
         <div class="metric-card">
           <div class="metric-num" id="statTotal">0</div>
-          <div class="metric-label">Dispositivi Rilevati</div>
+          <div class="metric-label">Dispositivi</div>
         </div>
         <div class="metric-card online">
           <div class="metric-num" id="statOnline">0</div>
@@ -65,30 +70,33 @@
         </div>
         <div class="metric-card info">
           <div class="metric-num" id="statMsgCount">0</div>
-          <div class="metric-label">Messaggi Telemetria</div>
+          <div class="metric-label">Telemetrie</div>
         </div>
       </section>
 
       <!-- Global Actions Bar -->
       <section class="global-actions-card">
         <div class="card-header">
-          <h3>⚡ Azioni Globali Flotta (Tutti i Dispositivi)</h3>
-          <span class="badge warning">Master Key Richiesta</span>
+          <h3>⚡ Azioni Globali su Tutta la Flotta</h3>
+          <span class="badge warning">Master Key</span>
         </div>
         <div class="actions-body">
           <!-- Master OTA Broadcast -->
           <div class="global-action-row">
             <div class="ota-inputs">
-              <input type="text" id="globalOtaUrl" placeholder="URL file firmware (.bin) da distribuire a tutta la flotta..." value="https://raw.githubusercontent.com/xxxdslumpxxx/pixo/main/firmware/Lavagna_ESP32C3.ino.bin">
-              <button id="btnGlobalOta" class="btn danger">🚀 Master OTA Broadcast</button>
+              <input type="text" id="globalOtaUrl" placeholder="URL file .bin firmware..." value="https://raw.githubusercontent.com/xxxdslumpxxx/pixo/main/firmware/Lavagna_ESP32C3.ino.bin">
+              <button id="btnGlobalOta" class="btn danger mini">🚀 Master OTA Broadcast</button>
             </div>
-            <small class="helper-text">Invia il comando a tutta la flotta contemporaneamente sul topic <code>pixo/global/ota</code> con firma Master.</small>
+            <small class="helper-text">Broadcast su <code>pixo/global/ota</code> con firma Master.</small>
           </div>
 
+          <!-- Pulsanti Broadcast Flotta -->
           <div class="quick-broadcast-buttons">
-            <button id="btnGlobalStandby" class="btn secondary">✨ Standby su Tutta la Flotta</button>
-            <button id="btnGlobalFlashLed" class="btn secondary">💡 Flash LED su Tutta la Flotta (2s)</button>
-            <button id="btnGlobalClock" class="btn secondary">🕒 Modalità Orologio su Tutti</button>
+            <button id="btnGlobalStandby" class="btn secondary mini">✨ Standby Tutti</button>
+            <button id="btnGlobalClock" class="btn secondary mini">🕒 Orologio Tutti</button>
+            <button id="btnGlobalLightOn" class="btn success mini">💡 Accendi Luci</button>
+            <button id="btnGlobalLightOff" class="btn secondary mini">🌑 Spegni Luci</button>
+            <button id="btnGlobalFlashLed" class="btn secondary mini">⚡ Flash Test (2s)</button>
           </div>
         </div>
       </section>
@@ -96,7 +104,7 @@
       <!-- Search & Filters -->
       <section class="toolbar-section">
         <div class="search-box">
-          <input type="text" id="searchInput" placeholder="Cerca dispositivo per ID, IP o Wi-Fi...">
+          <input type="text" id="searchInput" placeholder="Cerca ID, IP o Wi-Fi...">
         </div>
         <div class="filter-pills">
           <button class="filter-pill active" data-filter="all">Tutti (<span id="countAll">0</span>)</button>
@@ -113,18 +121,21 @@
         <div id="emptyFleetState" class="empty-state">
           <div class="empty-icon">📡</div>
           <h3>In ascolto sul Cloud MQTT...</h3>
-          <p>I dispositivi Pixò appariranno automaticamente non appena trasmettono il battito di presenza o telemetria.</p>
+          <p>I dispositivi Pixò appariranno automaticamente non appena trasmettono battito o telemetria.</p>
         </div>
       </section>
 
-      <!-- Console Log MQTT (Live Stream) -->
+      <!-- Console Log MQTT (Live Stream Collapsible) -->
       <section class="logs-section">
         <div class="logs-header">
-          <h3>🛰️ Live Stream Telemetria Cloud</h3>
-          <div>
-            <button id="btnClearLogs" class="btn secondary mini">Pulisci Log</button>
+          <h3 id="logsToggleTitle" style="cursor:pointer; display:flex; align-items:center; gap:6px;">
+            <span>🛰️ Live Telemetria Cloud</span>
+            <span id="logsToggleIcon" style="font-size:0.8rem; color:var(--text-muted);">▼</span>
+          </h3>
+          <div class="logs-controls">
+            <button id="btnClearLogs" class="btn secondary mini">Pulisci</button>
             <label class="autoscroll-label">
-              <input type="checkbox" id="chkAutoScroll" checked> Auto-scroll
+              <input type="checkbox" id="chkAutoScroll" checked> Auto
             </label>
           </div>
         </div>
