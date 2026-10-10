@@ -1774,51 +1774,51 @@ function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress
 
   // 1. Base card shadow / border
   drawRoundedRectPath(targetCtx, x, y, w, h, r);
-  targetCtx.fillStyle = "#15161c";
+  targetCtx.fillStyle = "#101012";
   targetCtx.fill();
-  targetCtx.strokeStyle = "#2e313b";
+  targetCtx.strokeStyle = "#28282c";
   targetCtx.lineWidth = 1;
   targetCtx.stroke();
 
-  // 2. Metà superiore FISSA
+  // 2. Metà superiore FISSA (grigio neutro, zero dominante colore)
   targetCtx.save();
   targetCtx.beginPath();
   targetCtx.rect(x, y, w, halfH);
   targetCtx.clip();
 
   const gradTop = targetCtx.createLinearGradient(x, y, x, y + halfH);
-  gradTop.addColorStop(0, "#292c36");
-  gradTop.addColorStop(1, "#1c1e26");
+  gradTop.addColorStop(0, "#222224");
+  gradTop.addColorStop(1, "#161618");
   targetCtx.fillStyle = gradTop;
   targetCtx.fillRect(x, y, w, halfH);
 
-  targetCtx.font = "bold 38px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
-  targetCtx.fillStyle = "#f5f6f8";
+  targetCtx.font = "bold 44px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
+  targetCtx.fillStyle = "#ffffff";
   targetCtx.textAlign = "center";
   targetCtx.textBaseline = "middle";
   targetCtx.fillText(progress > 0 ? targChar : currChar, x + w / 2, y + halfH);
   targetCtx.restore();
 
-  // 3. Metà inferiore FISSA
+  // 3. Metà inferiore FISSA (grigio neutro scuro)
   targetCtx.save();
   targetCtx.beginPath();
   targetCtx.rect(x, y + halfH, w, halfH);
   targetCtx.clip();
 
   const gradBot = targetCtx.createLinearGradient(x, y + halfH, x, y + h);
-  gradBot.addColorStop(0, "#16171e");
-  gradBot.addColorStop(1, "#0d0e12");
+  gradBot.addColorStop(0, "#131315");
+  gradBot.addColorStop(1, "#09090a");
   targetCtx.fillStyle = gradBot;
   targetCtx.fillRect(x, y + halfH, w, halfH);
 
-  targetCtx.font = "bold 38px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
-  targetCtx.fillStyle = "#f5f6f8";
+  targetCtx.font = "bold 44px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
+  targetCtx.fillStyle = "#ffffff";
   targetCtx.textAlign = "center";
   targetCtx.textBaseline = "middle";
   targetCtx.fillText(progress >= 0.5 ? targChar : currChar, x + w / 2, y + halfH);
   targetCtx.restore();
 
-  // 4. ANIMAZIONE SPLIT-FLAP (Rotazione prospettica della linguetta a 30-60 fps)
+  // 4. ANIMAZIONE SPLIT-FLAP (Rotazione prospettica 3D della linguetta)
   if (progress > 0 && progress < 1) {
     if (progress < 0.5) {
       const scaleY = Math.cos(progress * Math.PI);
@@ -1832,18 +1832,18 @@ function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress
       targetCtx.translate(-(x + w / 2), -(y + halfH));
 
       const gradFoldTop = targetCtx.createLinearGradient(x, y, x, y + halfH);
-      gradFoldTop.addColorStop(0, "#2c2f3b");
-      gradFoldTop.addColorStop(1, "#1c1e26");
+      gradFoldTop.addColorStop(0, "#26262a");
+      gradFoldTop.addColorStop(1, "#18181a");
       targetCtx.fillStyle = gradFoldTop;
       targetCtx.fillRect(x, y, w, halfH);
 
-      targetCtx.font = "bold 38px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
-      targetCtx.fillStyle = "#f5f6f8";
+      targetCtx.font = "bold 44px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
+      targetCtx.fillStyle = "#ffffff";
       targetCtx.textAlign = "center";
       targetCtx.textBaseline = "middle";
       targetCtx.fillText(currChar, x + w / 2, y + halfH);
 
-      targetCtx.fillStyle = `rgba(0, 0, 0, ${progress * 1.5})`;
+      targetCtx.fillStyle = `rgba(0, 0, 0, ${progress * 1.6})`;
       targetCtx.fillRect(x, y, w, halfH);
       targetCtx.restore();
     } else {
@@ -1858,28 +1858,28 @@ function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress
       targetCtx.translate(-(x + w / 2), -(y + halfH));
 
       const gradFoldBot = targetCtx.createLinearGradient(x, y + halfH, x, y + h);
-      gradFoldBot.addColorStop(0, "#1a1b22");
-      gradFoldBot.addColorStop(1, "#0f1015");
+      gradFoldBot.addColorStop(0, "#18181a");
+      gradFoldBot.addColorStop(1, "#0c0c0e");
       targetCtx.fillStyle = gradFoldBot;
       targetCtx.fillRect(x, y + halfH, w, halfH);
 
-      targetCtx.font = "bold 38px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
-      targetCtx.fillStyle = "#f5f6f8";
+      targetCtx.font = "bold 44px 'SF Pro Display', -apple-system, 'Helvetica Neue', Arial, sans-serif";
+      targetCtx.fillStyle = "#ffffff";
       targetCtx.textAlign = "center";
       targetCtx.textBaseline = "middle";
       targetCtx.fillText(targChar, x + w / 2, y + halfH);
 
-      targetCtx.fillStyle = `rgba(0, 0, 0, ${(1 - progress) * 1.5})`;
+      targetCtx.fillStyle = `rgba(0, 0, 0, ${(1 - progress) * 1.6})`;
       targetCtx.fillRect(x, y + halfH, w, halfH);
       targetCtx.restore();
     }
   }
 
-  // 5. Cerniera meccanica centrale
-  targetCtx.fillStyle = "#0a0a0d";
+  // 5. Cerniera meccanica centrale nera assoluta
+  targetCtx.fillStyle = "#000000";
   targetCtx.fillRect(x - 1, y + halfH - 1, w + 2, 2);
 
-  targetCtx.fillStyle = "#3e4250";
+  targetCtx.fillStyle = "#48484c";
   targetCtx.fillRect(x - 2, y + halfH - 2, 2, 4);
   targetCtx.fillRect(x + w, y + halfH - 2, 2, 4);
 
@@ -1889,42 +1889,49 @@ function drawSingleSplitFlap(targetCtx, x, y, w, h, currChar, targChar, progress
 function renderSplitFlapCanvas(platform, username, currentCount, targetCount, flipFraction = 0) {
   const displayUser = (username || "PIXO").replace(/^@+/, '').toUpperCase();
 
-  // 1. Sfondo base in base alla piattaforma
-  if (platform === 'tiktok') {
-    ctx.fillStyle = "#07080a";
-    ctx.fillRect(0, 0, 240, 240);
+  // 1. Sfondo base: NERO ASSOLUTO #000000 (Risolve il verdino del display ST7789!)
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, 240, 240);
 
-    // Accenti Ciano e Magenta
+  // 2. Header Social ad alto contrasto (Senza testi microscopici)
+  if (platform === 'tiktok') {
+    // Accenti Ciano e Magenta in cima
     ctx.fillStyle = "#00f2fe";
     ctx.fillRect(0, 0, 120, 3);
     ctx.fillStyle = "#fe2c55";
     ctx.fillRect(120, 0, 120, 3);
 
-    // Icona Glitch TikTok
+    // Icona TikTok grande
     ctx.save();
     ctx.fillStyle = "#00f2fe";
-    drawTikTokGlyph(ctx, 32, 23, 0.75);
+    drawTikTokGlyph(ctx, 28, 27, 0.85);
     ctx.fillStyle = "#fe2c55";
-    drawTikTokGlyph(ctx, 34, 25, 0.75);
+    drawTikTokGlyph(ctx, 30, 29, 0.85);
     ctx.fillStyle = "#ffffff";
-    drawTikTokGlyph(ctx, 33, 24, 0.75);
+    drawTikTokGlyph(ctx, 29, 28, 0.85);
     ctx.restore();
 
-    ctx.font = "bold 13px -apple-system, sans-serif";
+    // Username grande e nitido
+    ctx.font = "bold 17px -apple-system, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(`@${displayUser}`, 52, 25);
+    ctx.fillText(`@${displayUser}`, 50, 28);
 
-    ctx.font = "bold 9px -apple-system, sans-serif";
-    ctx.fillStyle = "#fe2c55";
+    // Badge Piattaforma pillola
+    ctx.fillStyle = "#18181c";
+    ctx.beginPath();
+    ctx.arc(88, 54, 8, Math.PI / 2, -Math.PI / 2);
+    ctx.arc(152, 54, 8, -Math.PI / 2, Math.PI / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = "bold 11px -apple-system, sans-serif";
+    ctx.fillStyle = "#00f2fe";
     ctx.textAlign = "center";
-    ctx.fillText("TIKTOK LIVE", 120, 68);
+    ctx.fillText("TIKTOK LIVE", 120, 54);
 
   } else if (platform === 'instagram') {
-    ctx.fillStyle = "#09060c";
-    ctx.fillRect(0, 0, 240, 240);
-
+    // Gradiente Instagram in cima
     const igGrad = ctx.createLinearGradient(0, 0, 240, 0);
     igGrad.addColorStop(0, "#f09433");
     igGrad.addColorStop(0.5, "#dc2743");
@@ -1932,57 +1939,66 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
     ctx.fillStyle = igGrad;
     ctx.fillRect(0, 0, 240, 3);
 
-    drawInstagramGlyph(ctx, 32, 25, 20);
+    drawInstagramGlyph(ctx, 28, 28, 22);
 
-    ctx.font = "bold 13px -apple-system, sans-serif";
+    ctx.font = "bold 17px -apple-system, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(`@${displayUser}`, 52, 25);
+    ctx.fillText(`@${displayUser}`, 50, 28);
 
-    ctx.font = "bold 9px -apple-system, sans-serif";
+    ctx.fillStyle = "#18181c";
+    ctx.beginPath();
+    ctx.arc(75, 54, 8, Math.PI / 2, -Math.PI / 2);
+    ctx.arc(165, 54, 8, -Math.PI / 2, Math.PI / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = "bold 11px -apple-system, sans-serif";
     ctx.fillStyle = "#e6683c";
     ctx.textAlign = "center";
-    ctx.fillText("INSTAGRAM FOLLOWERS", 120, 68);
+    ctx.fillText("INSTAGRAM", 120, 54);
 
   } else { // youtube
-    ctx.fillStyle = "#090506";
-    ctx.fillRect(0, 0, 240, 240);
-
     ctx.fillStyle = "#ff0000";
     ctx.fillRect(0, 0, 240, 3);
 
-    drawYouTubeGlyph(ctx, 32, 25, 24, 17);
+    drawYouTubeGlyph(ctx, 28, 28, 26, 18);
 
-    ctx.font = "bold 13px -apple-system, sans-serif";
+    ctx.font = "bold 17px -apple-system, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(displayUser, 52, 25);
+    ctx.fillText(displayUser, 50, 28);
 
-    ctx.font = "bold 9px -apple-system, sans-serif";
+    ctx.fillStyle = "#18181c";
+    ctx.beginPath();
+    ctx.arc(75, 54, 8, Math.PI / 2, -Math.PI / 2);
+    ctx.arc(165, 54, 8, -Math.PI / 2, Math.PI / 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = "bold 11px -apple-system, sans-serif";
     ctx.fillStyle = "#ff3b30";
     ctx.textAlign = "center";
-    ctx.fillText("YOUTUBE SUBSCRIBERS", 120, 68);
+    ctx.fillText("SUBSCRIBERS", 120, 54);
   }
 
-  // 2. Disegno 6 Tessere Split-Flap
+  // 3. Disegno 6 Tessere Split-Flap Grandi (H: 74px, W: 34px)
   const currStr = String(Math.max(0, Math.floor(currentCount))).padStart(6, ' ');
   const targStr = String(Math.max(0, Math.floor(targetCount))).padStart(6, ' ');
 
-  const tileW = 32;
-  const tileH = 64;
-  const gap = 5;
-  const totalW = 6 * tileW + 5 * gap; // 217px
-  const startX = Math.round((240 - totalW) / 2); // ~12px
-  const tileY = 86;
+  const tileW = 34;
+  const tileH = 74;
+  const gap = 4;
+  const totalW = 6 * tileW + 5 * gap; // 224px
+  const startX = Math.round((240 - totalW) / 2); // 8px
+  const tileY = 74;
 
-  // Cornice retro del blocco tessere
-  ctx.fillStyle = "rgba(255, 255, 255, 0.03)";
-  ctx.fillRect(startX - 6, tileY - 6, totalW + 12, tileH + 12);
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  // Cornice retro del blocco tessere (nero profondo #0a0a0a con bordino sottile)
+  ctx.fillStyle = "#0c0c0e";
+  ctx.fillRect(startX - 4, tileY - 4, totalW + 8, tileH + 8);
+  ctx.strokeStyle = "#252528";
   ctx.lineWidth = 1;
-  ctx.strokeRect(startX - 6, tileY - 6, totalW + 12, tileH + 12);
+  ctx.strokeRect(startX - 4, tileY - 4, totalW + 8, tileH + 8);
 
   for (let i = 0; i < 6; i++) {
     const x = startX + i * (tileW + gap);
@@ -1994,35 +2010,55 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
     drawSingleSplitFlap(ctx, x, tileY, tileW, tileH, currChar, targChar, progress);
   }
 
-  // 3. Barra di stato inferiore
-  ctx.strokeStyle = "rgba(255, 255, 255, 0.08)";
+  // 4. Barra di stato inferiore pulita (Senza scritte illeggibili)
+  ctx.strokeStyle = "#1a1a1c";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(14, 182);
-  ctx.lineTo(226, 182);
+  ctx.moveTo(10, 192);
+  ctx.lineTo(230, 192);
   ctx.stroke();
 
+  // Pallino Live
   const dotColor = platform === 'tiktok' ? "#00f2fe" : (platform === 'youtube' ? "#ff3b30" : "#34c759");
   ctx.fillStyle = dotColor;
   ctx.beginPath();
-  ctx.arc(32, 210, 4, 0, Math.PI * 2);
+  ctx.arc(24, 214, 4.5, 0, Math.PI * 2);
   ctx.fill();
 
-  ctx.font = "bold 11px -apple-system, sans-serif";
+  // Testo Live grande e chiaro
+  ctx.font = "bold 13px -apple-system, sans-serif";
   ctx.fillStyle = "#8e95a5";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   const intervalSec = state.followerInterval || 30;
-  ctx.fillText(`LIVE • OGNI ${intervalSec}s`, 44, 210);
+  ctx.fillText(`LIVE ${intervalSec}s`, 36, 214);
 
-  ctx.font = "bold 13px monospace";
+  // Numero formattato a destra
+  ctx.font = "bold 15px monospace";
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "right";
   const formattedNum = Number(targetCount || currentCount || 0).toLocaleString('it-IT');
-  ctx.fillText(formattedNum, 226, 210);
+  ctx.fillText(formattedNum, 228, 214);
 
   saveState();
   updatePayloadPreview();
+}
+
+// Invia un singolo frame JPEG ad alta definizione (0.85) a Pixò senza mostrare notifiche toast
+async function sendFollowerFrameToPixo(quality = 0.85) {
+  if (!state.deviceId) return;
+  if (!state.mqttClient || !state.mqttClient.connected) {
+    await connectMQTT();
+    if (!state.mqttClient || !state.mqttClient.connected) return;
+  }
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
+  if (!blob) return;
+  const arrayBuffer = await blob.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  publishToDrawTopics(uint8Array);
+  getTargetDeviceIds().forEach(id => {
+    state.mqttClient.publish(`pixo/device/${id}/current`, uint8Array, { qos: 0, retain: true });
+  });
 }
 
 async function fetchSocialFollowerCount(platform, username) {
@@ -2075,28 +2111,52 @@ async function fetchSocialFollowerCount(platform, username) {
   return parseInt(followerInitialInput.value, 10) || 1420;
 }
 
-function triggerFollowerFlip(oldCount, newCount, onComplete) {
-  const duration = 520;
-  const startT = performance.now();
+// ANIMAZIONE MECCANICA SU PIXÒ: Trasmette una sequenza di fotogrammi via MQTT
+async function triggerFollowerFlip(oldCount, newCount, onComplete) {
   playAudioClick();
 
-  function loop(now) {
+  const plat = state.followerPlatform || 'tiktok';
+  const user = state.followerUsername || '';
+
+  // 1. Animazione a 60 FPS nel browser locale
+  const duration = 480;
+  const startT = performance.now();
+  function browserLoop(now) {
     const elapsed = now - startT;
     const progress = Math.min(1, elapsed / duration);
-    const ease = progress < 0.5 
-      ? 2 * progress * progress 
-      : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-
-    renderSplitFlapCanvas(state.followerPlatform, state.followerUsername, oldCount, newCount, ease);
-
+    const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+    renderSplitFlapCanvas(plat, user, oldCount, newCount, ease);
     if (progress < 1) {
-      requestAnimationFrame(loop);
-    } else {
-      renderSplitFlapCanvas(state.followerPlatform, state.followerUsername, newCount, newCount, 0);
-      if (onComplete) onComplete();
+      requestAnimationFrame(browserLoop);
     }
   }
-  requestAnimationFrame(loop);
+  requestAnimationFrame(browserLoop);
+
+  // 2. Sequenza Meccanica hardware su Pixò: invia 4 fotogrammi scaglionati di 75ms
+  try {
+    // Frame 1: Lamella superiore comincia a piegarsi verso il basso (~35°)
+    renderSplitFlapCanvas(plat, user, oldCount, newCount, 0.30);
+    await sendFollowerFrameToPixo(0.85);
+    await new Promise(r => setTimeout(r, 75));
+
+    // Frame 2: Lamella a metà altezza sulla cerniera orizzontale
+    renderSplitFlapCanvas(plat, user, oldCount, newCount, 0.55);
+    await sendFollowerFrameToPixo(0.85);
+    await new Promise(r => setTimeout(r, 75));
+
+    // Frame 3: Nuova lamella inferiore cade verso la posizione finale
+    renderSplitFlapCanvas(plat, user, oldCount, newCount, 0.80);
+    await sendFollowerFrameToPixo(0.85);
+    await new Promise(r => setTimeout(r, 75));
+
+    // Frame 4: Lamella posizionata con il nuovo numero netto!
+    renderSplitFlapCanvas(plat, user, newCount, newCount, 0);
+    await sendFollowerFrameToPixo(0.88);
+  } catch(e) {
+    console.warn("[FOLLOWER] Errore frame animazione:", e);
+  }
+
+  if (onComplete) onComplete();
 }
 
 async function activateFollowerMode() {
@@ -2119,7 +2179,7 @@ async function activateFollowerMode() {
   state.followerTarget = count;
 
   renderSplitFlapCanvas(plat, user, count, count, 0);
-  await sendCanvasMqtt(false);
+  await sendFollowerFrameToPixo(0.88);
 
   if (feedPlusOneBtn) feedPlusOneBtn.style.display = '';
 
@@ -2150,8 +2210,7 @@ async function activateFollowerMode() {
       const newVal = state.followerTarget;
       state.followerCount = newVal;
 
-      triggerFollowerFlip(oldVal, newVal, async () => {
-        await sendCanvasMqtt(false);
+      triggerFollowerFlip(oldVal, newVal, () => {
         feedStatusText.textContent = t("feedFollowerActive", {
           platform: platName,
           user: `@${user.replace(/^@+/, '')}`,
@@ -2170,8 +2229,7 @@ function incrementFollowerManually(amount = 1) {
   state.followerCount = newVal;
   state.followerTarget = newVal;
 
-  triggerFollowerFlip(oldVal, newVal, async () => {
-    await sendCanvasMqtt(false);
+  triggerFollowerFlip(oldVal, newVal, () => {
     const platName = state.followerPlatform === 'tiktok' ? "TikTok" : (state.followerPlatform === 'instagram' ? "Instagram" : "YouTube");
     feedStatusText.textContent = t("feedFollowerActive", {
       platform: platName,
