@@ -629,9 +629,9 @@ function updateSettingsUI() {
     // Nasconde tutti i controlli riservati al proprietario
     document.querySelectorAll('.owner-only-setting').forEach(el => el.style.display = 'none');
 
-    // La tab Galleria resta visibile sia per gli ospiti che per i proprietari
-    const galleryTab = document.querySelector('.tab-item[data-tab="panelGallery"]');
-    if (galleryTab) galleryTab.style.display = '';
+    // La tab Foto resta visibile sia per gli ospiti che per i proprietari
+    const photoTab = document.querySelector('.tab-item[data-tab="panelPhoto"]');
+    if (photoTab) photoTab.style.display = '';
   } else {
     deviceIdDisplay.textContent = state.deviceName || state.deviceId || "Collega Pixò";
     if (openSettingsBtn) openSettingsBtn.style.display = 'none';
@@ -661,8 +661,8 @@ function updateSettingsUI() {
     // Mostra tutti i controlli del proprietario
     document.querySelectorAll('.owner-only-setting').forEach(el => el.style.display = '');
 
-    const galleryTab = document.querySelector('.tab-item[data-tab="panelGallery"]');
-    if (galleryTab) galleryTab.style.display = '';
+    const photoTab = document.querySelector('.tab-item[data-tab="panelPhoto"]');
+    if (photoTab) photoTab.style.display = '';
   }
 
   deviceNameInput.value = state.deviceName;
@@ -3177,17 +3177,46 @@ function setupEventListeners() {
     lightToggleBtn.addEventListener('click', toggleContinuousLight);
   }
 
-  // SALVATAGGIO & GALLERIA DISEGNI
-  saveCanvasBtn.addEventListener('click', saveCurrentCanvas);
-  galleryBtn.addEventListener('click', () => {
-    galleryModal.classList.remove('hidden');
-    renderGallery();
+  // SALVATAGGIO & GALLERIA DISEGNI (Drawer da Crea & Feed)
+  const galleryDrawer = document.getElementById('galleryDrawer');
+  const closeGalleryDrawerBtn = document.getElementById('closeGalleryDrawerBtn');
+  const closeGalleryBackdrop = document.getElementById('closeGalleryBackdrop');
+
+  saveCanvasBtn.addEventListener('click', () => {
+    playAudioClick();
+    saveCurrentCanvas();
   });
-  closeGalleryModal.addEventListener('click', () => galleryModal.classList.add('hidden'));
-  saveCurrentFromGalleryBtn.addEventListener('click', saveCurrentCanvas);
+
+  // Tasto Galleria posizionato dentro Crea & Feed
+  if (galleryBtn) {
+    galleryBtn.addEventListener('click', () => {
+      playAudioClick();
+      if (galleryDrawer) galleryDrawer.classList.remove('hidden');
+      renderGallery();
+    });
+  }
+
+  if (closeGalleryDrawerBtn) {
+    closeGalleryDrawerBtn.addEventListener('click', () => {
+      galleryDrawer?.classList.add('hidden');
+    });
+  }
+  if (closeGalleryBackdrop) {
+    closeGalleryBackdrop.addEventListener('click', () => {
+      galleryDrawer?.classList.add('hidden');
+    });
+  }
+
+  const saveCurrentFromGalleryBtn = document.getElementById('saveCurrentFromGalleryBtn');
+  if (saveCurrentFromGalleryBtn) {
+    saveCurrentFromGalleryBtn.addEventListener('click', saveCurrentCanvas);
+  }
   const loadFromDisplayBtn = document.getElementById('loadFromDisplayBtn');
   if (loadFromDisplayBtn) {
-    loadFromDisplayBtn.addEventListener('click', loadCurrentDrawingFromDisplay);
+    loadFromDisplayBtn.addEventListener('click', () => {
+      playAudioClick();
+      loadCurrentDrawingFromDisplay();
+    });
   }
 
   // CONDIVISIONE & GESTIONE OSPITI
@@ -3288,11 +3317,24 @@ function setupEventListeners() {
     reader.readAsDataURL(file);
   };
 
-  if (photoBtn && photoSourceModal) {
-    photoBtn.addEventListener('click', () => {
-      photoSourceModal.classList.remove('hidden');
+  // Pulsanti dedicati nella Tab 3 (Sezione Foto)
+  const tabPhotoCameraBtn = document.getElementById('tabPhotoCameraBtn');
+  const tabPhotoGalleryBtn = document.getElementById('tabPhotoGalleryBtn');
+
+  if (tabPhotoCameraBtn && photoInputCamera) {
+    tabPhotoCameraBtn.addEventListener('click', () => {
+      playAudioClick();
+      photoInputCamera.click();
     });
   }
+  if (tabPhotoGalleryBtn && photoInputGallery) {
+    tabPhotoGalleryBtn.addEventListener('click', () => {
+      playAudioClick();
+      photoInputGallery.click();
+    });
+  }
+
+  // Modale Sorgente Foto (compatibilità)
   if (closePhotoSourceBtn && photoSourceModal) {
     closePhotoSourceBtn.addEventListener('click', () => {
       photoSourceModal.classList.add('hidden');
@@ -3308,16 +3350,21 @@ function setupEventListeners() {
       photoSourceModal?.classList.add('hidden');
       photoInputCamera.click();
     });
-    photoInputCamera.addEventListener('change', (e) => {
-      handleIncomingPhotoFile(e.target.files?.[0]);
-      photoInputCamera.value = '';
-    });
   }
   if (btnSourceGallery && photoInputGallery) {
     btnSourceGallery.addEventListener('click', () => {
       photoSourceModal?.classList.add('hidden');
       photoInputGallery.click();
     });
+  }
+
+  if (photoInputCamera) {
+    photoInputCamera.addEventListener('change', (e) => {
+      handleIncomingPhotoFile(e.target.files?.[0]);
+      photoInputCamera.value = '';
+    });
+  }
+  if (photoInputGallery) {
     photoInputGallery.addEventListener('change', (e) => {
       handleIncomingPhotoFile(e.target.files?.[0]);
       photoInputGallery.value = '';
@@ -3538,8 +3585,8 @@ function setupEventListeners() {
         }
       }
 
-      if (targetId === 'panelGallery') {
-        renderGallery();
+      if (targetId === 'panelSmart') {
+        // Smart Crea
       }
     });
   });
@@ -3550,8 +3597,10 @@ function setupEventListeners() {
     if (sheet) sheet.classList.add('hidden');
   };
   document.getElementById('closeStickerBackdrop')?.addEventListener('click', () => closeBackdrop('stickerDrawer'));
+  document.getElementById('closeGalleryBackdrop')?.addEventListener('click', () => closeBackdrop('galleryDrawer'));
   document.getElementById('closeTextBackdrop')?.addEventListener('click', () => closeBackdrop('textModal'));
   document.getElementById('closeShareBackdrop')?.addEventListener('click', () => closeBackdrop('shareModal'));
+  document.getElementById('closePhotoSourceBackdrop')?.addEventListener('click', () => closeBackdrop('photoSourceModal'));
 }
 
 
