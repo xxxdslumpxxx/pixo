@@ -387,6 +387,18 @@ body {
   border: 1px solid rgba(255, 159, 10, 0.35);
 }
 
+.badge.info {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-cyan);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.badge.success {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.35);
+}
+
 .actions-body {
   display: flex;
   flex-direction: column;
