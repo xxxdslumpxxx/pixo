@@ -55,7 +55,32 @@ const btnClearLogs = document.getElementById('btnClearLogs');
 const chkAutoScroll = document.getElementById('chkAutoScroll');
 const toastContainer = document.getElementById('toastContainer');
 
-// --- PWA SERVICE WORKER REGISTRATION ---
+// --- PWA SERVICE WORKER REGISTRATION & INSTALL PROMPT ---
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btnApp = document.getElementById('btnInstallApp');
+  const btnAuth = document.getElementById('btnInstallAuth');
+  if (btnApp) btnApp.style.display = 'inline-flex';
+  if (btnAuth) btnAuth.style.display = 'block';
+
+  const triggerInstall = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      if (btnApp) btnApp.style.display = 'none';
+      if (btnAuth) btnAuth.style.display = 'none';
+      showToast('App Commander installata con successo!', 'success');
+    }
+    deferredPrompt = null;
+  };
+
+  if (btnApp) btnApp.onclick = triggerInstall;
+  if (btnAuth) btnAuth.onclick = triggerInstall;
+});
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js', { scope: './' })
@@ -160,7 +185,10 @@ function saveDevicePin(deviceId, pin) {
 function getDevicePin(deviceId) {
   if (devices[deviceId] && devices[deviceId].pin) return devices[deviceId].pin;
   const pins = JSON.parse(localStorage.getItem('pixo_admin_device_pins') || '{}');
-  return pins[deviceId] || '1234';
+  if (pins[deviceId]) return pins[deviceId];
+  const userPin = localStorage.getItem('pixo_device_pin');
+  if (userPin) return userPin;
+  return '1234';
 }
 
 // --- MQTT CONNECTION ---
@@ -478,26 +506,26 @@ window.sendDeviceLight = function(deviceId, turnOn) {
     return;
   }
   const pin = getDevicePin(deviceId);
+  const userPin = localStorage.getItem('pixo_device_pin') || '';
   const cmd = turnOn ? "LIGHT:ON" : "LIGHT:OFF";
   const numCmd = turnOn ? "100" : "0";
+  const basicCmd = turnOn ? "ON" : "OFF";
 
-  // Invia a topic con PIN
-  if (pin && pin.length > 0) {
-    mqttClient.publish(`pixo/device/${deviceId}/${pin}/led`, cmd, { qos: 0 });
-    mqttClient.publish(`pixo/device/${deviceId}/${pin}/led`, numCmd, { qos: 0 });
-    mqttClient.publish(`pixo/device/${deviceId}/${pin}/led`, `LED:${cmd}`, { qos: 0 });
-  }
+  // Raccogli tutti i PIN possibili per garantire la ricezione al 100%
+  const pinList = Array.from(new Set([pin, userPin, "1234", MASTER_KEY])).filter(Boolean);
 
-  // Invia a topic di fallback 1234
-  if (pin !== "1234") {
-    mqttClient.publish(`pixo/device/${deviceId}/1234/led`, cmd, { qos: 0 });
-    mqttClient.publish(`pixo/device/${deviceId}/1234/led`, numCmd, { qos: 0 });
-  }
+  pinList.forEach(p => {
+    mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, cmd, { qos: 0 });
+    mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, numCmd, { qos: 0 });
+    mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, `LED:${cmd}`, { qos: 0 });
+    mqttClient.publish(`pixo/device/${deviceId}/${p}/led`, basicCmd, { qos: 0 });
+  });
 
-  // Invia a topic generico pixo/device/<ID>/led
+  // Invia anche al topic generico pixo/device/<ID>/led
   mqttClient.publish(`pixo/device/${deviceId}/led`, cmd, { qos: 0 });
   mqttClient.publish(`pixo/device/${deviceId}/led`, numCmd, { qos: 0 });
   mqttClient.publish(`pixo/device/${deviceId}/led`, `LED:${cmd}`, { qos: 0 });
+  mqttClient.publish(`pixo/device/${deviceId}/led`, basicCmd, { qos: 0 });
 
   if (devices[deviceId]) {
     devices[deviceId].lightState = turnOn;
@@ -505,7 +533,7 @@ window.sendDeviceLight = function(deviceId, turnOn) {
   renderDashboard();
 
   showToast(turnOn ? `Luce ACCESA su ${deviceId} 💡` : `Luce SPENTA su ${deviceId} 🌑`, 'success');
-  addLog('OUTBOUND', `Comando Luce ${turnOn ? 'ON' : 'OFF'} inviato a [${deviceId}] (PIN: '${pin}')`);
+  addLog('OUTBOUND', `Comando Luce ${turnOn ? 'ON' : 'OFF'} inviato a [${deviceId}]`);
 };
 
 // 3. FLASH LUCE TEST (2 SECONDI)
