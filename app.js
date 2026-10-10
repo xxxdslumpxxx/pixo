@@ -213,11 +213,12 @@ const state = {
   guestKeys: [],
   allowGuests: true,
 
-  // Screensaver & LED & Protezione Bambini
+  // Screensaver & LED & Protezione Bambini & Notifiche
   screensaverEnabled: true,
   ledEnabled: true,
   kidsModeEnabled: true,
   lightOn: false,
+  phoneNotifications: localStorage.getItem('pixo_phone_notifications') === 'true',
   savedDrawings: [],
 
   lastX: 0,
@@ -582,8 +583,9 @@ function updateSettingsUI() {
     if (clockBtn) clockBtn.style.display = 'none';
     const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
     if (settingsTab) settingsTab.style.display = 'none';
+    // La tab Galleria resta visibile sia per gli ospiti che per i proprietari
     const galleryTab = document.querySelector('.tab-item[data-tab="panelGallery"]');
-    if (galleryTab) galleryTab.style.display = 'none';
+    if (galleryTab) galleryTab.style.display = '';
   } else {
     deviceIdDisplay.textContent = state.deviceName || state.deviceId || "Collega Pixò";
     if (openSettingsBtn) openSettingsBtn.style.display = 'none';
@@ -611,6 +613,10 @@ function updateSettingsUI() {
   brightnessSlider.value = state.brightness;
   brightnessVal.textContent = `${state.brightness}%`;
   langSelect.value = state.lang;
+  const phoneNotificationsToggle = document.getElementById('phoneNotificationsToggle');
+  if (phoneNotificationsToggle) {
+    phoneNotificationsToggle.checked = state.phoneNotifications;
+  }
   themeSelect.value = state.canvasTheme;
   weatherCityInput.value = state.weatherCity;
 
@@ -1630,10 +1636,35 @@ function renderGallery() {
       deleteSavedDrawing(d.id);
     };
 
+    const dlBtn = document.createElement('button');
+    dlBtn.className = 'gallery-card-dl-btn';
+    dlBtn.innerHTML = '⬇️';
+    dlBtn.title = state.lang === 'it' ? 'Scarica immagine sul dispositivo' : 'Download image';
+    dlBtn.onclick = (e) => {
+      e.stopPropagation();
+      downloadDrawingImage(d.dataUrl, d.name);
+    };
+
     card.appendChild(img);
+    card.appendChild(dlBtn);
     card.appendChild(delBtn);
     galleryGrid.appendChild(card);
   });
+}
+
+function downloadDrawingImage(dataUrl, name) {
+  try {
+    const link = document.createElement('a');
+    const safeName = (name || 'disegno-pixo').replace(/[^a-zA-Z0-9_-]/g, '_');
+    link.download = `${safeName}.png`;
+    link.href = dataUrl;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast(state.lang === 'it' ? "Disegno scaricato sul dispositivo! 📥" : "Image downloaded! 📥", "success");
+  } catch(e) {
+    showToast("Errore durante il download dell'immagine", "error");
+  }
 }
 
 function loadSavedDrawing(id) {
@@ -2702,6 +2733,34 @@ function handleGuestAccessKeysMessage(payload) {
 }
 
 // ==========================================================================
+//  NOTIFICHE DI SISTEMA SUL CELLULARE
+// ==========================================================================
+function sendSystemNotification(title, body) {
+  if (!state.phoneNotifications) return;
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+
+  const options = {
+    body: body,
+    icon: 'icon-192.png',
+    badge: 'icon-192.png',
+    vibrate: [200, 100, 200],
+    tag: 'pixo-msg-' + Date.now()
+  };
+
+  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+    navigator.serviceWorker.ready.then(reg => {
+      reg.showNotification(title, options);
+    }).catch(() => {
+      try { new Notification(title, options); } catch(e) {}
+    });
+  } else {
+    try {
+      new Notification(title, options);
+    } catch(e) {}
+  }
+}
+
+// ==========================================================================
 //  SINCRONIZZAZIONE STATO ATTUALE DISPLAY (MQTT Retained)
 // ==========================================================================
 function handleCurrentDisplaySync(payload) {
@@ -2720,6 +2779,12 @@ function handleCurrentDisplaySync(payload) {
   if (Date.now() - lastLocalSendTime < 4000) {
     return;
   }
+
+  // Notifica sul cellulare se abilitata per ogni nuovo messaggio/disegno in arrivo
+  sendSystemNotification(
+    state.lang === 'it' ? "Nuovo messaggio su Pixò! 🎨" : "New drawing on Pixò! 🎨",
+    state.lang === 'it' ? "È appena apparso un nuovo disegno o messaggio sul display." : "A new drawing has appeared on the display."
+  );
 
   // Se l'utente sta disegnando attivamente in questo istante, non interrompere il tratto
   if (state.isDrawing) {
@@ -3066,6 +3131,40 @@ function setupEventListeners() {
   ledToggle.addEventListener('change', (e) => sendLedConfig(e.target.checked));
   if (kidsModeToggle) {
     kidsModeToggle.addEventListener('change', (e) => sendKidsModeConfig(e.target.checked));
+  }
+
+  // NOTIFICHE PUSH SUL CELLULARE
+  const phoneNotificationsToggle = document.getElementById('phoneNotificationsToggle');
+  if (phoneNotificationsToggle) {
+    phoneNotificationsToggle.checked = state.phoneNotifications;
+    phoneNotificationsToggle.addEventListener('change', async (e) => {
+      if (e.target.checked) {
+        if (!('Notification' in window)) {
+          alert(state.lang === 'it' ? "Il tuo browser non supporta le notifiche di sistema." : "Browser does not support notifications.");
+          e.target.checked = false;
+          return;
+        }
+        let perm = Notification.permission;
+        if (perm === 'default') {
+          perm = await Notification.requestPermission();
+        }
+        if (perm === 'granted') {
+          state.phoneNotifications = true;
+          localStorage.setItem('pixo_phone_notifications', 'true');
+          showToast(state.lang === 'it' ? "🔔 Notifiche sul cellulare attivate!" : "🔔 Phone notifications enabled!", "success");
+          sendSystemNotification("Pixò Notifiche Attivate", "Riceverai un avviso ogni volta che arriva un nuovo disegno.");
+        } else {
+          state.phoneNotifications = false;
+          localStorage.setItem('pixo_phone_notifications', 'false');
+          e.target.checked = false;
+          showToast(state.lang === 'it' ? "Permesso notifiche negato nel browser." : "Notification permission denied.", "warning");
+        }
+      } else {
+        state.phoneNotifications = false;
+        localStorage.setItem('pixo_phone_notifications', 'false');
+        showToast(state.lang === 'it' ? "Notifiche sul cellulare disattivate." : "Phone notifications disabled.", "info");
+      }
+    });
   }
 
   // Stop Feed Button
