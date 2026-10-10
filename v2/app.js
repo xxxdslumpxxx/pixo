@@ -2227,6 +2227,24 @@ function updateFollowerModalUI() {
   }
 }
 
+function selectFollowerPlatform(plat) {
+  playAudioClick();
+  state.followerPlatform = plat;
+  updateFollowerModalUI();
+}
+
+function startFollowerAction() {
+  playAudioClick();
+  closeFollowerModalSheet();
+  activateFollowerMode();
+}
+
+window.openFollowerModal = openFollowerModal;
+window.closeFollowerModalSheet = closeFollowerModalSheet;
+window.selectFollowerPlatform = selectFollowerPlatform;
+window.startFollowerAction = startFollowerAction;
+window.incrementFollowerManually = incrementFollowerManually;
+
 // ==========================================================================
 //  7c. GESTIONE SALVATAGGIO DISEGNI & GALLERIA PERSONALE
 // ==========================================================================
