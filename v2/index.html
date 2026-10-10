@@ -175,11 +175,11 @@
                 <small>Scrivi a schermo</small>
               </div>
             </button>
-            <button class="smart-action-card" id="photoBtn">
-              <span class="smart-icon">📷</span>
+            <button class="smart-action-card" id="galleryBtn">
+              <span class="smart-icon">🖼️</span>
               <div class="smart-text">
-                <strong data-i18n="photo">Foto</strong>
-                <small>Scatta o Galleria</small>
+                <strong data-i18n="gallery">Galleria</strong>
+                <small>I tuoi disegni</small>
               </div>
             </button>
             <button class="smart-action-card" id="stickerToggleBtn">
@@ -216,22 +216,22 @@
           <input type="file" id="photoInputGallery" accept="image/*" style="display: none;">
         </div>
 
-        <!-- TAB 3: GALLERIA DEI DISEGNI -->
-        <div class="tab-panel" id="panelGallery">
+        <!-- TAB 3: SEZIONE FOTO (Al posto della galleria) -->
+        <div class="tab-panel" id="panelPhoto">
           <div class="panel-card glass">
-            <div class="gallery-header-row">
-              <h4 class="card-title" data-i18n="gallery">I Tuoi Disegni</h4>
-              <span id="galleryCountText" style="font-size:0.75rem; color:var(--text-secondary);"></span>
-              <button class="pill-btn secondary mini" id="loadFromDisplayBtn" title="Carica ciò che c'è attualmente a display">
-                🔄 Da Pixò
+            <div class="gallery-header-row" style="margin-bottom: 10px;">
+              <h4 class="card-title" data-i18n="photoSection">Carica Foto su Pixò</h4>
+            </div>
+            <p style="color:var(--text-secondary); font-size:0.86rem; margin-bottom:14px; line-height:1.45;">
+              Acquisisci o seleziona un'immagine: verrà ottimizzata per il display (240×240 px) e potrai posizionarla sulla lavagna prima di inviarla.
+            </p>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <button type="button" class="pill-btn primary" id="tabPhotoCameraBtn" style="padding:14px; font-size:0.95rem; justify-content:center; gap:10px;">
+                📸 Scatta con Fotocamera
               </button>
-              <button class="pill-btn secondary mini" id="saveCurrentFromGalleryBtn" style="display:none;"></button>
-            </div>
-            <div class="gallery-grid" id="galleryGrid">
-              <!-- Riempito dinamicamente -->
-            </div>
-            <div id="galleryEmptyMessage" style="display:none; text-align:center; padding:20px; color:var(--text-secondary); font-size:0.85rem;">
-              Nessun disegno salvato. Usa il tasto 💾 Salva per conservare le tue creazioni!
+              <button type="button" class="pill-btn secondary" id="tabPhotoGalleryBtn" style="padding:14px; font-size:0.95rem; justify-content:center; gap:10px;">
+                🖼️ Scegli dalla Galleria / File
+              </button>
             </div>
           </div>
         </div>
@@ -453,9 +453,9 @@
           <span>Crea & Feed</span>
         </button>
 
-        <button class="tab-item" data-tab="panelGallery">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
-          <span>Galleria</span>
+        <button class="tab-item" data-tab="panelPhoto">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span data-i18n="photo">Foto</span>
         </button>
 
         <button class="tab-item" data-tab="panelSettings">
@@ -596,8 +596,32 @@
 
     <!-- Modale Impostazioni legacy fittizio (nascosto) per compatibilità selettori -->
     <div id="settingsModal" style="display:none;"><button id="closeSettingsModal"></button></div>
-    <div id="galleryModal" style="display:none;"><button id="closeGalleryModal"></button></div>
-    <button id="galleryBtn" style="display:none;"></button>
+
+    <!-- Drawer Galleria Disegni Apple Style (Aperto da Crea & Feed) -->
+    <div class="ios-sheet hidden" id="galleryDrawer">
+      <div class="sheet-backdrop" id="closeGalleryBackdrop"></div>
+      <div class="sheet-card" style="max-width: 480px;">
+        <div class="sheet-grabber"></div>
+        <div class="sheet-header">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <h3 data-i18n="gallery">I Tuoi Disegni</h3>
+            <span id="galleryCountText" style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;"></span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button class="pill-btn secondary mini" id="loadFromDisplayBtn" title="Carica ciò che c'è attualmente a display">
+              🔄 Da Pixò
+            </button>
+            <button class="sheet-close-btn" id="closeGalleryDrawerBtn">&times;</button>
+          </div>
+        </div>
+        <div class="gallery-grid" id="galleryGrid" style="margin-top:12px; max-height:60vh; overflow-y:auto;">
+          <!-- Riempito dinamicamente -->
+        </div>
+        <div id="galleryEmptyMessage" style="display:none; text-align:center; padding:30px 10px; color:var(--text-secondary); font-size:0.85rem;">
+          Nessun disegno salvato. Usa il tasto 💾 Salva per conservare le tue creazioni!
+        </div>
+      </div>
+    </div>
 
     <!-- Schermata Blocco Accesso Negato / Revocato per Ospiti -->
     <div class="guest-revoked-overlay hidden" id="guestRevokedOverlay">
@@ -649,6 +673,6 @@
 
   </div>
 
-  <script src="app.js?v=9"></script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>
