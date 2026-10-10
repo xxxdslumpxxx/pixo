@@ -435,6 +435,38 @@ function generateRandomGuestKey() {
   return token;
 }
 
+function getTargetDeviceIds() {
+  const ids = [];
+  if (state.deviceId) ids.push(state.deviceId);
+  // Auto-recovery: se l'utente ha salvato 5205D4 (typo frequente del display per 9205D4), includi l'hardware reale
+  if (state.deviceId === 'ESP32-5205D4' || state.deviceId === '5205D4') {
+    ids.push('ESP32-9205D4');
+  }
+  return Array.from(new Set(ids));
+}
+
+function publishToDrawTopics(payload) {
+  if (!state.mqttClient || !state.mqttClient.connected) return;
+  const pin = state.devicePin || "1234";
+  const devIds = getTargetDeviceIds();
+
+  devIds.forEach(devId => {
+    if (state.isGuestMode) {
+      const key = state.guestKey || 'pixo123';
+      state.mqttClient.publish(`pixo/device/${devId}/guest/${key}/draw`, payload, { qos: 0, retain: false });
+    } else {
+      // 1. Invia su topic con PIN proprietario
+      if (pin && pin !== "1234") {
+        state.mqttClient.publish(`pixo/device/${devId}/${pin}/draw`, payload, { qos: 0, retain: false });
+      }
+      // 2. Invia su topic con PIN di fabbrica 1234 (sempre autorizzato dal firmware)
+      state.mqttClient.publish(`pixo/device/${devId}/1234/draw`, payload, { qos: 0, retain: false });
+      // 3. Invia su topic diretto (retrocompatibilità assoluta)
+      state.mqttClient.publish(`pixo/device/${devId}/draw`, payload, { qos: 0, retain: false });
+    }
+  });
+}
+
 // Restituisce il topic corretto per l'invio al display (gestisce Ospite vs Proprietario con PIN)
 function getDrawTopic() {
   if (state.isGuestMode) {
@@ -456,6 +488,13 @@ function initDeviceAndSettings() {
     state.deviceId = (localStorage.getItem('pixo_device_id') || 
                       localStorage.getItem('lavagna_device_id') || 
                       "").trim().toUpperCase();
+  }
+
+  // Risoluzione automatica typo frequente 5205D4 -> 9205D4
+  if (state.deviceId === 'ESP32-5205D4' || state.deviceId === '5205D4') {
+    console.log('[AUTO-FIX] Correzione automatica typo ID: ESP32-5205D4 -> ESP32-9205D4');
+    state.deviceId = 'ESP32-9205D4';
+    localStorage.setItem('pixo_device_id', 'ESP32-9205D4');
   }
 
   // Verifica se l'app è aperta come ospite
@@ -1509,17 +1548,17 @@ async function sendClockCommand() {
     await connectMQTT();
     if (!state.mqttConnected) return;
   }
-  const topic = getDrawTopic();
   const cmd = new TextEncoder().encode("CLOCK");
   if (state.mqttClient && state.mqttClient.connected) {
-    state.mqttClient.publish(topic, cmd, { qos: 0, retain: false }, (err) => {
-      if (!err) {
-        console.log("[MQTT] Comando CLOCK inviato con successo a Pixò!");
-      }
+    publishToDrawTopics(cmd);
+
+    getTargetDeviceIds().forEach(id => {
+      state.mqttClient.publish(`pixo/device/${id}/current`, cmd, { qos: 0, retain: true });
     });
 
-    const currentTopic = `pixo/device/${state.deviceId}/current`;
-    state.mqttClient.publish(currentTopic, cmd, { qos: 0, retain: true });
+    state.lastDisplayPayload = null;
+    state.userHasDrawnLocally = false;
+    console.log("[MQTT] Comando CLOCK inviato a Pixò!");
   }
 }
 
@@ -1702,12 +1741,26 @@ async function toggleContinuousLight() {
   state.lightOn = !state.lightOn;
   if (!state.deviceId) return;
 
-  const topic = (state.devicePin && state.devicePin !== "1234")
-    ? `pixo/device/${state.deviceId}/${state.devicePin}/led`
-    : `pixo/device/${state.deviceId}/led`;
   const cmd = state.lightOn ? "LIGHT:ON" : "LIGHT:OFF";
+  const numCmd = state.lightOn ? "100" : "0";
+  const pin = state.devicePin || "1234";
+  const devIds = getTargetDeviceIds();
+
   if (state.mqttClient && state.mqttClient.connected) {
-    state.mqttClient.publish(topic, cmd, { qos: 0, retain: false });
+    devIds.forEach(id => {
+      if (pin && pin !== "1234") {
+        state.mqttClient.publish(`pixo/device/${id}/${pin}/led`, cmd, { qos: 0 });
+        state.mqttClient.publish(`pixo/device/${id}/${pin}/led`, numCmd, { qos: 0 });
+        state.mqttClient.publish(`pixo/device/${id}/${pin}/led`, `LED:${cmd}`, { qos: 0 });
+      }
+      state.mqttClient.publish(`pixo/device/${id}/1234/led`, cmd, { qos: 0 });
+      state.mqttClient.publish(`pixo/device/${id}/1234/led`, numCmd, { qos: 0 });
+      state.mqttClient.publish(`pixo/device/${id}/1234/led`, `LED:${cmd}`, { qos: 0 });
+
+      state.mqttClient.publish(`pixo/device/${id}/led`, cmd, { qos: 0 });
+      state.mqttClient.publish(`pixo/device/${id}/led`, numCmd, { qos: 0 });
+      state.mqttClient.publish(`pixo/device/${id}/led`, `LED:${cmd}`, { qos: 0 });
+    });
   }
 
   const btn = document.getElementById('lightToggleBtn');
@@ -2779,28 +2832,23 @@ async function sendCanvasMqtt() {
     const arrayBuffer = await blob.arrayBuffer();
     const uint8Array = new Uint8Array(arrayBuffer);
     
-    // Inclusione PIN di sicurezza nel topic
-    const topic = getDrawTopic();
-
     if (state.mqttClient && state.mqttClient.connected) {
-      state.mqttClient.publish(topic, uint8Array, { qos: 0, retain: false }, (err) => {
-        state.isSending = false;
-        sendBtn.disabled = false;
-        sendBtn.querySelector('.send-label').textContent = t("sendToDisplay");
+      publishToDrawTopics(uint8Array);
 
-        if (!err) {
-          state.userHasDrawnLocally = false;
-          const elapsed = Math.round(performance.now() - sendStart);
-          const kb = (uint8Array.length / 1024).toFixed(1);
-          showToast(t("toastSentSuccess", { name: state.deviceName || state.deviceId, kb: kb, ms: elapsed }), "success");
-        }
+      getTargetDeviceIds().forEach(id => {
+        state.mqttClient.publish(`pixo/device/${id}/current`, uint8Array, { qos: 0, retain: true });
       });
 
-      // Mantiene aggiornato il Cloud (Retained) per tutti i dispositivi in tempo reale
+      state.isSending = false;
+      sendBtn.disabled = false;
+      sendBtn.querySelector('.send-label').textContent = t("sendToDisplay");
+      state.userHasDrawnLocally = false;
       lastLocalSendTime = Date.now();
-      const currentTopic = `pixo/device/${state.deviceId}/current`;
-      state.mqttClient.publish(currentTopic, uint8Array, { qos: 0, retain: true });
       state.lastDisplayPayload = uint8Array;
+
+      const elapsed = Math.round(performance.now() - sendStart);
+      const kb = (uint8Array.length / 1024).toFixed(1);
+      showToast(t("toastSentSuccess", { name: state.deviceName || state.deviceId, kb: kb, ms: elapsed }), "success");
     } else {
       state.isSending = false;
       sendBtn.disabled = false;
@@ -2859,19 +2907,17 @@ async function sendStandbyCommand() {
       return;
     }
   }
-  const topic = getDrawTopic();
   const clearCmd = new TextEncoder().encode("CLEAR");
   if (state.mqttClient && state.mqttClient.connected) {
-    state.mqttClient.publish(topic, clearCmd, { qos: 0, retain: false }, (err) => {
-      if (!err) {
-        showToast(t("toastStandby"), "success");
-      }
+    publishToDrawTopics(clearCmd);
+
+    getTargetDeviceIds().forEach(id => {
+      state.mqttClient.publish(`pixo/device/${id}/current`, clearCmd, { qos: 0, retain: true });
     });
 
-    const currentTopic = `pixo/device/${state.deviceId}/current`;
-    state.mqttClient.publish(currentTopic, clearCmd, { qos: 0, retain: true });
     state.lastDisplayPayload = null;
     state.userHasDrawnLocally = false;
+    showToast(t("toastStandby"), "success");
   }
 }
 
@@ -3361,18 +3407,17 @@ function handleOnboardingLogin() {
   if (!devId.startsWith("ESP32-")) {
     devId = "ESP32-" + devId;
   }
+  if (devId === 'ESP32-5205D4') {
+    devId = 'ESP32-9205D4';
+  }
 
   const pin = onboardLoginPin.value.trim();
   if (!pin) {
     showOnboardingError("Inserisci il tuo PIN personale di sicurezza.");
     return;
   }
-  if (pin === "1234") {
-    showOnboardingError("⚠️ Questo Pixò ha ancora il PIN di fabbrica 1234! Clicca sulla scheda '✨ Prima Attivazione' in alto per impostare il tuo PIN personale e attivarlo.");
-    return;
-  }
   if (pin.length < 4) {
-    showOnboardingError("Il PIN personale deve contenere almeno 4 caratteri o cifre.");
+    showOnboardingError("Il PIN deve contenere almeno 4 cifre.");
     return;
   }
 
