@@ -1,5 +1,5 @@
 // Service Worker per Pixò v2 PWA
-const CACHE_NAME = 'pixo-v2-cache-v22';
+const CACHE_NAME = 'pixo-v2-cache-v23';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -79,4 +79,32 @@ self.addEventListener('notificationclick', (event) => {
       }
     })
   );
+});
+
+// Ricezione Notifica Push in Standby / Background
+self.addEventListener('push', (event) => {
+  let title = 'Pixò 🎨';
+  let body = 'Nuovo disegno apparso su Pixò!';
+  try {
+    if (event.data) {
+      const text = event.data.text();
+      try {
+        const json = JSON.parse(text);
+        if (json.title) title = json.title;
+        if (json.body || json.message) body = json.body || json.message;
+      } catch (err) {
+        body = text;
+      }
+    }
+  } catch (e) {}
+
+  const options = {
+    body: body,
+    icon: new URL('pixo_face.png', self.location.href).href,
+    vibrate: [200, 100, 200],
+    tag: 'pixo-drawing-alert',
+    renotify: true,
+    data: { url: './' }
+  };
+  event.waitUntil(self.registration.showNotification(title, options));
 });
