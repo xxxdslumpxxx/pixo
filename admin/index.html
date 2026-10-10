@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Pixò Master Fleet Commander</title>
+  <link rel="icon" type="image/svg+xml" href="../icon.svg">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+
+  <!-- SCHERMATA DI BLOCCO / ACCESSO MASTER -->
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-icon">🛰️</div>
+      <h2>Pixò Fleet Commander</h2>
+      <p>Area Amministratore Riservata. Inserisci la Master Key per accedere al controllo flotta.</p>
+      
+      <div class="auth-input-group">
+        <input type="password" id="masterKeyInput" placeholder="Master Key..." autocomplete="off">
+        <button id="btnUnlock" class="btn primary">Sblocca</button>
+      </div>
+      <div id="authError" class="auth-error hidden">Master Key non valida. Riprova.</div>
+      <label class="remember-label">
+        <input type="checkbox" id="rememberAuth"> Resta connesso su questo dispositivo
+      </label>
+    </div>
+  </div>
+
+  <!-- INTERFACCIA PRINCIPALE ADMIN -->
+  <div id="adminApp" class="admin-app hidden">
+    <!-- Top Header -->
+    <header class="admin-header">
+      <div class="header-brand">
+        <div class="brand-badge">MASTER</div>
+        <h1>Pixò Fleet Commander</h1>
+      </div>
+      <div class="header-actions">
+        <div id="cloudStatusBadge" class="status-badge connecting">
+          <span class="status-dot"></span>
+          <span id="cloudStatusText">Connessione Cloud...</span>
+        </div>
+        <button id="btnRefresh" class="btn secondary mini">🔄 Scansiona</button>
+        <button id="btnLogout" class="btn secondary mini">🔒 Esci</button>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="admin-main">
+
+      <!-- Metrics Row -->
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-num" id="statTotal">0</div>
+          <div class="metric-label">Dispositivi Rilevati</div>
+        </div>
+        <div class="metric-card online">
+          <div class="metric-num" id="statOnline">0</div>
+          <div class="metric-label">Online Adesso</div>
+        </div>
+        <div class="metric-card offline">
+          <div class="metric-num" id="statOffline">0</div>
+          <div class="metric-label">Offline / Standby</div>
+        </div>
+        <div class="metric-card info">
+          <div class="metric-num" id="statMsgCount">0</div>
+          <div class="metric-label">Messaggi Telemetria</div>
+        </div>
+      </section>
+
+      <!-- Global Actions Bar -->
+      <section class="global-actions-card">
+        <div class="card-header">
+          <h3>⚡ Azioni Globali Flotta (Tutti i Dispositivi)</h3>
+          <span class="badge warning">Master Key Richiesta</span>
+        </div>
+        <div class="actions-body">
+          <!-- Master OTA Broadcast -->
+          <div class="global-action-row">
+            <div class="ota-inputs">
+              <input type="text" id="globalOtaUrl" placeholder="URL file firmware (.bin) da distribuire a tutta la flotta..." value="https://raw.githubusercontent.com/xxxdslumpxxx/pixo/main/firmware/Lavagna_ESP32C3.ino.bin">
+              <button id="btnGlobalOta" class="btn danger">🚀 Master OTA Broadcast</button>
+            </div>
+            <small class="helper-text">Invia il comando a tutta la flotta contemporaneamente sul topic <code>pixo/global/ota</code> con firma Master.</small>
+          </div>
+
+          <div class="quick-broadcast-buttons">
+            <button id="btnGlobalStandby" class="btn secondary">✨ Standby su Tutta la Flotta</button>
+            <button id="btnGlobalFlashLed" class="btn secondary">💡 Flash LED su Tutta la Flotta (2s)</button>
+            <button id="btnGlobalClock" class="btn secondary">🕒 Modalità Orologio su Tutti</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Search & Filters -->
+      <section class="toolbar-section">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="Cerca dispositivo per ID, IP o Wi-Fi...">
+        </div>
+        <div class="filter-pills">
+          <button class="filter-pill active" data-filter="all">Tutti (<span id="countAll">0</span>)</button>
+          <button class="filter-pill" data-filter="online">Online (<span id="countOnline">0</span>)</button>
+          <button class="filter-pill" data-filter="offline">Offline (<span id="countOffline">0</span>)</button>
+        </div>
+      </section>
+
+      <!-- Devices Grid -->
+      <section class="devices-section">
+        <div id="devicesGrid" class="devices-grid">
+          <!-- Popolato dinamicamente da app.js -->
+        </div>
+        <div id="emptyFleetState" class="empty-state">
+          <div class="empty-icon">📡</div>
+          <h3>In ascolto sul Cloud MQTT...</h3>
+          <p>I dispositivi Pixò appariranno automaticamente non appena trasmettono il battito di presenza o telemetria.</p>
+        </div>
+      </section>
+
+      <!-- Console Log MQTT (Live Stream) -->
+      <section class="logs-section">
+        <div class="logs-header">
+          <h3>🛰️ Live Stream Telemetria Cloud</h3>
+          <div>
+            <button id="btnClearLogs" class="btn secondary mini">Pulisci Log</button>
+            <label class="autoscroll-label">
+              <input type="checkbox" id="chkAutoScroll" checked> Auto-scroll
+            </label>
+          </div>
+        </div>
+        <div id="liveLogsContainer" class="logs-container">
+          <!-- Eventi stampati in tempo reale -->
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Toast Notifiche -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
