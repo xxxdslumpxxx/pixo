@@ -1910,11 +1910,11 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, 240, 240);
 
-  // 2. Barra Superiore Stile Piastrina Header (Altezza: 44px)
-  if (platform === 'tiktok') {
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, 240, 44);
+  // 2. Barra Superiore Header - Solo Icona e Nome Account Molto Grande
+  ctx.fillStyle = "#000000";
+  ctx.fillRect(0, 0, 240, 48);
 
+  if (platform === 'tiktok') {
     // Accenti TikTok Neon in alto (Ciano & Magenta)
     ctx.fillStyle = "#00f2fe";
     ctx.fillRect(0, 0, 120, 3);
@@ -1924,30 +1924,21 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
     // Icona TikTok grande
     ctx.save();
     ctx.fillStyle = "#00f2fe";
-    drawTikTokGlyph(ctx, 22, 24, 1.0);
+    drawTikTokGlyph(ctx, 22, 26, 1.15);
     ctx.fillStyle = "#fe2c55";
-    drawTikTokGlyph(ctx, 24, 26, 1.0);
+    drawTikTokGlyph(ctx, 24, 28, 1.15);
     ctx.fillStyle = "#ffffff";
-    drawTikTokGlyph(ctx, 23, 25, 1.0);
+    drawTikTokGlyph(ctx, 23, 27, 1.15);
     ctx.restore();
 
-    // Username GRANDE E LEGGIBILE (20px bold)
-    ctx.font = "bold 20px -apple-system, sans-serif";
+    // Username MAXI (24px bold) senza scritte inutili
+    ctx.font = "bold 24px -apple-system, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(`@${displayUser}`, 46, 25);
-
-    // Badge LIVE a destra
-    ctx.font = "900 13px -apple-system, sans-serif";
-    ctx.fillStyle = "#00f2fe";
-    ctx.textAlign = "right";
-    ctx.fillText("TIKTOK", 228, 25);
+    ctx.fillText(`@${displayUser}`, 46, 27);
 
   } else if (platform === 'instagram') {
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, 240, 44);
-
     const igGrad = ctx.createLinearGradient(0, 0, 240, 0);
     igGrad.addColorStop(0, "#f09433");
     igGrad.addColorStop(0.5, "#dc2743");
@@ -1955,58 +1946,44 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
     ctx.fillStyle = igGrad;
     ctx.fillRect(0, 0, 240, 3);
 
-    drawInstagramGlyph(ctx, 24, 25, 24);
+    drawInstagramGlyph(ctx, 23, 27, 26);
 
-    ctx.font = "bold 20px -apple-system, sans-serif";
+    ctx.font = "bold 24px -apple-system, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(`@${displayUser}`, 46, 25);
-
-    ctx.font = "900 13px -apple-system, sans-serif";
-    ctx.fillStyle = "#e6683c";
-    ctx.textAlign = "right";
-    ctx.fillText("INSTA", 228, 25);
+    ctx.fillText(`@${displayUser}`, 46, 27);
 
   } else { // youtube
-    ctx.fillStyle = "#000000";
-    ctx.fillRect(0, 0, 240, 44);
-
     ctx.fillStyle = "#ff0000";
     ctx.fillRect(0, 0, 240, 3);
 
-    drawYouTubeGlyph(ctx, 24, 25, 28, 20);
+    drawYouTubeGlyph(ctx, 23, 27, 30, 22);
 
-    ctx.font = "bold 20px -apple-system, sans-serif";
+    ctx.font = "bold 24px -apple-system, sans-serif";
     ctx.fillStyle = "#ffffff";
     ctx.textAlign = "left";
     ctx.textBaseline = "middle";
-    ctx.fillText(displayUser, 46, 25);
-
-    ctx.font = "900 13px -apple-system, sans-serif";
-    ctx.fillStyle = "#ff3b30";
-    ctx.textAlign = "right";
-    ctx.fillText("YOUTUBE", 228, 25);
+    ctx.fillText(displayUser, 46, 27);
   }
 
   // Linea divisoria superiore sottile
   ctx.strokeStyle = "#222226";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, 45);
-  ctx.lineTo(240, 45);
+  ctx.moveTo(0, 50);
+  ctx.lineTo(240, 50);
   ctx.stroke();
 
-  // 3. Tessere Split-Flap MAXI (6 tessere da 35px larghezza per 96px altezza)
-  const currStr = String(Math.max(0, Math.floor(currentCount))).padStart(6, ' ');
-  const targStr = String(Math.max(0, Math.floor(targetCount))).padStart(6, ' ');
+  // 3. Tessere Split-Flap MAXI (6 tessere da 35px larghezza per 102px altezza)
+  const currStr = String(Math.max(0, Math.floor(targetCount || currentCount || 0))).padStart(6, ' ');
 
   const tileW = 35;
-  const tileH = 96; // Molto più grandi e imponenti!
+  const tileH = 102; // Altezza maggiorata a 102px
   const gap = 4;
   const totalW = 6 * tileW + 5 * gap; // 230px
   const startX = Math.round((240 - totalW) / 2); // 5px
-  const tileY = 62;
+  const tileY = 58;
 
   // Cornice protettiva delle tessere
   ctx.fillStyle = "#000000";
@@ -2014,48 +1991,39 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
 
   for (let i = 0; i < 6; i++) {
     const x = startX + i * (tileW + gap);
-    const currChar = currStr[i] || ' ';
-    const targChar = targStr[i] || ' ';
-    const isFlipping = (currChar !== targChar);
-    const progress = isFlipping ? flipFraction : 0;
-
-    drawSingleSplitFlap(ctx, x, tileY, tileW, tileH, currChar, targChar, progress);
+    const char = currStr[i] || ' ';
+    // Disegno statico istantaneo senza rotazione/animazione
+    drawSingleSplitFlap(ctx, x, tileY, tileW, tileH, char, char, 0);
   }
 
-  // 4. Barra di Stato Inferiore Ampia e Ultra-Chiara (Y: 180-240)
+  // 4. Barra di Stato Inferiore con scritta FOLLOWERS chiara
   ctx.strokeStyle = "#222226";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, 185);
-  ctx.lineTo(240, 185);
+  ctx.moveTo(0, 182);
+  ctx.lineTo(240, 182);
   ctx.stroke();
 
   // Pallino LIVE pulsante (raggio 5px)
   const dotColor = platform === 'tiktok' ? "#00f2fe" : (platform === 'youtube' ? "#ff3b30" : "#34c759");
   ctx.fillStyle = dotColor;
   ctx.beginPath();
-  ctx.arc(18, 212, 5, 0, Math.PI * 2);
+  ctx.arc(16, 211, 5, 0, Math.PI * 2);
   ctx.fill();
 
-  // Dicitura LIVE
+  // Scritta FOLLOWERS in grande e nitida
   ctx.font = "900 15px -apple-system, sans-serif";
-  ctx.fillStyle = dotColor;
+  ctx.fillStyle = "#a0a4b0";
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText("LIVE", 30, 212);
+  ctx.fillText("FOLLOWERS", 28, 211);
 
-  // Intervallo di aggiornamento
-  const intervalSec = state.followerInterval || 30;
-  ctx.font = "bold 14px -apple-system, sans-serif";
-  ctx.fillStyle = "#888890";
-  ctx.fillText(`${intervalSec}s`, 72, 212);
-
-  // Totale Follower Formattato a Destra (18px monospace bold)
-  ctx.font = "900 18px monospace, sans-serif";
+  // Totale Follower Formattato a Destra (19px monospace bold bianco brillante)
+  ctx.font = "900 19px monospace, sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "right";
   const formattedNum = Number(targetCount || currentCount || 0).toLocaleString('it-IT');
-  ctx.fillText(formattedNum, 228, 212);
+  ctx.fillText(formattedNum, 228, 211);
 
   saveState();
   updatePayloadPreview();
@@ -2130,45 +2098,16 @@ async function fetchSocialFollowerCount(platform, username) {
   return state.followerCount;
 }
 
-// ANIMAZIONE MECCANICA SU PIXÒ: Trasmette 3 fotogrammi calibrati a 160ms per perfetta percezione visiva
+// Aggiornamento ISTANTANEO: Elimina l'animazione lenta e trasmette direttamente il nuovo numero netto
 async function triggerFollowerFlip(oldCount, newCount, onComplete) {
   playAudioClick();
 
   const plat = state.followerPlatform || 'tiktok';
   const user = state.followerUsername || '';
 
-  // 1. Animazione a 60 FPS fluida nel browser locale (500ms)
-  const duration = 500;
-  const startT = performance.now();
-  function browserLoop(now) {
-    const elapsed = now - startT;
-    const progress = Math.min(1, elapsed / duration);
-    const ease = progress < 0.5 ? 2 * progress * progress : 1 - Math.pow(-2 * progress + 2, 2) / 2;
-    renderSplitFlapCanvas(plat, user, oldCount, newCount, ease);
-    if (progress < 1) {
-      requestAnimationFrame(browserLoop);
-    }
-  }
-  requestAnimationFrame(browserLoop);
-
-  // 2. Sequenza Meccanica hardware su Pixò: invia 3 fotogrammi distanziati da 160ms
-  try {
-    // Frame 1: Lamella in discesa (35% - progress 0.35)
-    renderSplitFlapCanvas(plat, user, oldCount, newCount, 0.35);
-    await sendFollowerFrameToPixo(0.92);
-    await new Promise(r => setTimeout(r, 160));
-
-    // Frame 2: Lamella aperta verso il basso con il nuovo numero (75% - progress 0.75)
-    renderSplitFlapCanvas(plat, user, oldCount, newCount, 0.75);
-    await sendFollowerFrameToPixo(0.92);
-    await new Promise(r => setTimeout(r, 160));
-
-    // Frame 3: Posizione finale statica e nitida
-    renderSplitFlapCanvas(plat, user, newCount, newCount, 0);
-    await sendFollowerFrameToPixo(0.94);
-  } catch(e) {
-    console.warn("[FOLLOWER] Errore invio sequenza animata Pixò:", e);
-  }
+  // Renderizza subito il nuovo numero a schermo locale e invia un singolo fotogramma immediato a Pixò
+  renderSplitFlapCanvas(plat, user, newCount, newCount, 0);
+  await sendFollowerFrameToPixo(0.94);
 
   if (onComplete) onComplete();
 }
