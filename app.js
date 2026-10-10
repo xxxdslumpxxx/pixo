@@ -1983,21 +1983,44 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
   updatePayloadPreview();
 }
 
-// Invia un singolo frame JPEG ad altissima fedeltà (0.92) per eliminare qualsiasi artefatto
-async function sendFollowerFrameToPixo(quality = 0.92) {
+// Invia comando NATIVO a Pixò per visualizzazione hardware ultra-fluida e zero traffico
+async function sendNativeFollowerCommand(platform, username, count, interval) {
   if (!state.deviceId) return;
   if (!state.mqttClient || !state.mqttClient.connected) {
     await connectMQTT();
     if (!state.mqttClient || !state.mqttClient.connected) return;
   }
-  const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', quality));
-  if (!blob) return;
-  const arrayBuffer = await blob.arrayBuffer();
-  const uint8Array = new Uint8Array(arrayBuffer);
-  publishToDrawTopics(uint8Array);
+  const cleanPlat = (platform || 'tiktok').toLowerCase();
+  const cleanUser = (username || 'pixo').replace(/^@+/, '');
+  const cmdStr = `FOLLOWER:${cleanPlat}:${cleanUser}:${count}:${interval}`;
+  const payload = new TextEncoder().encode(cmdStr);
+  publishToDrawTopics(payload);
   getTargetDeviceIds().forEach(id => {
-    state.mqttClient.publish(`pixo/device/${id}/current`, uint8Array, { qos: 0, retain: true });
+    state.mqttClient.publish(`pixo/device/${id}/current`, payload, { qos: 0, retain: true });
   });
+}
+
+// Invia solo il nuovo numero quando cambia (COUNT:1421)
+async function sendNativeFollowerCount(count) {
+  if (!state.deviceId) return;
+  if (!state.mqttClient || !state.mqttClient.connected) {
+    await connectMQTT();
+    if (!state.mqttClient || !state.mqttClient.connected) return;
+  }
+  const cmdStr = `COUNT:${count}`;
+  const payload = new TextEncoder().encode(cmdStr);
+  publishToDrawTopics(payload);
+  getTargetDeviceIds().forEach(id => {
+    state.mqttClient.publish(`pixo/device/${id}/current`, payload, { qos: 0, retain: true });
+  });
+}
+
+async function sendFollowerFrameToPixo(quality = 0.92) {
+  const plat = state.followerPlatform || 'tiktok';
+  const user = state.followerUsername || 'pixo';
+  const count = state.followerCount || 0;
+  const interval = state.followerInterval || 30;
+  await sendNativeFollowerCommand(plat, user, count, interval);
 }
 
 async function fetchSocialFollowerCount(platform, username) {
@@ -2052,7 +2075,7 @@ async function fetchSocialFollowerCount(platform, username) {
   return state.followerCount;
 }
 
-// Aggiornamento ISTANTANEO: Elimina l'animazione lenta e trasmette direttamente il nuovo numero netto
+// Aggiornamento ISTANTANEO NATIVO: Trasmette solo il nuovo conteggio numerico (zero traffico)
 async function triggerFollowerFlip(oldCount, newCount, onComplete) {
   playAudioClick();
 
@@ -2061,7 +2084,8 @@ async function triggerFollowerFlip(oldCount, newCount, onComplete) {
 
   followerElapsedSeconds = 0;
   renderSplitFlapCanvas(plat, user, newCount, newCount, 0, 0);
-  await sendFollowerFrameToPixo(0.94);
+  // Invio nativo immediato al microcontrollore
+  await sendNativeFollowerCount(newCount);
 
   if (onComplete) onComplete();
 }
@@ -2088,7 +2112,8 @@ async function activateFollowerMode() {
   state.followerTarget = count;
 
   renderSplitFlapCanvas(plat, user, count, count, 0, 0);
-  await sendFollowerFrameToPixo(0.94);
+  // Invia comando nativo a Pixò con piattaforma, username, conteggio e intervallo
+  await sendNativeFollowerCommand(plat, user, count, state.followerInterval);
 
   if (feedPlusOneBtn) feedPlusOneBtn.style.display = '';
 
@@ -2123,11 +2148,14 @@ async function activateFollowerMode() {
         if (fetched > 0) newCount = fetched;
       }
 
+      const oldVal = state.followerCount;
       state.followerCount = newCount;
       state.followerTarget = newCount;
 
       renderSplitFlapCanvas(state.followerPlatform, state.followerUsername, newCount, newCount, 0, 0);
-      await sendFollowerFrameToPixo(0.94);
+      if (newCount !== oldVal) {
+        await sendNativeFollowerCount(newCount);
+      }
 
       feedStatusText.textContent = t("feedFollowerActive", {
         platform: platName,
