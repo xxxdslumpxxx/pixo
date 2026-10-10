@@ -1838,92 +1838,83 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
   ctx.fillStyle = "#000000";
   ctx.fillRect(0, 0, 240, 240);
 
-  // 2. Barra Superiore Header - Icona e Nome Account Maxi
+  // 2. Barra Superiore Header - Icona e Nome Social in chiaro + Nome Account
   ctx.fillStyle = "#000000";
-  ctx.fillRect(0, 0, 240, 44);
+  ctx.fillRect(0, 0, 240, 46);
 
-  if (platform === 'tiktok') {
-    // Accenti TikTok Neon in alto (Ciano & Magenta)
-    ctx.fillStyle = "#00f2fe";
-    ctx.fillRect(0, 0, 120, 3);
-    ctx.fillStyle = "#fe2c55";
-    ctx.fillRect(120, 0, 120, 3);
-
-    // Icona TikTok grande
-    ctx.save();
-    ctx.fillStyle = "#00f2fe";
-    drawTikTokGlyph(ctx, 22, 24, 1.15);
-    ctx.fillStyle = "#fe2c55";
-    drawTikTokGlyph(ctx, 24, 26, 1.15);
-    ctx.fillStyle = "#ffffff";
-    drawTikTokGlyph(ctx, 23, 25, 1.15);
-    ctx.restore();
-
-    // Username MAXI 24px bold (pulito, senza altre scritte)
-    ctx.font = "bold 24px -apple-system, sans-serif";
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(`@${displayUser}`, 46, 25);
-
-  } else if (platform === 'instagram') {
-    const igGrad = ctx.createLinearGradient(0, 0, 240, 0);
-    igGrad.addColorStop(0, "#f09433");
-    igGrad.addColorStop(0.5, "#dc2743");
-    igGrad.addColorStop(1, "#bc1888");
-    ctx.fillStyle = igGrad;
-    ctx.fillRect(0, 0, 240, 3);
-
-    drawInstagramGlyph(ctx, 23, 25, 26);
-
-    ctx.font = "bold 24px -apple-system, sans-serif";
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(`@${displayUser}`, 46, 25);
-
-  } else { // youtube
-    ctx.fillStyle = "#ff0000";
-    ctx.fillRect(0, 0, 240, 3);
-
-    drawYouTubeGlyph(ctx, 23, 25, 30, 22);
-
-    ctx.font = "bold 24px -apple-system, sans-serif";
-    ctx.fillStyle = "#ffffff";
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
-    ctx.fillText(displayUser, 46, 25);
+  let themeColor = "#00f2fe";
+  let platName = "TIKTOK";
+  if (platform === 'instagram') {
+    themeColor = "#f09433";
+    platName = "INSTAGRAM";
+  } else if (platform === 'youtube') {
+    themeColor = "#ff3b30";
+    platName = "YOUTUBE";
   }
 
-  // Linea divisoria superiore sottile
+  // Linea accento social in alto (Y=0, H=3)
+  ctx.fillStyle = themeColor;
+  ctx.fillRect(0, 0, 240, 3);
+
+  // Icona Social Stilizzata a sinistra
+  if (platform === 'tiktok') {
+    ctx.save();
+    ctx.fillStyle = "#00f2fe";
+    drawTikTokGlyph(ctx, 20, 24, 1.1);
+    ctx.fillStyle = "#fe2c55";
+    drawTikTokGlyph(ctx, 22, 26, 1.1);
+    ctx.fillStyle = "#ffffff";
+    drawTikTokGlyph(ctx, 21, 25, 1.1);
+    ctx.restore();
+  } else if (platform === 'instagram') {
+    drawInstagramGlyph(ctx, 21, 25, 24);
+  } else {
+    drawYouTubeGlyph(ctx, 21, 25, 26, 18);
+  }
+
+  // Nome Piattaforma in chiaro (X=40, Y=14)
+  ctx.font = "900 11px -apple-system, sans-serif";
+  ctx.fillStyle = themeColor;
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(platName, 42, 14);
+
+  // Nome account (X=40, Y=30)
+  ctx.font = "bold 18px -apple-system, sans-serif";
+  ctx.fillStyle = "#ffffff";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`@${displayUser}`, 42, 30);
+
+  // Linea divisoria orizzontale sotto l'header (Y=46)
   ctx.strokeStyle = "#222226";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.moveTo(0, 45);
-  ctx.lineTo(240, 45);
+  ctx.moveTo(0, 46);
+  ctx.lineTo(240, 46);
   ctx.stroke();
 
-  // 3. Tessere Split-Flap Ben Proporzionate (Altezza: 76px, Larghezza: 34px)
-  const currStr = String(Math.max(0, Math.floor(targetCount || currentCount || 0))).padStart(6, ' ');
+  // 3. Tessere Split-Flap (7 CIFRE: supporta fino a 9.999.999 Milioni!)
+  const currStr = String(Math.max(0, Math.floor(targetCount || currentCount || 0))).padStart(7, ' ');
 
-  const tileW = 34;
-  const tileH = 76; // Altezza armoniosa e non eccessiva
-  const gap = 4;
-  const totalW = 6 * tileW + 5 * gap; // 224px
-  const startX = Math.round((240 - totalW) / 2); // 8px
-  const tileY = 58;
+  const tileW = 29;
+  const tileH = 76;
+  const gap = 3;
+  const totalW = 7 * tileW + 6 * gap; // 221px
+  const startX = Math.round((240 - totalW) / 2); // 9px
+  const tileY = 56;
 
   // Cornice protettiva delle tessere
   ctx.fillStyle = "#000000";
   ctx.fillRect(startX - 2, tileY - 2, totalW + 4, tileH + 4);
 
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < 7; i++) {
     const x = startX + i * (tileW + gap);
     const char = currStr[i] || ' ';
     drawSingleSplitFlap(ctx, x, tileY, tileW, tileH, char, char, 0);
   }
 
-  // 4. Linea divisoria inferiore
+  // 4. Linea divisoria sopra FOLLOWERS
   ctx.strokeStyle = "#222226";
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -1932,8 +1923,7 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
   ctx.stroke();
 
   // 5. Riquadro FOLLOWERS & Conteggio Totale (Y: 154 - 184)
-  const dotColor = platform === 'tiktok' ? "#00f2fe" : (platform === 'youtube' ? "#ff3b30" : "#34c759");
-  ctx.fillStyle = dotColor;
+  ctx.fillStyle = themeColor;
   ctx.beginPath();
   ctx.arc(18, 168, 5, 0, Math.PI * 2);
   ctx.fill();
@@ -1944,46 +1934,42 @@ function renderSplitFlapCanvas(platform, username, currentCount, targetCount, fl
   ctx.textBaseline = "middle";
   ctx.fillText("FOLLOWERS", 30, 168);
 
-  ctx.font = "900 19px monospace, sans-serif";
+  ctx.font = "900 18px monospace, sans-serif";
   ctx.fillStyle = "#ffffff";
   ctx.textAlign = "right";
   const formattedNum = Number(targetCount || currentCount || 0).toLocaleString('it-IT');
   ctx.fillText(formattedNum, 226, 168);
 
-  // 6. Barra di Progresso Aggiornamento stile Orologio Nativo (Y: 194 - 230)
+  // 6. Barra di Progresso Aggiornamento stile Orologio Nativo
   const intervalSec = Math.max(5, state.followerInterval || 30);
   const currentSec = Math.max(0, Math.min(intervalSec, elapsedSec));
   const remainingSec = Math.max(0, intervalSec - currentSec);
 
-  // Cornice arrotondata per la barra di progresso (stessa geometria dell'orologio ESP32)
   ctx.strokeStyle = "#424248";
   ctx.lineWidth = 1;
   ctx.beginPath();
-  ctx.roundRect(18, 194, 204, 10, 4);
+  ctx.roundRect(18, 188, 204, 10, 4);
   ctx.stroke();
 
-  // Riempimento dinamico della barra (Ciano Neon #03ffff)
   const maxBarWidth = 200;
   const barWidth = Math.round((currentSec / intervalSec) * maxBarWidth);
   if (barWidth > 0) {
-    ctx.fillStyle = "#00f2fe";
+    ctx.fillStyle = themeColor;
     ctx.beginPath();
-    ctx.roundRect(20, 196, Math.min(maxBarWidth, barWidth), 6, 2);
+    ctx.roundRect(20, 190, Math.min(maxBarWidth, barWidth), 6, 2);
     ctx.fill();
   }
 
-  // Indicatore dei secondi rimanenti centrato sotto la barra
   ctx.font = "bold 13px monospace, -apple-system, sans-serif";
   ctx.fillStyle = "#00b4d8";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(`Aggiornamento tra: ${remainingSec}s`, 120, 222);
+  ctx.fillText(`Aggiornamento tra: ${remainingSec}s`, 120, 218);
 
   saveState();
   updatePayloadPreview();
 }
 
-// Invia comando NATIVO a Pixò per visualizzazione hardware ultra-fluida e zero traffico
 async function sendNativeFollowerCommand(platform, username, count, interval) {
   if (!state.deviceId) return;
   if (!state.mqttClient || !state.mqttClient.connected) {
@@ -2039,31 +2025,35 @@ async function fetchSocialFollowerCount(platform, username) {
       const res = await fetch(`https://countik.com/api/exist/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(6000) });
       if (res.ok) {
         const d = await res.json();
-        if (d && d.sec_uid) {
-          const detailRes = await fetch(`https://countik.com/api/user/detail/${d.sec_uid}`, { signal: AbortSignal.timeout(6000) });
-          if (detailRes.ok) {
-            const detail = await detailRes.json();
-            if (detail && typeof detail.follower_count === 'number') {
-              return detail.follower_count;
-            }
-          }
-        }
-      }
-      const resB = await fetch(`https://tokcount.com/api/user/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(6000) });
-      if (resB.ok) {
-        const dB = await resB.json();
-        if (dB && typeof dB.follower_count === 'number') {
-          return dB.follower_count;
+        if (d && typeof d.followerCount === 'number' && d.followerCount > 0) {
+          return d.followerCount;
         }
       }
     } else if (platform === 'youtube') {
-      const res = await fetch(`https://mixerno.space/api/youtube-channel-counter/user/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(6000) });
+      // Prova prima con ID diretto o ricerca canale
+      let channelId = clean;
+      if (!clean.startsWith("UC") || clean.length !== 24) {
+        try {
+          const sRes = await fetch(`https://mixerno.space/api/youtube-channel-counter/search/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(5000) });
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            if (sData && sData.list && sData.list[0] && sData.list[0][2]) {
+              channelId = sData.list[0][2];
+            }
+          }
+        } catch(e) {}
+      }
+
+      const res = await fetch(`https://mixerno.space/api/youtube-channel-counter/user/${encodeURIComponent(channelId)}`, { signal: AbortSignal.timeout(6000) });
       if (res.ok) {
         const d = await res.json();
         if (d && d.counts && typeof d.counts[0]?.count === 'number') {
           return d.counts[0].count;
         }
       }
+    } else if (platform === 'instagram') {
+      // Per Instagram in assenza di chiavi Graph API business usiamo il contatore simulato/cached
+      if (state.followerCount > 0) return state.followerCount;
     }
   } catch (err) {
     console.warn("[FOLLOWER] Errore fetch online per", platform, clean, err);
@@ -3030,6 +3020,44 @@ function handleStartOta() {
 // ==========================================================================
 //  8. CONTROLLO LUMINOSITÀ HARDWARE (PWM VIA MQTT)
 // ==========================================================================
+
+function handleStartGlobalOta() {
+  if (state.isGuestMode) {
+    alert("Operazione non consentita in modalità ospite.");
+    return;
+  }
+  const defaultUrl = "https://github.com/xxxdslumpxxx/pixo/releases/download/v1.1.1/firmware.bin";
+  const url = (otaUrlInput && otaUrlInput.value.trim()) ? otaUrlInput.value.trim() : defaultUrl;
+
+  const masterPin = prompt("Inserisci il PIN MASTER per il Broadcast Globale all'intera flotta:", "pixo_master_2026");
+  if (!masterPin) return;
+
+  const ok = confirm(`ATTENZIONE: Stai per avviare l'aggiornamento FIRMWARE GLOBALE su TUTTI i Pixò della tua flotta!\n\nSorgente: ${url}\nMaster PIN: ${masterPin}\n\nTutti i dispositivi mostreranno la barra di avanzamento e si riavvieranno automaticamente.\n\nConfermi il broadcast globale?`);
+  if (!ok) return;
+
+  if (state.mqttClient && state.mqttClient.connected) {
+    const payload = JSON.stringify({
+      url: url,
+      version: "1.1.1",
+      pin: masterPin
+    });
+
+    state.mqttClient.publish("pixo/global/ota", payload, { qos: 1 });
+
+    if (otaStatusBox) {
+      otaStatusBox.style.display = 'block';
+      otaStatusBox.style.background = 'rgba(255,149,0,0.2)';
+      otaStatusBox.style.borderColor = 'rgba(255,149,0,0.5)';
+    }
+    if (otaStatusText) {
+      otaStatusText.innerHTML = `<strong>BROADCAST GLOBALE INVIATO!</strong> Tutti i Pixò stanno ricevendo v1.1.1...`;
+    }
+    showToast("Broadcast OTA globale inviato a tutta la flotta!", "success");
+  } else {
+    showToast("Disconnesso dal Cloud. Impossibile inviare.", "error");
+  }
+}
+
 function sendBrightness(percent) {
   state.brightness = percent;
   localStorage.setItem('pixo_brightness', percent);
@@ -4192,6 +4220,10 @@ function setupEventListeners() {
 
   if (btnStartOta) {
     btnStartOta.addEventListener('click', handleStartOta);
+  }
+  const btnStartGlobalOta = document.getElementById('btnStartGlobalOta');
+  if (btnStartGlobalOta) {
+    btnStartGlobalOta.addEventListener('click', handleStartGlobalOta);
   }
 
 
