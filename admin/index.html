@@ -84,16 +84,20 @@
       <section class="global-actions-card">
         <div class="card-header">
           <h3>⚡ Azioni Globali su Tutta la Flotta</h3>
-          <span class="badge warning">Master Key</span>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span id="latestFwBadge" class="badge info" title="Ultima release disponibile su GitHub">Rilevamento FW...</span>
+            <span class="badge warning">Master Key</span>
+          </div>
         </div>
         <div class="actions-body">
           <!-- Master OTA Broadcast -->
           <div class="global-action-row">
             <div class="ota-inputs">
-              <input type="text" id="globalOtaUrl" placeholder="URL file .bin firmware..." value="https://raw.githubusercontent.com/xxxdslumpxxx/pixo/main/firmware/Lavagna_ESP32C3.ino.bin">
-              <button id="btnGlobalOta" class="btn danger mini">🚀 Master OTA Broadcast</button>
+              <input type="text" id="globalOtaUrl" placeholder="URL file .bin firmware..." value="https://github.com/xxxdslumpxxx/pixo/releases/download/v1.1.1/firmware.bin">
+              <button id="btnCheckFw" class="btn secondary mini" title="Ricontrolla aggiornamenti su GitHub">🔍 Verifica</button>
+              <button id="btnGlobalOta" class="btn danger mini">🚀 Aggiorna Flotta (<span id="otaTargetCount">0</span> obsoleti)</button>
             </div>
-            <small class="helper-text">Broadcast su <code>pixo/global/ota</code> con firma Master.</small>
+            <small class="helper-text" id="otaHelperText">Caricamento stato firmware...</small>
           </div>
 
           <!-- Pulsanti Broadcast Flotta -->
