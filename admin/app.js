@@ -1,4 +1,4 @@
-// Pixò Master Fleet Commander - Admin Logic
+// Pixò Master Fleet Commander - Standalone Admin Logic
 const MASTER_KEY = "pixo_master_2026";
 
 const MQTT_CONFIG = {
@@ -9,7 +9,7 @@ const MQTT_CONFIG = {
 
 // State
 let mqttClient = null;
-let devices = {}; // { [id]: { id, status, lastSeen, ip, ssid, signal, fwVer, freeHeap, uptime_s, otaStatus, pin } }
+let devices = {}; // { [id]: { id, status, lastSeen, ip, ssid, signal, fwVer, freeHeap, uptime_s, otaStatus, pin, lightState } }
 let totalMsgCount = 0;
 let currentFilter = 'all';
 let searchQuery = '';
@@ -35,8 +35,10 @@ const statMsgCount = document.getElementById('statMsgCount');
 const globalOtaUrl = document.getElementById('globalOtaUrl');
 const btnGlobalOta = document.getElementById('btnGlobalOta');
 const btnGlobalStandby = document.getElementById('btnGlobalStandby');
-const btnGlobalFlashLed = document.getElementById('btnGlobalFlashLed');
 const btnGlobalClock = document.getElementById('btnGlobalClock');
+const btnGlobalLightOn = document.getElementById('btnGlobalLightOn');
+const btnGlobalLightOff = document.getElementById('btnGlobalLightOff');
+const btnGlobalFlashLed = document.getElementById('btnGlobalFlashLed');
 
 const searchInput = document.getElementById('searchInput');
 const filterPills = document.querySelectorAll('.filter-pill');
@@ -46,10 +48,21 @@ const countAll = document.getElementById('countAll');
 const countOnline = document.getElementById('countOnline');
 const countOffline = document.getElementById('countOffline');
 
+const logsToggleTitle = document.getElementById('logsToggleTitle');
+const logsToggleIcon = document.getElementById('logsToggleIcon');
 const liveLogsContainer = document.getElementById('liveLogsContainer');
 const btnClearLogs = document.getElementById('btnClearLogs');
 const chkAutoScroll = document.getElementById('chkAutoScroll');
 const toastContainer = document.getElementById('toastContainer');
+
+// --- PWA SERVICE WORKER REGISTRATION ---
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' })
+      .then(reg => console.log('[Commander SW] Registrato con successo:', reg.scope))
+      .catch(err => console.warn('[Commander SW] Errore registrazione:', err));
+  });
+}
 
 // --- AUTHENTICATION ---
 function checkAuth() {
@@ -99,16 +112,15 @@ masterKeyInput.addEventListener('keydown', (e) => {
 });
 
 btnLogout.addEventListener('click', () => {
-  if (confirm("Vuoi chiudere la sessione amministratore?")) {
+  if (confirm("Vuoi uscire dalla console amministratore?")) {
     sessionStorage.removeItem('pixo_admin_unlocked');
     localStorage.removeItem('pixo_admin_persistent_unlocked');
     lockConsole();
   }
 });
 
-// --- PERSISTENCE & CACHE ---
+// --- PERSISTENZA E CACHE ---
 function loadSavedData() {
-  // Dispositivi salvati in cache
   try {
     const cached = localStorage.getItem('pixo_admin_fleet_cache');
     if (cached) {
@@ -118,7 +130,6 @@ function loadSavedData() {
     devices = {};
   }
 
-  // PIN personalizzati per ciascun dispositivo
   try {
     const pins = JSON.parse(localStorage.getItem('pixo_admin_device_pins') || '{}');
     Object.keys(pins).forEach(id => {
@@ -146,11 +157,17 @@ function saveDevicePin(deviceId, pin) {
   } catch(e) {}
 }
 
+function getDevicePin(deviceId) {
+  if (devices[deviceId] && devices[deviceId].pin) return devices[deviceId].pin;
+  const pins = JSON.parse(localStorage.getItem('pixo_admin_device_pins') || '{}');
+  return pins[deviceId] || '1234';
+}
+
 // --- MQTT CONNECTION ---
 function connectMQTT() {
   if (mqttClient && mqttClient.connected) return;
 
-  setCloudStatus('connecting', 'Connessione a HiveMQ Cloud...');
+  setCloudStatus('connecting', 'Connessione Cloud...');
 
   const clientId = `pixo_admin_${Math.random().toString(16).substring(2, 8)}`;
   mqttClient = mqtt.connect(MQTT_CONFIG.brokerUrl, {
@@ -164,16 +181,16 @@ function connectMQTT() {
   });
 
   mqttClient.on('connect', () => {
-    setCloudStatus('connected', 'Connesso al Cloud (TLS)');
+    setCloudStatus('connected', 'Cloud Connesso (TLS)');
     showToast('Connessione MQTT Cloud stabilita', 'success');
 
-    // Sottoscrizione a tutta la flotta Pixò
+    // Sottoscrizione flotta
     mqttClient.subscribe('pixo/device/+/status', { qos: 0 });
     mqttClient.subscribe('pixo/device/+/wifi', { qos: 0 });
     mqttClient.subscribe('pixo/device/+/diag', { qos: 0 });
     mqttClient.subscribe('pixo/device/+/ota/status', { qos: 0 });
 
-    addLog('SYSTEM', 'Sottoscritto ai canali di telemetria dell\'intera flotta Pixò.');
+    addLog('SYSTEM', 'Sottoscritto a tutta la flotta Pixò.');
   });
 
   mqttClient.on('message', (topic, payload) => {
@@ -182,11 +199,11 @@ function connectMQTT() {
 
   mqttClient.on('error', (err) => {
     console.error('MQTT Error:', err);
-    setCloudStatus('disconnected', 'Errore Connessione Cloud');
+    setCloudStatus('disconnected', 'Errore Cloud');
   });
 
   mqttClient.on('offline', () => {
-    setCloudStatus('disconnected', 'Disconnesso dal Cloud');
+    setCloudStatus('disconnected', 'Disconnesso');
   });
 }
 
@@ -195,7 +212,7 @@ function setCloudStatus(state, text) {
   cloudStatusText.textContent = text;
 }
 
-// --- MESSAGE DISPATCHER ---
+// --- DISPATCHER MESSAGGI ---
 function handleIncomingMessage(topic, payload) {
   totalMsgCount++;
   statMsgCount.textContent = totalMsgCount;
@@ -210,7 +227,6 @@ function handleIncomingMessage(topic, payload) {
   addLog(topic, textPayload);
 
   if (!devices[devId]) {
-    // Recupera eventuale PIN memorizzato
     const pins = JSON.parse(localStorage.getItem('pixo_admin_device_pins') || '{}');
     devices[devId] = {
       id: devId,
@@ -223,7 +239,8 @@ function handleIncomingMessage(topic, payload) {
       freeHeap: 0,
       uptime_s: 0,
       otaStatus: 'ready',
-      pin: pins[devId] || ''
+      pin: pins[devId] || '',
+      lightState: false
     };
   }
 
@@ -273,7 +290,7 @@ function scheduleRender() {
   }, 250);
 }
 
-// Heartbeat check ogni 5s per marcare offline
+// Heartbeat check ogni 5s
 setInterval(() => {
   const now = Date.now();
   let changed = false;
@@ -305,7 +322,6 @@ function renderDashboard() {
     }
   });
 
-  // Metriche
   statTotal.textContent = allList.length;
   statOnline.textContent = onlineCount;
   statOffline.textContent = offlineCount;
@@ -313,7 +329,6 @@ function renderDashboard() {
   countOnline.textContent = onlineCount;
   countOffline.textContent = offlineCount;
 
-  // Filtraggio
   let filtered = allList.filter(d => {
     const isOnline = (d.status === 'online' && (now - (d.lastSeen || 0)) <= 35000);
     if (currentFilter === 'online' && !isOnline) return false;
@@ -329,7 +344,6 @@ function renderDashboard() {
     return true;
   });
 
-  // Ordina: online prima, poi per contatto recente
   filtered.sort((a, b) => {
     const aOn = (a.status === 'online' && (now - (a.lastSeen || 0)) <= 35000);
     const bOn = (b.status === 'online' && (now - (b.lastSeen || 0)) <= 35000);
@@ -354,6 +368,7 @@ function renderDashboard() {
     const heapKb = Math.round((dev.freeHeap || 0) / 1024);
     const lastSeenSec = dev.lastSeen ? Math.round((now - dev.lastSeen) / 1000) : null;
     const lastSeenStr = lastSeenSec !== null ? `${lastSeenSec}s fa` : 'Mai';
+    const isLightOn = !!dev.lightState;
 
     const card = document.createElement('div');
     card.className = `device-card ${isOnline ? 'is-online' : 'is-offline'}`;
@@ -400,11 +415,13 @@ function renderDashboard() {
         <button class="btn secondary mini" onclick="handleSavePin('${dev.id}')">Salva</button>
       </div>
 
-      <!-- Comandi Rapidi su questo Pixò -->
+      <!-- Griglia Comandi su questo Pixò -->
       <div class="card-actions-grid">
         <button class="btn secondary mini" onclick="sendDeviceStandby('${dev.id}')">✨ Standby</button>
-        <button class="btn secondary mini" onclick="sendDeviceFlashLed('${dev.id}')">💡 Flash Luce (2s)</button>
-        <button class="btn secondary mini" onclick="sendDeviceClock('${dev.id}')">🕒 Mostra Orologio</button>
+        <button class="btn secondary mini" onclick="sendDeviceClock('${dev.id}')">🕒 Orologio</button>
+        <button class="btn ${isLightOn ? 'success' : 'secondary'} mini" onclick="sendDeviceLight('${dev.id}', true)">💡 Luce ON</button>
+        <button class="btn secondary mini" onclick="sendDeviceLight('${dev.id}', false)">🌑 Luce OFF</button>
+        <button class="btn secondary mini" onclick="sendDeviceFlashLed('${dev.id}')">⚡ Flash (2s)</button>
         <button class="btn danger mini" onclick="sendDeviceOta('${dev.id}')">🚀 Aggiorna OTA</button>
       </div>
 
@@ -418,13 +435,12 @@ function renderDashboard() {
   });
 }
 
-// Helper escape HTML
 function escapeHtml(str) {
   if (!str) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// --- DEVICE ACTIONS ---
+// --- AZIONI DISPOSITIVO ---
 
 window.handleSavePin = function(deviceId) {
   const input = document.getElementById(`pin_${deviceId}`);
@@ -433,13 +449,7 @@ window.handleSavePin = function(deviceId) {
   saveDevicePin(deviceId, pin);
 };
 
-function getDevicePin(deviceId) {
-  if (devices[deviceId] && devices[deviceId].pin) return devices[deviceId].pin;
-  const pins = JSON.parse(localStorage.getItem('pixo_admin_device_pins') || '{}');
-  return pins[deviceId] || '';
-}
-
-// 1. STANDBY (CLEAR): invia sui topic sia generici che con PIN per superare il check del firmware
+// 1. STANDBY (CLEAR)
 window.sendDeviceStandby = function(deviceId) {
   if (!mqttClient || !mqttClient.connected) {
     showToast('MQTT Cloud non connesso!', 'error');
@@ -447,60 +457,67 @@ window.sendDeviceStandby = function(deviceId) {
   }
   const pin = getDevicePin(deviceId);
 
-  // Invia al topic generico (se non attivato con PIN)
-  mqttClient.publish(`pixo/device/${deviceId}/draw`, 'CLEAR', { qos: 0 });
-
-  // Invia al topic con PIN proprietario (essenziale se il dispositivo ha un PIN personale)
+  // Invia a topic con PIN
   if (pin && pin.length > 0) {
     mqttClient.publish(`pixo/device/${deviceId}/${pin}/draw`, 'CLEAR', { qos: 0 });
   }
-
-  // Invia con PIN default "1234"
   if (pin !== '1234') {
     mqttClient.publish(`pixo/device/${deviceId}/1234/draw`, 'CLEAR', { qos: 0 });
   }
-
-  // Sincronizza lo stato corrente retained
+  mqttClient.publish(`pixo/device/${deviceId}/draw`, 'CLEAR', { qos: 0 });
   mqttClient.publish(`pixo/device/${deviceId}/current`, 'CLEAR', { qos: 0, retain: true });
 
-  showToast(`Comando Standby inviato a ${deviceId}`, 'success');
-  addLog('OUTBOUND', `Inviato CLEAR a [${deviceId}] (PIN usato: '${pin || '1234'}')`);
+  showToast(`Standby inviato a ${deviceId}`, 'success');
+  addLog('OUTBOUND', `Inviato CLEAR a [${deviceId}] (PIN: '${pin}')`);
 };
 
-// 2. FLASH LUCE LED (2 SECONDI)
-window.sendDeviceFlashLed = function(deviceId) {
+// 2. CONTROLLO LUCE (ON / OFF CONTINUO)
+window.sendDeviceLight = function(deviceId, turnOn) {
   if (!mqttClient || !mqttClient.connected) {
     showToast('MQTT Cloud non connesso!', 'error');
     return;
   }
   const pin = getDevicePin(deviceId);
+  const cmd = turnOn ? "LIGHT:ON" : "LIGHT:OFF";
+  const numCmd = turnOn ? "100" : "0";
 
-  // Accensione
-  mqttClient.publish(`pixo/device/${deviceId}/led`, 'LIGHT:ON', { qos: 0 });
-  mqttClient.publish(`pixo/device/${deviceId}/led`, '100', { qos: 0 });
+  // Invia a topic con PIN
   if (pin && pin.length > 0) {
-    mqttClient.publish(`pixo/device/${deviceId}/${pin}/led`, 'LIGHT:ON', { qos: 0 });
-    mqttClient.publish(`pixo/device/${deviceId}/${pin}/led`, '100', { qos: 0 });
-  }
-  if (pin !== '1234') {
-    mqttClient.publish(`pixo/device/${deviceId}/1234/led`, 'LIGHT:ON', { qos: 0 });
-    mqttClient.publish(`pixo/device/${deviceId}/1234/led`, '100', { qos: 0 });
+    mqttClient.publish(`pixo/device/${deviceId}/${pin}/led`, cmd, { qos: 0 });
+    mqttClient.publish(`pixo/device/${deviceId}/${pin}/led`, numCmd, { qos: 0 });
+    mqttClient.publish(`pixo/device/${deviceId}/${pin}/led`, `LED:${cmd}`, { qos: 0 });
   }
 
-  // Spegnimento automatico dopo 2s per dare l'effetto flash di test
-  setTimeout(() => {
-    if (mqttClient && mqttClient.connected) {
-      mqttClient.publish(`pixo/device/${deviceId}/led`, 'LIGHT:OFF', { qos: 0 });
-      if (pin && pin.length > 0) mqttClient.publish(`pixo/device/${deviceId}/${pin}/led`, 'LIGHT:OFF', { qos: 0 });
-      if (pin !== '1234') mqttClient.publish(`pixo/device/${deviceId}/1234/led`, 'LIGHT:OFF', { qos: 0 });
-    }
-  }, 2000);
+  // Invia a topic di fallback 1234
+  if (pin !== "1234") {
+    mqttClient.publish(`pixo/device/${deviceId}/1234/led`, cmd, { qos: 0 });
+    mqttClient.publish(`pixo/device/${deviceId}/1234/led`, numCmd, { qos: 0 });
+  }
 
-  showToast(`Flash Luce LED (2s) inviato a ${deviceId}`, 'success');
-  addLog('OUTBOUND', `Inviato Flash LED a [${deviceId}]`);
+  // Invia a topic generico pixo/device/<ID>/led
+  mqttClient.publish(`pixo/device/${deviceId}/led`, cmd, { qos: 0 });
+  mqttClient.publish(`pixo/device/${deviceId}/led`, numCmd, { qos: 0 });
+  mqttClient.publish(`pixo/device/${deviceId}/led`, `LED:${cmd}`, { qos: 0 });
+
+  if (devices[deviceId]) {
+    devices[deviceId].lightState = turnOn;
+  }
+  renderDashboard();
+
+  showToast(turnOn ? `Luce ACCESA su ${deviceId} 💡` : `Luce SPENTA su ${deviceId} 🌑`, 'success');
+  addLog('OUTBOUND', `Comando Luce ${turnOn ? 'ON' : 'OFF'} inviato a [${deviceId}] (PIN: '${pin}')`);
 };
 
-// 3. MOSTRA OROLOGIO (CLOCK)
+// 3. FLASH LUCE TEST (2 SECONDI)
+window.sendDeviceFlashLed = function(deviceId) {
+  sendDeviceLight(deviceId, true);
+  setTimeout(() => {
+    sendDeviceLight(deviceId, false);
+  }, 2000);
+  showToast(`Flash Test (2s) inviato a ${deviceId}`, 'info');
+};
+
+// 4. OROLOGIO (CLOCK)
 window.sendDeviceClock = function(deviceId) {
   if (!mqttClient || !mqttClient.connected) {
     showToast('MQTT Cloud non connesso!', 'error');
@@ -508,22 +525,20 @@ window.sendDeviceClock = function(deviceId) {
   }
   const pin = getDevicePin(deviceId);
 
-  mqttClient.publish(`pixo/device/${deviceId}/draw`, 'CLOCK', { qos: 0 });
   if (pin && pin.length > 0) {
     mqttClient.publish(`pixo/device/${deviceId}/${pin}/draw`, 'CLOCK', { qos: 0 });
   }
   if (pin !== '1234') {
     mqttClient.publish(`pixo/device/${deviceId}/1234/draw`, 'CLOCK', { qos: 0 });
   }
-
-  // Sincronizza stato retained
+  mqttClient.publish(`pixo/device/${deviceId}/draw`, 'CLOCK', { qos: 0 });
   mqttClient.publish(`pixo/device/${deviceId}/current`, 'CLOCK', { qos: 0, retain: true });
 
-  showToast(`Modalità Orologio inviata a ${deviceId}`, 'success');
+  showToast(`Orologio inviato a ${deviceId}`, 'success');
   addLog('OUTBOUND', `Inviato CLOCK a [${deviceId}]`);
 };
 
-// 4. OTA SINGOLO DISPOSITIVO
+// 5. OTA SINGOLO DISPOSITIVO
 window.sendDeviceOta = function(deviceId) {
   const pin = getDevicePin(deviceId);
   const defaultUrl = globalOtaUrl.value.trim() || "https://raw.githubusercontent.com/xxxdslumpxxx/pixo/main/firmware/Lavagna_ESP32C3.ino.bin";
@@ -542,7 +557,6 @@ window.sendDeviceOta = function(deviceId) {
     master_pin: MASTER_KEY
   });
 
-  // Pubblica sul topic con PIN (se presente) e sul topic generico
   if (pin && pin.length > 0) {
     mqttClient.publish(`pixo/device/${deviceId}/${pin}/ota`, payload, { qos: 0 });
   }
@@ -552,9 +566,8 @@ window.sendDeviceOta = function(deviceId) {
   addLog('OUTBOUND', `Inviato comando OTA a [${deviceId}] (URL: ${url})`);
 };
 
-// --- GLOBAL ACTIONS ---
+// --- AZIONI GLOBALI FLOTTA ---
 
-// Master OTA Broadcast a tutta la flotta
 btnGlobalOta.addEventListener('click', () => {
   const url = globalOtaUrl.value.trim();
   if (!url) {
@@ -562,7 +575,7 @@ btnGlobalOta.addEventListener('click', () => {
     return;
   }
 
-  const ok = confirm(`⚠️ ATTENZIONE MASTER BROADCAST:\n\nSei sicuro di voler forzare l'aggiornamento OTA su TUTTI i dispositivi Pixò connessi?\n\n• Sorgente: ${url}\n• Tutti i dispositivi scaricheranno e installeranno il pacchetto contemporaneamente.\n\nProcedere?`);
+  const ok = confirm(`⚠️ ATTENZIONE MASTER BROADCAST:\n\nForzare l'aggiornamento OTA su TUTTI i Pixò connessi?\n\n• Sorgente: ${url}\n\nProcedere?`);
   if (!ok) return;
 
   if (!mqttClient || !mqttClient.connected) {
@@ -578,45 +591,46 @@ btnGlobalOta.addEventListener('click', () => {
 
   mqttClient.publish("pixo/global/ota", payload, { qos: 0 });
   showToast("🚀 Master OTA inviato su tutta la flotta!", "success");
-  addLog('OUTBOUND', `BROADCAST MASTER OTA su 'pixo/global/ota' (URL: ${url})`);
+  addLog('OUTBOUND', `BROADCAST MASTER OTA su 'pixo/global/ota'`);
 });
 
-// Standby su tutti i dispositivi rilevati
 btnGlobalStandby.addEventListener('click', () => {
   const ids = Object.keys(devices);
-  if (ids.length === 0) {
-    showToast('Nessun dispositivo rilevato!', 'info');
-    return;
-  }
-  if (!confirm(`Vuoi inviare il comando STANDBY a tutti i ${ids.length} dispositivi Pixò rilevati?`)) return;
-
+  if (ids.length === 0) return showToast('Nessun dispositivo rilevato!', 'info');
+  if (!confirm(`Inviare STANDBY a tutti i ${ids.length} dispositivi Pixò rilevati?`)) return;
   ids.forEach(id => window.sendDeviceStandby(id));
   showToast(`Standby inviato a ${ids.length} dispositivi!`, 'success');
 });
 
-// Flash LED su tutti i dispositivi rilevati
-btnGlobalFlashLed.addEventListener('click', () => {
-  const ids = Object.keys(devices);
-  if (ids.length === 0) {
-    showToast('Nessun dispositivo rilevato!', 'info');
-    return;
-  }
-  ids.forEach(id => window.sendDeviceFlashLed(id));
-  showToast(`Flash LED inviato a ${ids.length} dispositivi!`, 'success');
-});
-
-// Mostra Orologio su tutti
 btnGlobalClock.addEventListener('click', () => {
   const ids = Object.keys(devices);
-  if (ids.length === 0) {
-    showToast('Nessun dispositivo rilevato!', 'info');
-    return;
-  }
+  if (ids.length === 0) return showToast('Nessun dispositivo rilevato!', 'info');
   ids.forEach(id => window.sendDeviceClock(id));
-  showToast(`Modalità Orologio inviata a ${ids.length} dispositivi!`, 'success');
+  showToast(`Orologio inviato a ${ids.length} dispositivi!`, 'success');
 });
 
-// --- SEARCH & FILTERS ---
+btnGlobalLightOn.addEventListener('click', () => {
+  const ids = Object.keys(devices);
+  if (ids.length === 0) return showToast('Nessun dispositivo rilevato!', 'info');
+  ids.forEach(id => window.sendDeviceLight(id, true));
+  showToast(`Luce ACCESA su tutta la flotta! 💡`, 'success');
+});
+
+btnGlobalLightOff.addEventListener('click', () => {
+  const ids = Object.keys(devices);
+  if (ids.length === 0) return showToast('Nessun dispositivo rilevato!', 'info');
+  ids.forEach(id => window.sendDeviceLight(id, false));
+  showToast(`Luce SPENTA su tutta la flotta! 🌑`, 'info');
+});
+
+btnGlobalFlashLed.addEventListener('click', () => {
+  const ids = Object.keys(devices);
+  if (ids.length === 0) return showToast('Nessun dispositivo rilevato!', 'info');
+  ids.forEach(id => window.sendDeviceFlashLed(id));
+  showToast(`Flash Test inviato a ${ids.length} dispositivi!`, 'success');
+});
+
+// --- RICERCA & FILTRI ---
 searchInput.addEventListener('input', (e) => {
   searchQuery = e.target.value.trim();
   renderDashboard();
@@ -633,10 +647,17 @@ filterPills.forEach(pill => {
 
 btnRefresh.addEventListener('click', () => {
   renderDashboard();
-  showToast('Dashboard aggiornata', 'info');
+  showToast('Scansione aggiornata', 'info');
 });
 
-// --- LOGGING ---
+// --- LOG TELEMETRIA COLLAPSIBLE ---
+if (logsToggleTitle) {
+  logsToggleTitle.addEventListener('click', () => {
+    liveLogsContainer.classList.toggle('collapsed');
+    logsToggleIcon.textContent = liveLogsContainer.classList.contains('collapsed') ? '▲' : '▼';
+  });
+}
+
 function addLog(topic, text) {
   if (!liveLogsContainer) return;
   const timeStr = new Date().toLocaleTimeString();
@@ -651,12 +672,11 @@ function addLog(topic, text) {
 
   liveLogsContainer.appendChild(entry);
 
-  // Mantieni massimo 150 elementi per performance
   if (liveLogsContainer.childNodes.length > 150) {
     liveLogsContainer.removeChild(liveLogsContainer.firstChild);
   }
 
-  if (chkAutoScroll.checked) {
+  if (chkAutoScroll && chkAutoScroll.checked) {
     liveLogsContainer.scrollTop = liveLogsContainer.scrollHeight;
   }
 }
@@ -665,7 +685,7 @@ btnClearLogs.addEventListener('click', () => {
   liveLogsContainer.innerHTML = '';
 });
 
-// --- TOAST NOTIFICATIONS ---
+// --- TOAST NOTIFICHE ---
 function showToast(message, type = 'info') {
   if (!toastContainer) return;
   const toast = document.createElement('div');
@@ -675,12 +695,12 @@ function showToast(message, type = 'info') {
 
   setTimeout(() => {
     toast.style.opacity = '0';
-    toast.style.transition = 'opacity 0.3s ease';
+    toast.style.transition = 'opacity 0.25s ease';
     setTimeout(() => {
       if (toast.parentNode) toast.parentNode.removeChild(toast);
-    }, 300);
-  }, 3200);
+    }, 250);
+  }, 2800);
 }
 
-// Inizializzazione all'avvio
+// Inizializzazione
 checkAuth();
