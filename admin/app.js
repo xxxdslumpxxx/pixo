@@ -235,7 +235,7 @@ function handleIncomingMessage(topic, payload) {
       ip: '',
       ssid: '',
       signal: 0,
-      fwVer: '1.0.0',
+      fwVer: '1.0.1',
       freeHeap: 0,
       uptime_s: 0,
       otaStatus: 'ready',
@@ -384,7 +384,7 @@ function renderDashboard() {
       <div class="telemetry-grid">
         <div class="telemetry-item">
           <span class="telem-label">Firmware</span>
-          <span class="telem-val">v${escapeHtml(dev.fwVer || '1.0.0')}</span>
+          <span class="telem-val">v${escapeHtml(dev.fwVer || '1.0.1')}</span>
         </div>
         <div class="telemetry-item">
           <span class="telem-label">Wi-Fi (Segnale)</span>
