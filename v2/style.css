@@ -1178,3 +1178,120 @@ body[data-active-tab="panelSettings"] .canvas-stage,
   margin-bottom: 8px;
 }
 
+/* ==========================================================================
+   SOCIAL FOLLOWER SELECTOR & MODAL STYLES
+   ========================================================================== */
+.social-selector-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.social-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 6px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--glass-border);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.social-card:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #fff;
+}
+
+.social-card.active {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.4);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transform: translateY(-2px);
+}
+
+.social-card[data-platform="tiktok"].active {
+  border-color: #fe2c55;
+  box-shadow: 0 4px 20px rgba(254, 44, 85, 0.35);
+}
+
+.social-card[data-platform="instagram"].active {
+  border-color: #e6683c;
+  box-shadow: 0 4px 20px rgba(220, 39, 67, 0.35);
+}
+
+.social-card[data-platform="youtube"].active {
+  border-color: #ff0000;
+  box-shadow: 0 4px 20px rgba(255, 0, 0, 0.35);
+}
+
+.social-icon-wrapper {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.social-card:active .social-icon-wrapper {
+  transform: scale(0.92);
+}
+
+.social-icon-wrapper.tiktok-bg {
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.social-icon-wrapper.insta-bg {
+  background: linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%);
+}
+
+.social-icon-wrapper.yt-bg {
+  background: #ff0000;
+}
+
+/* Input With Prefix (@) */
+.input-with-prefix {
+  display: flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  height: 44px;
+}
+
+.input-with-prefix:focus-within {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px rgba(10, 132, 255, 0.25);
+}
+
+.input-prefix {
+  padding: 0 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.input-with-prefix input {
+  flex: 1;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  color: #fff !important;
+  font-size: 0.95rem !important;
+  padding: 0 10px 0 0 !important;
+  height: 100% !important;
+}
+
+
