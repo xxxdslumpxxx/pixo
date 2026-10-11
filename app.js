@@ -3001,43 +3001,6 @@ function handleStartOta() {
 //  8. CONTROLLO LUMINOSITÀ HARDWARE (PWM VIA MQTT)
 // ==========================================================================
 
-function handleStartGlobalOta() {
-  if (state.isGuestMode) {
-    alert("Operazione non consentita in modalità ospite.");
-    return;
-  }
-  const defaultUrl = "https://github.com/xxxdslumpxxx/pixo/releases/download/v1.1.1/firmware.bin";
-  const url = (otaUrlInput && otaUrlInput.value.trim()) ? otaUrlInput.value.trim() : defaultUrl;
-
-  const masterPin = prompt("Inserisci il PIN MASTER per il Broadcast Globale all'intera flotta:", "pixo_master_2026");
-  if (!masterPin) return;
-
-  const ok = confirm(`ATTENZIONE: Stai per avviare l'aggiornamento FIRMWARE GLOBALE su TUTTI i Pixò della tua flotta!\n\nSorgente: ${url}\nMaster PIN: ${masterPin}\n\nTutti i dispositivi mostreranno la barra di avanzamento e si riavvieranno automaticamente.\n\nConfermi il broadcast globale?`);
-  if (!ok) return;
-
-  if (state.mqttClient && state.mqttClient.connected) {
-    const payload = JSON.stringify({
-      url: url,
-      version: "1.1.1",
-      pin: masterPin
-    });
-
-    state.mqttClient.publish("pixo/global/ota", payload, { qos: 1 });
-
-    if (otaStatusBox) {
-      otaStatusBox.style.display = 'block';
-      otaStatusBox.style.background = 'rgba(255,149,0,0.2)';
-      otaStatusBox.style.borderColor = 'rgba(255,149,0,0.5)';
-    }
-    if (otaStatusText) {
-      otaStatusText.innerHTML = `<strong>BROADCAST GLOBALE INVIATO!</strong> Tutti i Pixò stanno ricevendo v1.1.1...`;
-    }
-    showToast("Broadcast OTA globale inviato a tutta la flotta!", "success");
-  } else {
-    showToast("Disconnesso dal Cloud. Impossibile inviare.", "error");
-  }
-}
-
 function sendBrightness(percent) {
   state.brightness = percent;
   localStorage.setItem('pixo_brightness', percent);
@@ -4182,10 +4145,6 @@ function setupEventListeners() {
 
   if (btnStartOta) {
     btnStartOta.addEventListener('click', handleStartOta);
-  }
-  const btnStartGlobalOta = document.getElementById('btnStartGlobalOta');
-  if (btnStartGlobalOta) {
-    btnStartGlobalOta.addEventListener('click', handleStartGlobalOta);
   }
 
 
