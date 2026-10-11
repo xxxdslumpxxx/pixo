@@ -243,6 +243,58 @@
               </button>
             </div>
           </div>
+
+          <!-- CARD CORNICE DIGITALE / SLIDESHOW AUTONOMO -->
+          <div class="panel-card glass" style="margin-top:14px;">
+            <div class="gallery-header-row" style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+              <h4 class="card-title">🎬 Cornice Digitale</h4>
+              <span id="slideshowBadge" style="font-size:0.75rem; padding:3px 8px; border-radius:12px; background:rgba(52,199,89,0.15); color:#34c759; border:1px solid rgba(52,199,89,0.3); font-weight:600;">Autonomo</span>
+            </div>
+            <p style="color:var(--text-secondary); font-size:0.84rem; margin-bottom:12px; line-height:1.4;">
+              Carica fino a 5 foto nella memoria interna di Pixò. Il carosello continua a ruotare anche a smartphone spento!
+            </p>
+
+            <!-- Griglia dei 5 Slot Foto -->
+            <div id="slideshowSlotsGrid" style="display:grid; grid-template-columns: repeat(5, 1fr); gap:6px; margin-bottom:12px;"></div>
+
+            <!-- Controlli Intervallo e Azioni -->
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; padding:8px 12px; border-radius:var(--radius-sm); background:rgba(255,255,255,0.04); border:1px solid var(--glass-border);">
+              <label style="font-size:0.82rem; color:var(--text-secondary);">Intervallo cambio:</label>
+              <select id="slideshowIntervalSelect" style="background:rgba(0,0,0,0.4); color:#fff; border:1px solid var(--glass-border); border-radius:6px; padding:4px 8px; font-size:0.82rem;">
+                <option value="10">10 secondi</option>
+                <option value="15" selected>15 secondi</option>
+                <option value="30">30 secondi</option>
+                <option value="60">1 minuto</option>
+                <option value="300">5 minuti</option>
+              </select>
+            </div>
+
+            <input type="file" id="slideshowFileInput" accept="image/*" multiple style="display:none;">
+
+            <div style="display:flex; flex-direction:column; gap:8px;">
+              <button type="button" class="pill-btn secondary" id="btnSelectSlideshowPhotos" style="padding:10px; font-size:0.88rem; justify-content:center; gap:6px;">
+                ➕ Seleziona Foto dal Telefono
+              </button>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="pill-btn primary" id="btnUploadSlideshow" style="flex:1; padding:10px; font-size:0.88rem; justify-content:center;">
+                  🚀 Carica su Pixò
+                </button>
+                <button type="button" class="pill-btn success" id="btnStartSlideshow" style="flex:1; padding:10px; font-size:0.88rem; justify-content:center; background:#34c759; color:#fff;">
+                  ▶️ Avvia
+                </button>
+                <button type="button" class="pill-btn warning" id="btnStopSlideshow" style="padding:10px 14px; font-size:0.88rem; justify-content:center;">
+                  ⏹️
+                </button>
+              </div>
+              <button type="button" class="pill-btn danger mini" id="btnClearSlideshow" style="margin-top:4px; font-size:0.78rem; align-self:center; background:transparent; border:none; color:var(--accent-red); opacity:0.8;">
+                🗑️ Svuota memoria foto Pixò
+              </button>
+            </div>
+
+            <div id="slideshowProgressBox" style="display:none; margin-top:10px; padding:8px 12px; border-radius:var(--radius-sm); font-size:0.8rem; background:rgba(10,132,255,0.12); border:1px solid rgba(10,132,255,0.25); color:#fff; text-align:center;">
+              <span id="slideshowProgressText">Caricamento...</span>
+            </div>
+          </div>
         </div>
 
         <!-- TAB 4: DISPOSITIVO & IMPOSTAZIONI -->
@@ -739,6 +791,6 @@
 
   </div>
 
-  <script src="app.js?v=35"></script>
+  <script src="app.js?v=36"></script>
 </body>
 </html>
