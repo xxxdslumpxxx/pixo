@@ -9,7 +9,7 @@ const DEFAULT_CONFIG = {
   brokerPass: "projectLavagna!",
   defaultDeviceId: "",
   defaultDeviceName: "Il mio Pixò",
-  jpegQuality: 0.60, // Ottimizzato: ~4-6 KB per invio istantaneo in meno di 100ms!
+  jpegQuality: 0.90, // Qualità 90%: elimina ringing e blocchi DCT, nitidezza assoluta (~6 KB)
   defaultCity: "Roma",
   defaultTheme: "dark", // "dark" (Nero/Bianco) oppure "light" (Bianco/Nero)
   defaultLang: "it",
