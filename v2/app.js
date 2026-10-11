@@ -2013,28 +2013,21 @@ async function fetchSocialFollowerCount(platform, username) {
   const clean = (username || "").replace(/^@+/, '').trim();
   if (!clean) return 0;
 
-  if (state.followerMode === 'test') {
-    if (state.followerCount <= 0) {
-      state.followerCount = parseInt(followerInitialInput.value, 10) || 1420;
-    }
-    return state.followerCount;
-  }
-
   try {
     if (platform === 'tiktok') {
-      const res = await fetch(`https://countik.com/api/exist/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(6000) });
+      const res = await fetch(`https://countik.com/api/exist/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(7000) });
       if (res.ok) {
         const d = await res.json();
-        if (d && typeof d.followerCount === 'number' && d.followerCount > 0) {
+        if (d && typeof d.followerCount === 'number' && d.followerCount >= 0) {
           return d.followerCount;
         }
       }
     } else if (platform === 'youtube') {
-      // Prova prima con ID diretto o ricerca canale
+      // Prova con Channel ID o ricerca canale per nome
       let channelId = clean;
       if (!clean.startsWith("UC") || clean.length !== 24) {
         try {
-          const sRes = await fetch(`https://mixerno.space/api/youtube-channel-counter/search/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(5000) });
+          const sRes = await fetch(`https://mixerno.space/api/youtube-channel-counter/search/${encodeURIComponent(clean)}`, { signal: AbortSignal.timeout(6000) });
           if (sRes.ok) {
             const sData = await sRes.json();
             if (sData && sData.list && sData.list[0] && sData.list[0][2]) {
@@ -2044,25 +2037,19 @@ async function fetchSocialFollowerCount(platform, username) {
         } catch(e) {}
       }
 
-      const res = await fetch(`https://mixerno.space/api/youtube-channel-counter/user/${encodeURIComponent(channelId)}`, { signal: AbortSignal.timeout(6000) });
+      const res = await fetch(`https://mixerno.space/api/youtube-channel-counter/user/${encodeURIComponent(channelId)}`, { signal: AbortSignal.timeout(7000) });
       if (res.ok) {
         const d = await res.json();
         if (d && d.counts && typeof d.counts[0]?.count === 'number') {
           return d.counts[0].count;
         }
       }
-    } else if (platform === 'instagram') {
-      // Per Instagram in assenza di chiavi Graph API business usiamo il contatore simulato/cached
-      if (state.followerCount > 0) return state.followerCount;
     }
   } catch (err) {
     console.warn("[FOLLOWER] Errore fetch online per", platform, clean, err);
   }
 
-  if (state.followerCount <= 0) {
-    state.followerCount = parseInt(followerInitialInput.value, 10) || 1420;
-  }
-  return state.followerCount;
+  return state.followerCount || 0;
 }
 
 // Aggiornamento ISTANTANEO NATIVO: Trasmette solo il nuovo conteggio numerico (zero traffico)
@@ -2090,11 +2077,12 @@ async function activateFollowerMode() {
   const user = (followerUsernameInput.value || state.followerUsername || "pixo").trim();
   state.followerUsername = user;
   state.followerInterval = parseInt(followerIntervalSelect.value, 10) || 30;
-  state.followerMode = followerModeSelect.value || 'live';
 
   localStorage.setItem('pixo_follower_platform', plat);
   localStorage.setItem('pixo_follower_user', user);
   localStorage.setItem('pixo_follower_interval', String(state.followerInterval));
+
+  showToast(`Collegamento a ${plat.toUpperCase()} per @${user}...`, "info");
 
   followerElapsedSeconds = 0;
   let count = await fetchSocialFollowerCount(plat, user);
@@ -2105,9 +2093,7 @@ async function activateFollowerMode() {
   // Invia comando nativo a Pixò con piattaforma, username, conteggio e intervallo
   await sendNativeFollowerCommand(plat, user, count, state.followerInterval);
 
-  if (feedPlusOneBtn) feedPlusOneBtn.style.display = '';
-
-  const platName = plat === 'tiktok' ? "TikTok" : (plat === 'instagram' ? "Instagram" : "YouTube");
+  const platName = plat === 'tiktok' ? "TikTok" : "YouTube";
   feedStatusText.textContent = t("feedFollowerActive", {
     platform: platName,
     user: `@${user.replace(/^@+/, '')}`,
@@ -2117,7 +2103,7 @@ async function activateFollowerMode() {
   feedBanner.classList.remove('hidden');
   showToast(t("toastFollowerSent"), "success");
 
-  // Timer di scansione ad ogni secondo: fa avanzare la barra di progresso e invia l'aggiornamento quando scade
+  // Timer di scansione ad ogni secondo: aggiorna barra e interroga la rete ad intervalli
   state.feedTimer = setInterval(async () => {
     if (state.activeFeedType !== "follower") return;
 
@@ -2130,29 +2116,24 @@ async function activateFollowerMode() {
     if (followerElapsedSeconds >= state.followerInterval) {
       followerElapsedSeconds = 0;
 
-      let newCount = state.followerCount;
-      if (state.followerMode === 'test') {
-        newCount = state.followerCount + 1;
-      } else {
-        const fetched = await fetchSocialFollowerCount(state.followerPlatform, state.followerUsername);
-        if (fetched > 0) newCount = fetched;
+      const fetched = await fetchSocialFollowerCount(state.followerPlatform, state.followerUsername);
+      if (fetched > 0) {
+        const oldVal = state.followerCount;
+        state.followerCount = fetched;
+        state.followerTarget = fetched;
+
+        renderSplitFlapCanvas(state.followerPlatform, state.followerUsername, fetched, fetched, 0, 0);
+        if (fetched !== oldVal) {
+          await sendNativeFollowerCount(fetched);
+        }
+
+        feedStatusText.textContent = t("feedFollowerActive", {
+          platform: platName,
+          user: `@${user.replace(/^@+/, '')}`,
+          count: fetched.toLocaleString('it-IT'),
+          interval: state.followerInterval
+        });
       }
-
-      const oldVal = state.followerCount;
-      state.followerCount = newCount;
-      state.followerTarget = newCount;
-
-      renderSplitFlapCanvas(state.followerPlatform, state.followerUsername, newCount, newCount, 0, 0);
-      if (newCount !== oldVal) {
-        await sendNativeFollowerCount(newCount);
-      }
-
-      feedStatusText.textContent = t("feedFollowerActive", {
-        platform: platName,
-        user: `@${user.replace(/^@+/, '')}`,
-        count: newCount.toLocaleString('it-IT'),
-        interval: state.followerInterval
-      });
     }
   }, 1000);
 }
@@ -2196,7 +2177,7 @@ function closeFollowerModalSheet() {
 
 function updateFollowerModalUI() {
   const plat = state.followerPlatform || 'tiktok';
-  [socialCardTikTok, socialCardInstagram, socialCardYouTube].forEach(card => {
+  [socialCardTikTok, socialCardYouTube].forEach(card => {
     if (card) {
       if (card.dataset.platform === plat) {
         card.classList.add('active');
@@ -2209,9 +2190,6 @@ function updateFollowerModalUI() {
   if (followerUsernameLabel) {
     if (plat === 'tiktok') {
       followerUsernameLabel.textContent = "Nome Utente TikTok:";
-      if (followerPrefix) followerPrefix.textContent = "@";
-    } else if (plat === 'instagram') {
-      followerUsernameLabel.textContent = "Nome Utente Instagram:";
       if (followerPrefix) followerPrefix.textContent = "@";
     } else {
       followerUsernameLabel.textContent = "Nome Canale YouTube:";
@@ -3829,7 +3807,7 @@ function setupEventListeners() {
   if (closeFollowerModal) closeFollowerModal.addEventListener('click', closeFollowerModalSheet);
   if (closeFollowerBackdrop) closeFollowerBackdrop.addEventListener('click', closeFollowerModalSheet);
 
-  [socialCardTikTok, socialCardInstagram, socialCardYouTube].forEach(card => {
+  [socialCardTikTok, socialCardYouTube].forEach(card => {
     if (card) {
       card.addEventListener('click', () => {
         playAudioClick();
@@ -3839,29 +3817,11 @@ function setupEventListeners() {
     }
   });
 
-  if (followerModeSelect) {
-    followerModeSelect.addEventListener('change', () => {
-      if (followerInitialGroup) {
-        if (followerModeSelect.value === 'test') {
-          followerInitialGroup.classList.remove('hidden');
-        } else {
-          followerInitialGroup.classList.add('hidden');
-        }
-      }
-    });
-  }
-
   if (startFollowerBtn) {
     startFollowerBtn.addEventListener('click', () => {
       playAudioClick();
       closeFollowerModalSheet();
       activateFollowerMode();
-    });
-  }
-
-  if (feedPlusOneBtn) {
-    feedPlusOneBtn.addEventListener('click', () => {
-      incrementFollowerManually(1);
     });
   }
 
