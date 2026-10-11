@@ -1529,7 +1529,7 @@ async function fetchAndRenderWeather() {
 
 
 
-function stopAutomaticFeed() {
+function stopAutomaticFeed(silent = false) {
   if (state.feedTimer) {
     clearInterval(state.feedTimer);
     state.feedTimer = null;
@@ -1540,7 +1540,9 @@ function stopAutomaticFeed() {
   if (state.activeFeedType) {
     state.activeFeedType = null;
     feedBanner.classList.add('hidden');
-    showToast(t("feedStopped"));
+    if (!silent) {
+      showToast(t("feedStopped"));
+    }
   }
 }
 
@@ -2069,7 +2071,7 @@ async function triggerFollowerFlip(oldCount, newCount, onComplete) {
 
 let followerElapsedSeconds = 0;
 async function activateFollowerMode() {
-  stopAutomaticFeed();
+  stopAutomaticFeed(true);
   state.activeFeedType = "follower";
   await connectMQTT();
 
