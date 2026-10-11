@@ -113,12 +113,28 @@ if (btnDismissInstallModal) btnDismissInstallModal.onclick = () => installModal.
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=22', { scope: './' })
+    navigator.serviceWorker.register('./sw.js?v=25', { scope: './' })
       .then(reg => {
         console.log('[Commander SW] Registrato con successo:', reg.scope);
         reg.update();
+        reg.addEventListener('updatefound', () => {
+          const newWorker = reg.installing;
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'activated') {
+              console.log('[Commander SW] Nuova versione attivata!');
+            }
+          });
+        });
       })
       .catch(err => console.warn('[Commander SW] Errore registrazione:', err));
+
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        window.location.reload();
+      }
+    });
   });
 }
 
@@ -777,9 +793,17 @@ filterPills.forEach(pill => {
   });
 });
 
-btnRefresh.addEventListener('click', () => {
+btnRefresh.addEventListener('click', async () => {
   renderDashboard();
-  showToast('Scansione aggiornata', 'info');
+  checkLatestGitHubRelease(false);
+  if ('caches' in window) {
+    try {
+      const keys = await caches.keys();
+      for (const k of keys) await caches.delete(k);
+    } catch(e) {}
+  }
+  showToast('Aggiornamento forzato e cache pulita...', 'info');
+  setTimeout(() => window.location.reload(), 300);
 });
 
 // --- LOG TELEMETRIA COLLAPSIBLE ---
