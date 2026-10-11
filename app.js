@@ -3984,6 +3984,293 @@ function setupEventListeners() {
     });
   }
 
+  // ==========================================================================
+  //  MODULO CORNICE DIGITALE / SLIDESHOW FOTOGRAFICO AUTONOMO (MAX 5 FOTO)
+  // ==========================================================================
+  const MAX_SLIDESHOW_SLOTS = 5;
+  let slideshowPhotos = [null, null, null, null, null];
+  try {
+    const saved = localStorage.getItem('pixo_slideshow_photos');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        slideshowPhotos = parsed.slice(0, 5);
+        while (slideshowPhotos.length < 5) slideshowPhotos.push(null);
+      }
+    }
+  } catch(e) {}
+
+  const slideshowSlotsGrid = document.getElementById('slideshowSlotsGrid');
+  const slideshowFileInput = document.getElementById('slideshowFileInput');
+  const btnSelectSlideshowPhotos = document.getElementById('btnSelectSlideshowPhotos');
+  const btnUploadSlideshow = document.getElementById('btnUploadSlideshow');
+  const btnStartSlideshow = document.getElementById('btnStartSlideshow');
+  const btnStopSlideshow = document.getElementById('btnStopSlideshow');
+  const btnClearSlideshow = document.getElementById('btnClearSlideshow');
+  const slideshowIntervalSelect = document.getElementById('slideshowIntervalSelect');
+  const slideshowProgressBox = document.getElementById('slideshowProgressBox');
+  const slideshowProgressText = document.getElementById('slideshowProgressText');
+
+  let activeSlotToPick = -1;
+
+  function renderSlideshowSlots() {
+    if (!slideshowSlotsGrid) return;
+    slideshowSlotsGrid.innerHTML = '';
+    for (let i = 0; i < MAX_SLIDESHOW_SLOTS; i++) {
+      const slotDiv = document.createElement('div');
+      slotDiv.style.position = 'relative';
+      slotDiv.style.aspectRatio = '1 / 1';
+      slotDiv.style.borderRadius = '8px';
+      slotDiv.style.overflow = 'hidden';
+      slotDiv.style.display = 'flex';
+      slotDiv.style.flexDirection = 'column';
+      slotDiv.style.alignItems = 'center';
+      slotDiv.style.justifyContent = 'center';
+      slotDiv.style.cursor = 'pointer';
+
+      const dataUrl = slideshowPhotos[i];
+      if (dataUrl) {
+        slotDiv.style.border = '2px solid rgba(52,199,89,0.7)';
+        slotDiv.style.backgroundImage = `url("${dataUrl}")`;
+        slotDiv.style.backgroundSize = 'cover';
+        slotDiv.style.backgroundPosition = 'center';
+
+        // Badge numero slot
+        const numBadge = document.createElement('span');
+        numBadge.style.position = 'absolute';
+        numBadge.style.top = '3px';
+        numBadge.style.left = '3px';
+        numBadge.style.background = 'rgba(0,0,0,0.65)';
+        numBadge.style.color = '#fff';
+        numBadge.style.fontSize = '0.65rem';
+        numBadge.style.fontWeight = 'bold';
+        numBadge.style.padding = '1px 5px';
+        numBadge.style.borderRadius = '4px';
+        numBadge.textContent = `${i + 1}`;
+        slotDiv.appendChild(numBadge);
+
+        // Pulsante elimina slot
+        const delBtn = document.createElement('button');
+        delBtn.style.position = 'absolute';
+        delBtn.style.top = '2px';
+        delBtn.style.right = '2px';
+        delBtn.style.background = 'rgba(255,59,48,0.85)';
+        delBtn.style.color = '#fff';
+        delBtn.style.border = 'none';
+        delBtn.style.borderRadius = '50%';
+        delBtn.style.width = '18px';
+        delBtn.style.height = '18px';
+        delBtn.style.fontSize = '0.65rem';
+        delBtn.style.display = 'flex';
+        delBtn.style.alignItems = 'center';
+        delBtn.style.justifyContent = 'center';
+        delBtn.style.cursor = 'pointer';
+        delBtn.innerHTML = '✕';
+        delBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          slideshowPhotos[i] = null;
+          try { localStorage.setItem('pixo_slideshow_photos', JSON.stringify(slideshowPhotos)); } catch(err){}
+          renderSlideshowSlots();
+        });
+        slotDiv.appendChild(delBtn);
+      } else {
+        slotDiv.style.border = '1px dashed rgba(255,255,255,0.3)';
+        slotDiv.style.background = 'rgba(255,255,255,0.03)';
+        slotDiv.innerHTML = `<span style="font-size:1.1rem; opacity:0.6;">+</span><span style="font-size:0.62rem; color:var(--text-secondary); margin-top:2px;">Slot ${i + 1}</span>`;
+        slotDiv.addEventListener('click', () => {
+          activeSlotToPick = i;
+          slideshowFileInput?.click();
+        });
+      }
+      slideshowSlotsGrid.appendChild(slotDiv);
+    }
+  }
+
+  function resizeImageToSquareJpeg(file, targetSize = 240, quality = 0.85) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const offCanvas = document.createElement('canvas');
+          offCanvas.width = targetSize;
+          offCanvas.height = targetSize;
+          const ctx = offCanvas.getContext('2d');
+          ctx.fillStyle = '#000000';
+          ctx.fillRect(0, 0, targetSize, targetSize);
+
+          const minDim = Math.min(img.width, img.height);
+          const sx = (img.width - minDim) / 2;
+          const sy = (img.height - minDim) / 2;
+          ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, targetSize, targetSize);
+
+          resolve(offCanvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (btnSelectSlideshowPhotos && slideshowFileInput) {
+    btnSelectSlideshowPhotos.addEventListener('click', () => {
+      activeSlotToPick = -1;
+      slideshowFileInput.click();
+    });
+
+    slideshowFileInput.addEventListener('change', async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (files.length === 0) return;
+
+      if (activeSlotToPick >= 0 && files.length === 1) {
+        try {
+          const jpegData = await resizeImageToSquareJpeg(files[0]);
+          slideshowPhotos[activeSlotToPick] = jpegData;
+        } catch(err) {
+          console.error('Errore elaborazione foto slot:', err);
+        }
+      } else {
+        for (const f of files) {
+          let emptyIdx = slideshowPhotos.findIndex(p => p === null);
+          if (emptyIdx === -1) {
+            if (activeSlotToPick >= 0 && activeSlotToPick < 5) emptyIdx = activeSlotToPick;
+            else break;
+          }
+          try {
+            const jpegData = await resizeImageToSquareJpeg(f);
+            slideshowPhotos[emptyIdx] = jpegData;
+          } catch(err) {
+            console.error('Errore elaborazione foto:', err);
+          }
+        }
+      }
+
+      try { localStorage.setItem('pixo_slideshow_photos', JSON.stringify(slideshowPhotos)); } catch(err){}
+      slideshowFileInput.value = '';
+      activeSlotToPick = -1;
+      renderSlideshowSlots();
+      showToast("Foto inserite nei frame!", "info");
+    });
+  }
+
+  if (btnUploadSlideshow) {
+    btnUploadSlideshow.addEventListener('click', async () => {
+      if (!state.mqttClient || !state.mqttClient.connected) {
+        showToast("Disconnesso dal Cloud HiveMQ!", "error");
+        return;
+      }
+      if (!state.deviceId) {
+        showToast("Nessun Pixò associato!", "error");
+        return;
+      }
+
+      const validPhotos = [];
+      for (let i = 0; i < MAX_SLIDESHOW_SLOTS; i++) {
+        if (slideshowPhotos[i]) validPhotos.push({ idx: i, data: slideshowPhotos[i] });
+      }
+
+      if (validPhotos.length === 0) {
+        alert("Seleziona prima almeno una foto per caricare lo slideshow!");
+        return;
+      }
+
+      if (slideshowProgressBox && slideshowProgressText) {
+        slideshowProgressBox.style.display = 'block';
+        slideshowProgressText.textContent = "Inizio caricamento su memoria Pixò...";
+      }
+
+      const pin = state.devicePin;
+      let uploadedCount = 0;
+
+      for (let k = 0; k < validPhotos.length; k++) {
+        const item = validPhotos[k];
+        if (slideshowProgressText) {
+          slideshowProgressText.textContent = `Salvataggio Foto ${k + 1}/${validPhotos.length}...`;
+        }
+
+        try {
+          const resp = await fetch(item.data);
+          const buf = await resp.arrayBuffer();
+          const bytes = new Uint8Array(buf);
+
+          const topic = (pin && pin !== "1234") 
+            ? `pixo/device/${state.deviceId}/${pin}/slide/${item.idx}`
+            : `pixo/device/${state.deviceId}/slide/${item.idx}`;
+
+          state.mqttClient.publish(topic, bytes, { qos: 0 });
+          uploadedCount++;
+          await new Promise(r => setTimeout(r, 240));
+        } catch(err) {
+          console.error("Errore invio foto slide:", err);
+        }
+      }
+
+      const intervalSec = parseInt(slideshowIntervalSelect?.value || "15", 10);
+      const cmdTopic = (pin && pin !== "1234")
+        ? `pixo/device/${state.deviceId}/${pin}/slideshow`
+        : `pixo/device/${state.deviceId}/slideshow`;
+
+      state.mqttClient.publish(cmdTopic, `START:${intervalSec}`, { qos: 0 });
+
+      if (slideshowProgressText) {
+        slideshowProgressText.textContent = `✅ ${uploadedCount} foto salvate! Slideshow avviato.`;
+      }
+      showToast(`Cornice Digitale avviata con ${uploadedCount} foto!`, "success");
+      setTimeout(() => {
+        if (slideshowProgressBox) slideshowProgressBox.style.display = 'none';
+      }, 3000);
+    });
+  }
+
+  if (btnStartSlideshow) {
+    btnStartSlideshow.addEventListener('click', () => {
+      if (!state.mqttClient || !state.mqttClient.connected) {
+        showToast("Disconnesso dal Cloud!", "error");
+        return;
+      }
+      const pin = state.devicePin;
+      const intervalSec = parseInt(slideshowIntervalSelect?.value || "15", 10);
+      const cmdTopic = (pin && pin !== "1234")
+        ? `pixo/device/${state.deviceId}/${pin}/slideshow`
+        : `pixo/device/${state.deviceId}/slideshow`;
+      state.mqttClient.publish(cmdTopic, `START:${intervalSec}`, { qos: 0 });
+      showToast(`Slideshow avviato (ogni ${intervalSec}s)!`, "info");
+    });
+  }
+
+  if (btnStopSlideshow) {
+    btnStopSlideshow.addEventListener('click', () => {
+      if (!state.mqttClient || !state.mqttClient.connected) return;
+      const pin = state.devicePin;
+      const cmdTopic = (pin && pin !== "1234")
+        ? `pixo/device/${state.deviceId}/${pin}/slideshow`
+        : `pixo/device/${state.deviceId}/slideshow`;
+      state.mqttClient.publish(cmdTopic, "STOP", { qos: 0 });
+      showToast("Slideshow fermato", "info");
+    });
+  }
+
+  if (btnClearSlideshow) {
+    btnClearSlideshow.addEventListener('click', () => {
+      if (!confirm("Vuoi cancellare tutte le foto salvate all'interno di Pixò?")) return;
+      if (state.mqttClient && state.mqttClient.connected) {
+        const pin = state.devicePin;
+        const cmdTopic = (pin && pin !== "1234")
+          ? `pixo/device/${state.deviceId}/${pin}/slideshow`
+          : `pixo/device/${state.deviceId}/slideshow`;
+        state.mqttClient.publish(cmdTopic, "CLEAR", { qos: 0 });
+      }
+      slideshowPhotos = [null, null, null, null, null];
+      try { localStorage.setItem('pixo_slideshow_photos', JSON.stringify(slideshowPhotos)); } catch(e){}
+      renderSlideshowSlots();
+      showToast("Memoria foto Pixò svuotata!", "info");
+    });
+  }
+
+  renderSlideshowSlots();
+
   // Sticker Drawer & Slider
   stickerToggleBtn.addEventListener('click', () => {
     stickerDrawer.classList.toggle('hidden');
