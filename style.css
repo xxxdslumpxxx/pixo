@@ -489,21 +489,22 @@ body[data-active-tab="panelSettings"] .canvas-stage,
 .resize-handle.bottom-right { bottom: -11px; right: -11px; }
 
 .overlay-toolbar {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  right: 14px;
+  position: relative;
+  width: 100%;
+  max-width: min(84vw, 340px);
+  margin-top: 8px;
   z-index: 30;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(18, 18, 24, 0.88);
+  background: rgba(20, 21, 28, 0.94);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  padding: 8px 12px;
+  padding: 7px 12px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--glass-border);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  animation: popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .overlay-toolbar.hidden { display: none !important; }
 
@@ -511,11 +512,17 @@ body[data-active-tab="panelSettings"] .canvas-stage,
   font-size: 0.73rem;
   font-weight: 500;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 6px;
 }
 
 .overlay-btns {
   display: flex;
+  align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
