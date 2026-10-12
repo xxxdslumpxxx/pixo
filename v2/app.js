@@ -552,7 +552,7 @@ function getTargetDeviceIds() {
 
 function publishToDrawTopics(payload) {
   if (!state.mqttClient || !state.mqttClient.connected) return;
-  const pin = state.devicePin || "1234";
+  const pin = (state.devicePin || "").trim();
   const devIds = getTargetDeviceIds();
 
   devIds.forEach(devId => {
@@ -560,14 +560,12 @@ function publishToDrawTopics(payload) {
       const key = state.guestKey || 'pixo123';
       state.mqttClient.publish(`pixo/device/${devId}/guest/${key}/draw`, payload, { qos: 0, retain: false });
     } else {
-      // 1. Invia su topic con PIN proprietario
-      if (pin && pin !== "1234") {
+      // Invia rigorosamente a UN SOLO topic per evitare ricezioni multiple ed eliminare lag!
+      if (pin && pin !== "1234" && pin !== "NONE") {
         state.mqttClient.publish(`pixo/device/${devId}/${pin}/draw`, payload, { qos: 0, retain: false });
+      } else {
+        state.mqttClient.publish(`pixo/device/${devId}/draw`, payload, { qos: 0, retain: false });
       }
-      // 2. Invia su topic con PIN di fabbrica 1234 (sempre autorizzato dal firmware)
-      state.mqttClient.publish(`pixo/device/${devId}/1234/draw`, payload, { qos: 0, retain: false });
-      // 3. Invia su topic diretto (retrocompatibilità assoluta)
-      state.mqttClient.publish(`pixo/device/${devId}/draw`, payload, { qos: 0, retain: false });
     }
   });
 }
@@ -4130,15 +4128,18 @@ function setupEventListeners() {
 
   let lastSendTriggerTime = 0;
   const triggerSendAction = (e) => {
-    if (e && e.cancelable && e.type === 'touchstart') e.preventDefault();
+    if (e) {
+      if (e.cancelable) e.preventDefault();
+      e.stopPropagation();
+    }
     const now = Date.now();
-    if (now - lastSendTriggerTime < 500) return;
+    if (now - lastSendTriggerTime < 1200) return;
     lastSendTriggerTime = now;
     playAudioClick();
     if (navigator.vibrate) try { navigator.vibrate(25); } catch(v) {}
     sendToDisplay();
   };
-  sendBtn.addEventListener('pointerdown', triggerSendAction);
+  // Ascolta esclusivamente 'click' per evitare doppi trigger accidentali su touch screen
   sendBtn.addEventListener('click', triggerSendAction);
 
   // METEO: Invio automatico immediato + refresh
