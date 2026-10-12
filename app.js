@@ -437,6 +437,7 @@ const stickerGrid = document.getElementById('stickerGrid');
 const eraserBtn = document.getElementById('eraserBtn');
 const sendBtn = document.getElementById('sendBtn');
 const toastContainer = document.getElementById('toastContainer');
+const standbyFaceOverlay = document.getElementById('standbyFaceOverlay');
 
 // Riferimenti DOM Pixel Art & Overlay
 const togglePixelArtBtn = document.getElementById('togglePixelArtBtn');
@@ -560,12 +561,10 @@ function publishToDrawTopics(payload) {
       const key = state.guestKey || 'pixo123';
       state.mqttClient.publish(`pixo/device/${devId}/guest/${key}/draw`, payload, { qos: 0, retain: false });
     } else {
-      // Invia rigorosamente a UN SOLO topic per evitare ricezioni multiple ed eliminare lag!
-      if (pin && pin !== "1234" && pin !== "NONE") {
-        state.mqttClient.publish(`pixo/device/${devId}/${pin}/draw`, payload, { qos: 0, retain: false });
-      } else {
-        state.mqttClient.publish(`pixo/device/${devId}/draw`, payload, { qos: 0, retain: false });
-      }
+      // Invia rigorosamente a UN SOLO topic (con PIN oppure fallback master 1234)
+      // Il firmware ESP32 autorizza sempre sia il PIN impostato sia '1234' su pixo/device/<ID>/<PIN>/draw
+      const targetPin = (pin && pin !== "NONE") ? pin : "1234";
+      state.mqttClient.publish(`pixo/device/${devId}/${targetPin}/draw`, payload, { qos: 0, retain: false });
     }
   });
 }
@@ -903,8 +902,8 @@ async function sendLiveDrawingMqtt() {
       }, 5000);
 
       liveClient.on('connect', () => {
-        // Invia su topic diretto di visualizzazione
-        liveClient.publish(`pixo/device/${state.deviceId}/draw`, uint8Array, { qos: 0 });
+        // Invia su topic diretto di visualizzazione con PIN 1234 garantito dal firmware
+        liveClient.publish(`pixo/device/${state.deviceId}/1234/draw`, uint8Array, { qos: 0 });
         // Salva retained current per consentire lo scaricamento immediato agli altri spettatori
         liveClient.publish(`pixo/device/${state.deviceId}/current`, uint8Array, { qos: 0, retain: true });
         sent = true;
@@ -1015,32 +1014,20 @@ function getCanvasBgColor() {
   return state.canvasTheme === "light" ? "#ffffff" : "#000000";
 }
 
-let standbyFaceImg = null;
+function showStandbyOverlay(visible) {
+  state.isShowingStandbyFace = !!visible;
+  if (!standbyFaceOverlay) return;
+  if (visible) {
+    standbyFaceOverlay.classList.remove('hidden');
+  } else {
+    standbyFaceOverlay.classList.add('hidden');
+  }
+}
 
 function renderStandbyFaceOnCanvas() {
-  state.isShowingStandbyFace = true;
-  const bg = getCanvasBgColor();
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  const drawFace = (img) => {
-    if (!state.isShowingStandbyFace) return;
-    const size = 150;
-    const x = Math.round((canvas.width - size) / 2);
-    const y = Math.round((canvas.height - size) / 2);
-    ctx.drawImage(img, x, y, size, size);
-    updatePayloadPreview();
-  };
-
-  if (standbyFaceImg && standbyFaceImg.complete) {
-    drawFace(standbyFaceImg);
-  } else {
-    standbyFaceImg = new Image();
-    standbyFaceImg.onload = () => {
-      drawFace(standbyFaceImg);
-    };
-    standbyFaceImg.src = './pixo_face.png';
-  }
+  // Mostra l'overlay grafico in tempo reale senza inquinare la memoria del canvas:
+  // in questo modo il payload JPEG rimane ultra-leggero (~1 KB) e l'invio è istantaneo!
+  showStandbyOverlay(true);
 }
 
 function generatePixelArtImage(sourceImg, pixelGrain = 5) {
@@ -1146,14 +1133,9 @@ function startDrawing(e) {
   stopAutomaticFeed(); // Se l'utente disegna, ferma l'eventuale rassegna automatica
   if (state.interactiveElement.active) return;
 
-  // Se a schermo c'è la faccina di standby, pulisci lo sfondo per iniziare il disegno pulito
+  // Se a schermo c'è l'overlay di standby, nascondilo subito
   if (state.isShowingStandbyFace) {
-    state.isShowingStandbyFace = false;
-    const bg = getCanvasBgColor();
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    state.undoStack = [];
-    saveState();
+    showStandbyOverlay(false);
   }
 
   e.preventDefault();
@@ -1231,6 +1213,7 @@ function undo() {
 function clearCanvas() {
   stopAutomaticFeed();
   if (confirm(t("confirmClear"))) {
+    showStandbyOverlay(false);
     const bg = getCanvasBgColor();
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1248,6 +1231,7 @@ function clearCanvas() {
 
 function startInteractiveOverlay(type, content, initialSize = null) {
   stopAutomaticFeed();
+  showStandbyOverlay(false);
   state.interactiveElement.active = true;
   state.interactiveElement.type = type;
   state.interactiveElement.x = 120;
@@ -3459,17 +3443,7 @@ function connectMQTT() {
   statusDot.className = "status-pulse status-dot connecting";
   statusDot.title = "Connessione a Pixò Cloud...";
 
-  let clientId;
-  if (state.isGuestMode && !state.isLiveMode) {
-    // PROTEZIONE ANTI-SATURAZIONE CLUSTER:
-    // Un link amico privato permette 1 sola sessione contemporanea.
-    // Usando un ClientID deterministico basato su deviceId e guestKey,
-    // se una seconda persona apre lo stesso link, HiveMQ disconnette automaticamente
-    // la sessione precedente evitando l'accumulo di connessioni concorrenti!
-    clientId = "PixoFriend_" + (state.deviceId || "dev") + "_" + (state.guestKey || "key");
-  } else {
-    clientId = "WebPixo_" + Math.random().toString(16).substr(2, 8);
-  }
+  const clientId = "WebPixo_" + Math.random().toString(16).substr(2, 8);
   const options = {
     clientId: clientId,
     clean: true,
@@ -3838,6 +3812,7 @@ function handleCurrentDisplaySync(payload) {
 
   // Verifica se è un'immagine JPEG valida (Magic Bytes 0xFF 0xD8)
   if (uint8.length >= 2 && uint8[0] === 0xFF && uint8[1] === 0xD8) {
+    showStandbyOverlay(false);
     const blob = new Blob([uint8], { type: 'image/jpeg' });
     const url = URL.createObjectURL(blob);
     const img = new Image();
@@ -3859,7 +3834,7 @@ function handleCurrentDisplaySync(payload) {
       if (text === "CLEAR" || text === "STANDBY") {
         console.log("[SYNC] Il display è attualmente in standby.");
         if (!state.userHasDrawnLocally) {
-          renderStandbyFaceOnCanvas();
+          showStandbyOverlay(true);
         }
       } else if (text === "CLOCK") {
         console.log("[SYNC] Il display è attualmente in modalità Orologio.");
@@ -3870,6 +3845,7 @@ function handleCurrentDisplaySync(payload) {
 
 function loadCurrentDrawingFromDisplay() {
   if (state.lastDisplayPayload && state.lastDisplayPayload[0] === 0xFF && state.lastDisplayPayload[1] === 0xD8) {
+    showStandbyOverlay(false);
     const blob = new Blob([state.lastDisplayPayload], { type: 'image/jpeg' });
     const url = URL.createObjectURL(blob);
     const img = new Image();
@@ -4023,7 +3999,12 @@ async function sendStandbyCommand() {
 
     state.lastDisplayPayload = null;
     state.userHasDrawnLocally = false;
-    renderStandbyFaceOnCanvas();
+    const bg = getCanvasBgColor();
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    saveState();
+    showStandbyOverlay(true);
+    updatePayloadPreview();
     showToast(t("toastStandby"), "success");
   }
 }
@@ -4133,13 +4114,14 @@ function setupEventListeners() {
       e.stopPropagation();
     }
     const now = Date.now();
-    if (now - lastSendTriggerTime < 1200) return;
+    if (now - lastSendTriggerTime < 400) return;
     lastSendTriggerTime = now;
     playAudioClick();
     if (navigator.vibrate) try { navigator.vibrate(25); } catch(v) {}
     sendToDisplay();
   };
-  // Ascolta esclusivamente 'click' per evitare doppi trigger accidentali su touch screen
+  // Ascolta sia pointerdown (reattivo al tocco a 0ms su mobile) che click (desktop mouse)
+  sendBtn.addEventListener('pointerdown', triggerSendAction);
   sendBtn.addEventListener('click', triggerSendAction);
 
   // METEO: Invio automatico immediato + refresh
