@@ -17,13 +17,79 @@ const DEFAULT_CONFIG = {
   defaultPin: "1234"
 };
 
-// 28 Sticker ed Emoji
-const STICKERS = [
-  '☀️', '⛅', '🌧️', '❄️', '⚡', '🌈',
-  '❤️', '😊', '😂', '😎', '🥳', '😴', '💩',
-  '☕', '🍕', '🎂', '🏠', '🔔', '⚠️', '💡', '🚀',
-  '🐱', '🐶', '🌸', '⭐', '🎮', '🎵', '⏰'
+// Categorie di Sticker ed Emoji arricchite (150+ icone ad alta risoluzione)
+const STICKER_CATEGORIES = [
+  { id: 'all', label: 'Tutti', icon: '✨' },
+  { id: 'faces', label: 'Faccine', icon: '😀' },
+  { id: 'love', label: 'Amore', icon: '❤️' },
+  { id: 'food', label: 'Cibo & Party', icon: '🍕' },
+  { id: 'animals', label: 'Animali', icon: '🐱' },
+  { id: 'symbols', label: 'Simboli', icon: '⚡' },
+  { id: 'gaming', label: 'Rétro & Geek', icon: '👾' }
 ];
+
+const STICKERS_DATA = [
+  // Faccine & Espressioni
+  { emoji: '😀', cat: 'faces' }, { emoji: '😃', cat: 'faces' }, { emoji: '😄', cat: 'faces' }, { emoji: '😁', cat: 'faces' },
+  { emoji: '😆', cat: 'faces' }, { emoji: '😅', cat: 'faces' }, { emoji: '😂', cat: 'faces' }, { emoji: '🤣', cat: 'faces' },
+  { emoji: '😊', cat: 'faces' }, { emoji: '😇', cat: 'faces' }, { emoji: '🙂', cat: 'faces' }, { emoji: '😉', cat: 'faces' },
+  { emoji: '😍', cat: 'faces' }, { emoji: '🥰', cat: 'faces' }, { emoji: '😘', cat: 'faces' }, { emoji: '😋', cat: 'faces' },
+  { emoji: '😜', cat: 'faces' }, { emoji: '🤪', cat: 'faces' }, { emoji: '😎', cat: 'faces' }, { emoji: '🤩', cat: 'faces' },
+  { emoji: '🥳', cat: 'faces' }, { emoji: '😏', cat: 'faces' }, { emoji: '🧐', cat: 'faces' }, { emoji: '🤓', cat: 'faces' },
+  { emoji: '😴', cat: 'faces' }, { emoji: '🥱', cat: 'faces' }, { emoji: '🤤', cat: 'faces' }, { emoji: '😷', cat: 'faces' },
+  { emoji: '🤒', cat: 'faces' }, { emoji: '🤯', cat: 'faces' }, { emoji: '😱', cat: 'faces' }, { emoji: '🤫', cat: 'faces' },
+  { emoji: '🥺', cat: 'faces' }, { emoji: '😭', cat: 'faces' }, { emoji: '😡', cat: 'faces' }, { emoji: '🤬', cat: 'faces' },
+  { emoji: '💩', cat: 'faces' }, { emoji: '👻', cat: 'faces' }, { emoji: '👽', cat: 'faces' }, { emoji: '🤖', cat: 'faces' },
+
+  // Amore & Cuori
+  { emoji: '❤️', cat: 'love' }, { emoji: '🧡', cat: 'love' }, { emoji: '💛', cat: 'love' }, { emoji: '💚', cat: 'love' },
+  { emoji: '💙', cat: 'love' }, { emoji: '💜', cat: 'love' }, { emoji: '🖤', cat: 'love' }, { emoji: '🤍', cat: 'love' },
+  { emoji: '🤎', cat: 'love' }, { emoji: '💔', cat: 'love' }, { emoji: '❣️', cat: 'love' }, { emoji: '💕', cat: 'love' },
+  { emoji: '💞', cat: 'love' }, { emoji: '💓', cat: 'love' }, { emoji: '💗', cat: 'love' }, { emoji: '💖', cat: 'love' },
+  { emoji: '💘', cat: 'love' }, { emoji: '💝', cat: 'love' }, { emoji: '💟', cat: 'love' }, { emoji: '💐', cat: 'love' },
+  { emoji: '🌹', cat: 'love' }, { emoji: '🌺', cat: 'love' }, { emoji: '🌸', cat: 'love' }, { emoji: '💍', cat: 'love' },
+
+  // Cibo, Bevande & Feste
+  { emoji: '☕', cat: 'food' }, { emoji: '🍵', cat: 'food' }, { emoji: '🧋', cat: 'food' }, { emoji: '🍺', cat: 'food' },
+  { emoji: '🍻', cat: 'food' }, { emoji: '🍷', cat: 'food' }, { emoji: '🍸', cat: 'food' }, { emoji: '🍾', cat: 'food' },
+  { emoji: '🍕', cat: 'food' }, { emoji: '🍔', cat: 'food' }, { emoji: '🍟', cat: 'food' }, { emoji: '🌭', cat: 'food' },
+  { emoji: '🍿', cat: 'food' }, { emoji: '🥓', cat: 'food' }, { emoji: '🥞', cat: 'food' }, { emoji: '🥐', cat: 'food' },
+  { emoji: '🥪', cat: 'food' }, { emoji: '🌮', cat: 'food' }, { emoji: '🌯', cat: 'food' }, { emoji: '🍣', cat: 'food' },
+  { emoji: '🍜', cat: 'food' }, { emoji: '🍝', cat: 'food' }, { emoji: '🍩', cat: 'food' }, { emoji: '🍪', cat: 'food' },
+  { emoji: '🎂', cat: 'food' }, { emoji: '🍰', cat: 'food' }, { emoji: '🧁', cat: 'food' }, { emoji: '🍫', cat: 'food' },
+  { emoji: '🍬', cat: 'food' }, { emoji: '🍭', cat: 'food' }, { emoji: '🍦', cat: 'food' }, { emoji: '🍓', cat: 'food' },
+
+  // Animali & Natura
+  { emoji: '🐱', cat: 'animals' }, { emoji: '🐶', cat: 'animals' }, { emoji: '🐭', cat: 'animals' }, { emoji: '🐹', cat: 'animals' },
+  { emoji: '🐰', cat: 'animals' }, { emoji: '🦊', cat: 'animals' }, { emoji: '🐻', cat: 'animals' }, { emoji: '🐼', cat: 'animals' },
+  { emoji: '🐨', cat: 'animals' }, { emoji: '🐯', cat: 'animals' }, { emoji: '🦁', cat: 'animals' }, { emoji: '🐮', cat: 'animals' },
+  { emoji: '🐷', cat: 'animals' }, { emoji: '🐸', cat: 'animals' }, { emoji: '🐵', cat: 'animals' }, { emoji: '🐔', cat: 'animals' },
+  { emoji: '🐧', cat: 'animals' }, { emoji: '🦆', cat: 'animals' }, { emoji: '🦅', cat: 'animals' }, { emoji: '🦉', cat: 'animals' },
+  { emoji: '🦇', cat: 'animals' }, { emoji: '🐺', cat: 'animals' }, { emoji: '🦄', cat: 'animals' }, { emoji: '🐝', cat: 'animals' },
+  { emoji: '🐛', cat: 'animals' }, { emoji: '🦋', cat: 'animals' }, { emoji: '🌻', cat: 'animals' }, { emoji: '🌲', cat: 'animals' },
+  { emoji: '🍀', cat: 'animals' }, { emoji: '🌈', cat: 'animals' }, { emoji: '🍄', cat: 'animals' }, { emoji: '🍁', cat: 'animals' },
+
+  // Simboli, Meteo & Vita
+  { emoji: '☀️', cat: 'symbols' }, { emoji: '🌤️', cat: 'symbols' }, { emoji: '⛅', cat: 'symbols' }, { emoji: '🌧️', cat: 'symbols' },
+  { emoji: '⛈️', cat: 'symbols' }, { emoji: '❄️', cat: 'symbols' }, { emoji: '⚡', cat: 'symbols' }, { emoji: '🔥', cat: 'symbols' },
+  { emoji: '⭐', cat: 'symbols' }, { emoji: '🌟', cat: 'symbols' }, { emoji: '✨', cat: 'symbols' }, { emoji: '💥', cat: 'symbols' },
+  { emoji: '🎉', cat: 'symbols' }, { emoji: '🎈', cat: 'symbols' }, { emoji: '🎁', cat: 'symbols' }, { emoji: '🏆', cat: 'symbols' },
+  { emoji: '👑', cat: 'symbols' }, { emoji: '💎', cat: 'symbols' }, { emoji: '💡', cat: 'symbols' }, { emoji: '🔔', cat: 'symbols' },
+  { emoji: '📢', cat: 'symbols' }, { emoji: '⚠️', cat: 'symbols' }, { emoji: '⛔', cat: 'symbols' }, { emoji: '✅', cat: 'symbols' },
+  { emoji: '❌', cat: 'symbols' }, { emoji: '💯', cat: 'symbols' }, { emoji: '🚀', cat: 'symbols' }, { emoji: '🛸', cat: 'symbols' },
+  { emoji: '🏠', cat: 'symbols' }, { emoji: '⏰', cat: 'symbols' }, { emoji: '🎵', cat: 'symbols' }, { emoji: '🎶', cat: 'symbols' },
+
+  // Gaming, Rétro & Geek
+  { emoji: '👾', cat: 'gaming' }, { emoji: '🎮', cat: 'gaming' }, { emoji: '🕹️', cat: 'gaming' }, { emoji: '🎲', cat: 'gaming' },
+  { emoji: '🎯', cat: 'gaming' }, { emoji: '🧩', cat: 'gaming' }, { emoji: '🔮', cat: 'gaming' }, { emoji: '🧿', cat: 'gaming' },
+  { emoji: '🎧', cat: 'gaming' }, { emoji: '🎸', cat: 'gaming' }, { emoji: '🎹', cat: 'gaming' }, { emoji: '📻', cat: 'gaming' },
+  { emoji: '📺', cat: 'gaming' }, { emoji: '📼', cat: 'gaming' }, { emoji: '🕹️', cat: 'gaming' }, { emoji: '💻', cat: 'gaming' },
+  { emoji: '💾', cat: 'gaming' }, { emoji: '📱', cat: 'gaming' }, { emoji: '🔋', cat: 'gaming' }, { emoji: '🔌', cat: 'gaming' },
+  { emoji: '🛹', cat: 'gaming' }, { emoji: '⚽', cat: 'gaming' }, { emoji: '🏀', cat: 'gaming' }, { emoji: '🏆', cat: 'gaming' }
+];
+
+// Compatibilità retroattiva per codice esistente
+const STICKERS = STICKERS_DATA.map(s => s.emoji);
 
 // Dizionario Multilingua (i18n)
 const TRANSLATIONS = {
@@ -42,7 +108,7 @@ const TRANSLATIONS = {
     save: "Salva",
     gallery: "Disegni",
     share: "Condividi",
-    chooseSticker: "Scegli uno Sticker (28 disponibili)",
+    chooseSticker: "Scegli uno Sticker (oltre 150 disponibili)",
     stickerSize: "Dimensione Sticker:",
     sendToDisplay: "Invia a Display",
     settingsTitle: "Impostazioni Pixò",
@@ -118,7 +184,7 @@ const TRANSLATIONS = {
     save: "Save",
     gallery: "Drawings",
     share: "Share",
-    chooseSticker: "Choose a Sticker (28 available)",
+    chooseSticker: "Choose a Sticker (over 150 available)",
     stickerSize: "Sticker Size:",
     sendToDisplay: "Send to Display",
     settingsTitle: "Pixò Settings",
@@ -443,6 +509,7 @@ const applyTextBtn = document.getElementById('applyTextBtn');
 
 const stickerDrawer = document.getElementById('stickerDrawer');
 const closeStickerBtn = document.getElementById('closeStickerBtn');
+const stickerCategoriesBar = document.getElementById('stickerCategoriesBar');
 const stickerSizeSlider = document.getElementById('stickerSizeSlider');
 const stickerSizeVal = document.getElementById('stickerSizeVal');
 const stickerGrid = document.getElementById('stickerGrid');
@@ -1298,8 +1365,9 @@ function startInteractiveOverlay(type, content, initialSize = null) {
     floatingContent.textContent = content;
     floatingContent.style.color = '';
     floatingContent.style.fontWeight = 'normal';
-    floatingContent.style.fontFamily = 'sans-serif';
+    floatingContent.style.fontFamily = "'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif";
     floatingContent.style.whiteSpace = 'nowrap';
+    floatingElement.classList.add('is-sticker');
     overlayHintText.textContent = "🖐️ Sposta e pizzica con 2 dita • Premi 'Invia a Display' quando pronto";
   } else if (type === 'text') {
     state.interactiveElement.imageObj = null;
@@ -1307,6 +1375,7 @@ function startInteractiveOverlay(type, content, initialSize = null) {
     state.interactiveElement.aspectRatio = 1;
     state.interactiveElement.size = initialSize || 26;
 
+    floatingElement.classList.remove('is-sticker');
     floatingImage.classList.add('hidden');
     floatingContent.style.display = 'inline-block';
     floatingContent.textContent = content;
@@ -1367,6 +1436,7 @@ function closeInteractiveOverlay() {
   elementOverlay.classList.add('hidden');
   overlayToolbar.classList.add('hidden');
   floatingElement.classList.remove('active-drag');
+  floatingElement.classList.remove('is-sticker');
   if (togglePixelArtBtn) togglePixelArtBtn.classList.add('hidden');
 }
 
@@ -1382,7 +1452,7 @@ function confirmInteractiveOverlay(silent = false) {
     ctx.drawImage(imageObj, drawX, drawY, w, h);
     if (!silent) showToast("Foto posizionata sul disegno!", "success");
   } else if (type === 'sticker') {
-    ctx.font = `${size}px sans-serif`;
+    ctx.font = `${size}px 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(content, x, y);
@@ -1602,18 +1672,52 @@ function setupOverlayInteraction() {
 }
 
 function initStickers() {
-  stickerGrid.innerHTML = '';
-  STICKERS.forEach(emoji => {
-    const el = document.createElement('button');
-    el.className = 'sticker-item';
-    el.textContent = emoji;
-    el.title = emoji;
-    el.addEventListener('click', () => {
-      stickerDrawer.classList.add('hidden');
-      startInteractiveOverlay('sticker', emoji, 48);
+  if (!stickerGrid) return;
+
+  let activeCategory = 'all';
+
+  function renderCategoryButtons() {
+    if (!stickerCategoriesBar) return;
+    stickerCategoriesBar.innerHTML = '';
+    STICKER_CATEGORIES.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `sticker-cat-btn ${cat.id === activeCategory ? 'active' : ''}`;
+      btn.innerHTML = `<span class="cat-icon">${cat.icon}</span> <span>${cat.label}</span>`;
+      btn.addEventListener('click', () => {
+        playAudioClick();
+        activeCategory = cat.id;
+        renderCategoryButtons();
+        renderStickerGrid();
+      });
+      stickerCategoriesBar.appendChild(btn);
     });
-    stickerGrid.appendChild(el);
-  });
+  }
+
+  function renderStickerGrid() {
+    stickerGrid.innerHTML = '';
+    const filtered = (activeCategory === 'all')
+      ? STICKERS_DATA
+      : STICKERS_DATA.filter(s => s.cat === activeCategory);
+
+    filtered.forEach(item => {
+      const el = document.createElement('button');
+      el.type = 'button';
+      el.className = 'sticker-cell';
+      el.textContent = item.emoji;
+      el.title = item.emoji;
+      el.setAttribute('aria-label', item.emoji);
+      el.addEventListener('click', () => {
+        playAudioClick();
+        stickerDrawer.classList.add('hidden');
+        startInteractiveOverlay('sticker', item.emoji, 56);
+      });
+      stickerGrid.appendChild(el);
+    });
+  }
+
+  renderCategoryButtons();
+  renderStickerGrid();
 }
 
 function wrapText(context, text, maxWidth) {
@@ -3243,6 +3347,19 @@ function handleDiagSync(payload) {
       localStorage.setItem('pixo_firmware_version', data.fw_ver);
       if (currentFwBadge) {
         currentFwBadge.textContent = `v${data.fw_ver}`;
+      }
+    }
+
+    // Se Pixò si è appena avviato (uptime < 45s o POWERON_RESET) e l'utente non ha inviato un disegno di recente,
+    // garantisci che la lavagna mostri lo standby (faccina gialla) e pulisci residui retained dal Cloud.
+    if ((data.uptime_s !== undefined && data.uptime_s < 45) || data.reset_reason === 'POWERON_RESET') {
+      const now = Date.now();
+      if (!state.userHasDrawnLocally && (now - lastLocalSendTime > 15000)) {
+        console.log("[DIAG] Pixò riavviato di recente (" + (data.uptime_s || 0) + "s fa). Ripristino standby sulla WebApp.");
+        showStandbyOverlay(true);
+        if (state.mqttClient && state.mqttClient.connected && state.deviceId) {
+          state.mqttClient.publish(`pixo/device/${state.deviceId}/current`, "CLEAR", { qos: 0, retain: true });
+        }
       }
     }
   } catch (err) {
