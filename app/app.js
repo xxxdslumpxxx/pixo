@@ -232,6 +232,9 @@ const state = {
   ledEnabled: true,
   kidsModeEnabled: true,
   lightOn: false,
+  isShowingStandbyFace: false,
+  pixelArtEnabled: localStorage.getItem('pixo_pixel_art') === 'true',
+  pixelArtGrain: parseInt(localStorage.getItem('pixo_pixel_grain') || '5', 10),
 
   // Live Streaming (TikTok / Twitch)
   isLiveMode: false,
@@ -434,6 +437,12 @@ const stickerGrid = document.getElementById('stickerGrid');
 const eraserBtn = document.getElementById('eraserBtn');
 const sendBtn = document.getElementById('sendBtn');
 const toastContainer = document.getElementById('toastContainer');
+
+// Riferimenti DOM Pixel Art & Overlay
+const togglePixelArtBtn = document.getElementById('togglePixelArtBtn');
+const pixelArtToggle = document.getElementById('pixelArtToggle');
+const pixelArtGrainBox = document.getElementById('pixelArtGrainBox');
+const pixelArtGrainLabel = document.getElementById('pixelArtGrainLabel');
 
 // Elementi Live Streaming Mode & Donazioni
 const liveStreamBanner = document.getElementById('liveStreamBanner');
@@ -1008,6 +1017,75 @@ function getCanvasBgColor() {
   return state.canvasTheme === "light" ? "#ffffff" : "#000000";
 }
 
+let standbyFaceImg = null;
+
+function renderStandbyFaceOnCanvas() {
+  state.isShowingStandbyFace = true;
+  const bg = getCanvasBgColor();
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  const drawFace = (img) => {
+    if (!state.isShowingStandbyFace) return;
+    const size = 150;
+    const x = Math.round((canvas.width - size) / 2);
+    const y = Math.round((canvas.height - size) / 2);
+    ctx.drawImage(img, x, y, size, size);
+    updatePayloadPreview();
+  };
+
+  if (standbyFaceImg && standbyFaceImg.complete) {
+    drawFace(standbyFaceImg);
+  } else {
+    standbyFaceImg = new Image();
+    standbyFaceImg.onload = () => {
+      drawFace(standbyFaceImg);
+    };
+    standbyFaceImg.src = './pixo_face.png';
+  }
+}
+
+function generatePixelArtImage(sourceImg, pixelGrain = 5) {
+  const nw = sourceImg.naturalWidth || sourceImg.width || 240;
+  const nh = sourceImg.naturalHeight || sourceImg.height || 240;
+  const targetW = 240;
+  const targetH = Math.round(240 * (nh / nw));
+
+  const downW = Math.max(12, Math.round(targetW / pixelGrain));
+  const downH = Math.max(12, Math.round(targetH / pixelGrain));
+
+  const downCanvas = document.createElement('canvas');
+  downCanvas.width = downW;
+  downCanvas.height = downH;
+  const downCtx = downCanvas.getContext('2d', { willReadFrequently: true });
+  downCtx.drawImage(sourceImg, 0, 0, downW, downH);
+
+  // Quantizzazione cromatica rétro per contrasto perfetto su display ST7789
+  const imgData = downCtx.getImageData(0, 0, downW, downH);
+  const d = imgData.data;
+  const step = 32;
+  for (let i = 0; i < d.length; i += 4) {
+    d[i] = Math.min(255, Math.floor((d[i] + step / 2) / step) * step);
+    d[i + 1] = Math.min(255, Math.floor((d[i + 1] + step / 2) / step) * step);
+    d[i + 2] = Math.min(255, Math.floor((d[i + 2] + step / 2) / step) * step);
+  }
+  downCtx.putImageData(imgData, 0, 0);
+
+  const outCanvas = document.createElement('canvas');
+  outCanvas.width = targetW;
+  outCanvas.height = targetH;
+  const outCtx = outCanvas.getContext('2d');
+  outCtx.imageSmoothingEnabled = false;
+  outCtx.webkitImageSmoothingEnabled = false;
+  outCtx.mozImageSmoothingEnabled = false;
+  outCtx.msImageSmoothingEnabled = false;
+  outCtx.drawImage(downCanvas, 0, 0, targetW, targetH);
+
+  const resImg = new Image();
+  resImg.src = outCanvas.toDataURL('image/png');
+  return resImg;
+}
+
 function getDefaultPenColor() {
   return state.canvasTheme === "light" ? "#000000" : "#ffffff";
 }
@@ -1017,6 +1095,8 @@ function initCanvas() {
   canvas.style.backgroundColor = bg;
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
+  // Mostra la faccina gialla iconica di Pixò all'avvio invece di uno schermo nero vuoto
+  renderStandbyFaceOnCanvas();
 
   state.currentColor = getDefaultPenColor();
   document.querySelectorAll('.color-btn').forEach(b => {
@@ -1067,6 +1147,16 @@ function getCanvasCoordinates(e) {
 function startDrawing(e) {
   stopAutomaticFeed(); // Se l'utente disegna, ferma l'eventuale rassegna automatica
   if (state.interactiveElement.active) return;
+
+  // Se a schermo c'è la faccina di standby, pulisci lo sfondo per iniziare il disegno pulito
+  if (state.isShowingStandbyFace) {
+    state.isShowingStandbyFace = false;
+    const bg = getCanvasBgColor();
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    state.undoStack = [];
+    saveState();
+  }
 
   e.preventDefault();
   canvas.setPointerCapture(e.pointerId);
@@ -1166,8 +1256,26 @@ function startInteractiveOverlay(type, content, initialSize = null) {
   state.interactiveElement.y = 120;
 
   if (type === 'image') {
+    state.interactiveElement.originalImageObj = content;
     state.interactiveElement.imageObj = content;
+    state.interactiveElement.isPixelArt = false;
     state.interactiveElement.content = '';
+
+    // Se l'opzione Pixel Art è attiva, converti subito
+    if (state.pixelArtEnabled) {
+      try {
+        const pixImg = generatePixelArtImage(content, state.pixelArtGrain || 5);
+        state.interactiveElement.imageObj = pixImg;
+        state.interactiveElement.isPixelArt = true;
+      } catch(e) {
+        console.error("Errore generazione pixel art iniziale:", e);
+      }
+    }
+
+    if (togglePixelArtBtn) {
+      togglePixelArtBtn.classList.remove('hidden');
+      togglePixelArtBtn.textContent = state.interactiveElement.isPixelArt ? "🖼️ Originale" : "👾 Pixel Art";
+    }
     const nw = content.naturalWidth || content.width || 200;
     const nh = content.naturalHeight || content.height || 200;
     const ar = nw / nh;
@@ -1263,6 +1371,7 @@ function closeInteractiveOverlay() {
   elementOverlay.classList.add('hidden');
   overlayToolbar.classList.add('hidden');
   floatingElement.classList.remove('active-drag');
+  if (togglePixelArtBtn) togglePixelArtBtn.classList.add('hidden');
 }
 
 function confirmInteractiveOverlay(silent = false) {
@@ -3529,7 +3638,8 @@ function updateDeviceStatusUI(isOnline) {
       deviceSubtitle.textContent = "Spento / Offline";
       deviceSubtitle.style.color = "var(--accent-red)";
     }
-    deviceOfflineBanner?.classList.remove('hidden');
+    // Nessun banner invasivo a tutta pagina: lo stato è già mostrato chiaramente dal pallino rosso
+    deviceOfflineBanner?.classList.add('hidden');
   }
 }
 
@@ -3750,6 +3860,9 @@ function handleCurrentDisplaySync(payload) {
       const text = new TextDecoder().decode(uint8).trim();
       if (text === "CLEAR" || text === "STANDBY") {
         console.log("[SYNC] Il display è attualmente in standby.");
+        if (!state.userHasDrawnLocally) {
+          renderStandbyFaceOnCanvas();
+        }
       } else if (text === "CLOCK") {
         console.log("[SYNC] Il display è attualmente in modalità Orologio.");
       }
@@ -3912,6 +4025,7 @@ async function sendStandbyCommand() {
 
     state.lastDisplayPayload = null;
     state.userHasDrawnLocally = false;
+    renderStandbyFaceOnCanvas();
     showToast(t("toastStandby"), "success");
   }
 }
@@ -4207,6 +4321,77 @@ function setupEventListeners() {
     };
     reader.readAsDataURL(file);
   };
+
+  // --- GESTIONE OPZIONI PIXEL ART RÉTRO ---
+  if (pixelArtToggle) {
+    pixelArtToggle.checked = state.pixelArtEnabled;
+    if (pixelArtGrainBox) pixelArtGrainBox.style.display = state.pixelArtEnabled ? 'block' : 'none';
+
+    pixelArtToggle.addEventListener('change', (e) => {
+      state.pixelArtEnabled = e.target.checked;
+      localStorage.setItem('pixo_pixel_art', state.pixelArtEnabled);
+      if (pixelArtGrainBox) pixelArtGrainBox.style.display = state.pixelArtEnabled ? 'block' : 'none';
+      showToast(state.pixelArtEnabled ? "Effetto Pixel Art attivato! 👾" : "Effetto Pixel Art disattivato", "info");
+    });
+  }
+
+  document.querySelectorAll('.pixel-grain-btn').forEach(btn => {
+    const grain = parseInt(btn.dataset.grain, 10);
+    btn.classList.toggle('primary', grain === state.pixelArtGrain);
+    btn.classList.toggle('secondary', grain !== state.pixelArtGrain);
+
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.pixel-grain-btn').forEach(b => {
+        b.classList.remove('primary');
+        b.classList.add('secondary');
+      });
+      btn.classList.remove('secondary');
+      btn.classList.add('primary');
+
+      state.pixelArtGrain = grain;
+      localStorage.setItem('pixo_pixel_grain', grain);
+      if (pixelArtGrainLabel) {
+        if (grain === 3) pixelArtGrainLabel.textContent = "HD (3px) ✨";
+        else if (grain === 5) pixelArtGrainLabel.textContent = "Classica 🎮";
+        else pixelArtGrainLabel.textContent = "8-Bit 🕹️";
+      }
+
+      // Se c'è una foto attualmente in fase di posizionamento sull'overlay, aggiornala subito!
+      if (state.interactiveElement.active && state.interactiveElement.type === 'image' && state.interactiveElement.isPixelArt) {
+        const source = state.interactiveElement.originalImageObj;
+        if (source) {
+          const pixImg = generatePixelArtImage(source, state.pixelArtGrain);
+          state.interactiveElement.imageObj = pixImg;
+          floatingImage.src = pixImg.src;
+        }
+      }
+    });
+  });
+
+  if (togglePixelArtBtn) {
+    togglePixelArtBtn.addEventListener('click', () => {
+      if (!state.interactiveElement.active || state.interactiveElement.type !== 'image') return;
+      const source = state.interactiveElement.originalImageObj;
+      if (!source) return;
+
+      if (!state.interactiveElement.isPixelArt) {
+        // Converti in Pixel Art
+        const pixImg = generatePixelArtImage(source, state.pixelArtGrain || 5);
+        state.interactiveElement.imageObj = pixImg;
+        floatingImage.src = pixImg.src;
+        state.interactiveElement.isPixelArt = true;
+        togglePixelArtBtn.textContent = "🖼️ Originale";
+        showToast("Convertita in Pixel Art 👾", "success");
+      } else {
+        // Ripristina foto originale
+        state.interactiveElement.imageObj = source;
+        floatingImage.src = source.src;
+        state.interactiveElement.isPixelArt = false;
+        togglePixelArtBtn.textContent = "👾 Pixel Art";
+        showToast("Ripristinata foto originale", "info");
+      }
+    });
+  }
 
   // Pulsanti dedicati nella Tab 3 (Sezione Foto)
   const tabPhotoCameraBtn = document.getElementById('tabPhotoCameraBtn');
