@@ -322,6 +322,53 @@ body {
   touch-action: none;
 }
 
+/* Overlay Faccina Pixò in Standby (0 byte sul canvas, trasparente al tocco) */
+.standby-face-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  transition: opacity 0.2s ease;
+}
+
+.standby-face-overlay.hidden {
+  display: none !important;
+}
+
+.standby-face-img {
+  width: 135px;
+  height: 135px;
+  object-fit: contain;
+  border-radius: 50%;
+  filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.4));
+  animation: pixoPulse 3.5s ease-in-out infinite;
+}
+
+.standby-face-label {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-top: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.55);
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+@keyframes pixoPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 16px rgba(255, 215, 0, 0.3)); }
+  50% { transform: scale(1.05); filter: drop-shadow(0 0 24px rgba(255, 215, 0, 0.6)); }
+}
+
 /* Nascondi la lavagna e il tasto invia quando si è nella tab Dispositivo / Impostazioni */
 body[data-active-tab="panelSettings"] .canvas-stage,
 .canvas-stage.is-hidden {
