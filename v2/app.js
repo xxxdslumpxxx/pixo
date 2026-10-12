@@ -266,8 +266,17 @@ const state = {
   deviceStatus: "unknown", // "online" | "offline" | "unknown"
   guestAuthorized: null, // null = verifica in corso, true = autorizzato, false = revocato/non autorizzato
   lastKnownGuestKeys: null,
-
+  guestSessionLocked: false,
+  guestSessionId: null,
 };
+
+// Genera o recupera l'identificativo di sessione unico per questa scheda (sopravvive al refresh, distingue utenti diversi)
+let guestSessionId = sessionStorage.getItem('pixo_guest_session_id');
+if (!guestSessionId) {
+  guestSessionId = 'sess_' + Math.random().toString(36).substr(2, 9);
+  sessionStorage.setItem('pixo_guest_session_id', guestSessionId);
+}
+state.guestSessionId = guestSessionId;
 
 // --- RIFERIMENTI DOM ---
 const canvas = document.getElementById('paintCanvas');
@@ -305,6 +314,11 @@ const dismissOfflineBannerBtn = document.getElementById('dismissOfflineBannerBtn
 const guestRevokedOverlay = document.getElementById('guestRevokedOverlay');
 const guestRevokedReason = document.getElementById('guestRevokedReason');
 const retryGuestAuthBtn = document.getElementById('retryGuestAuthBtn');
+
+// Overlay Blocco Sessione Occupata Ospite (First-Come, First-Served)
+const guestSessionBusyOverlay = document.getElementById('guestSessionBusyOverlay');
+const guestSessionBusyReason = document.getElementById('guestSessionBusyReason');
+const retryGuestSessionBtn = document.getElementById('retryGuestSessionBtn');
 
 // Top Bar Action Buttons
 const undoBtn = document.getElementById('undoBtn');
@@ -3399,6 +3413,12 @@ function subscribeDeviceTopics() {
     state.mqttClient.subscribe(guestAckTopic, { qos: 0 });
     state.mqttClient.subscribe(kidsModeTopic, { qos: 1 });
 
+    // Sottoscrivi al Lock di Sessione Esclusivo per Link Amico
+    if (!state.isLiveMode && state.guestKey) {
+      const guestLockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+      state.mqttClient.subscribe(guestLockTopic, { qos: 0 });
+    }
+
     if (guestAuthTimeout) clearTimeout(guestAuthTimeout);
     guestAuthTimeout = setTimeout(() => {
       if (state.guestAuthorized === null) {
@@ -3454,6 +3474,16 @@ function connectMQTT() {
     password: state.brokerPass
   };
 
+  // Last Will and Testament per liberare all'istante il lock se il browser dell'amico si chiude o cade la rete
+  if (state.isGuestMode && !state.isLiveMode && state.deviceId && state.guestKey) {
+    options.will = {
+      topic: `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`,
+      payload: JSON.stringify({ id: "", ts: 0, status: "FREE" }),
+      qos: 0,
+      retain: true
+    };
+  }
+
   mqttConnectPromise = new Promise((resolve) => {
     try {
       if (!state.mqttClient) {
@@ -3493,12 +3523,15 @@ function connectMQTT() {
           const accessKeysTopic = `pixo/device/${state.deviceId}/access/keys`;
           const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
           const guestAckTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`;
+          const guestLockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
           const wifiTopic = `pixo/device/${state.deviceId}/wifi`;
           const otaStatusTopic = `pixo/device/${state.deviceId}/ota/status`;
           const diagTopic = `pixo/device/${state.deviceId}/diag`;
           const kidsModeTopic = `pixo/device/${state.deviceId}/kids_mode`;
 
-          if (topic === kidsModeTopic) {
+          if (topic === guestLockTopic && state.isGuestMode && !state.isLiveMode) {
+            handleGuestSessionLockMessage(payload);
+          } else if (topic === kidsModeTopic) {
             handleKidsModeSyncMessage(payload);
           } else if (topic === accessKeysTopic && state.isGuestMode) {
             handleGuestAccessKeysMessage(payload);
@@ -3738,6 +3771,118 @@ function handleGuestAccessKeysMessage(payload) {
 }
 
 // ==========================================================================
+//  LOCK DI SESSIONE ESCLUSIVO PER LINK AMICI (FIRST-COME, FIRST-SERVED)
+//  Garantisce che il primo utente che apre il link ne mantenga il possesso
+//  fino alla chiusura dell'app, senza rimbalzi o disconnessioni multiple.
+// ==========================================================================
+let guestLockHeartbeatTimer = null;
+
+function showGuestSessionBusyOverlay() {
+  if (guestSessionBusyOverlay) {
+    guestSessionBusyOverlay.classList.remove('hidden');
+  }
+  statusDot.className = "status-pulse status-dot offline";
+  statusDot.title = "Link amico occupato da un'altra persona";
+  if (deviceSubtitle) {
+    deviceSubtitle.textContent = "Link in uso";
+    deviceSubtitle.style.color = "var(--accent-orange, #ff9500)";
+  }
+}
+
+function hideGuestSessionBusyOverlay() {
+  if (guestSessionBusyOverlay) {
+    guestSessionBusyOverlay.classList.add('hidden');
+  }
+  if (state.mqttConnected && !state.guestSessionLocked) {
+    statusDot.className = "status-pulse status-dot online";
+    statusDot.title = "Connesso a Pixò Cloud";
+    if (deviceSubtitle) {
+      deviceSubtitle.textContent = "Online";
+      deviceSubtitle.style.color = "var(--accent-green)";
+    }
+  }
+}
+
+function stopGuestLockHeartbeat() {
+  if (guestLockHeartbeatTimer) {
+    clearInterval(guestLockHeartbeatTimer);
+    guestLockHeartbeatTimer = null;
+  }
+}
+
+function startGuestLockHeartbeat() {
+  stopGuestLockHeartbeat();
+  guestLockHeartbeatTimer = setInterval(() => {
+    if (state.mqttClient && state.mqttClient.connected && state.isGuestMode && !state.isLiveMode && !state.guestSessionLocked && state.deviceId && state.guestKey) {
+      const lockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+      const payload = JSON.stringify({ id: guestSessionId, ts: Date.now(), status: "ACTIVE" });
+      state.mqttClient.publish(lockTopic, payload, { qos: 0, retain: true });
+    }
+  }, 20000); // Rinnovo heartbeat ogni 20 secondi
+}
+
+function claimGuestSessionLock() {
+  if (!state.mqttClient || !state.mqttClient.connected || !state.isGuestMode || state.isLiveMode || !state.deviceId || !state.guestKey) return;
+  state.guestSessionLocked = false;
+  hideGuestSessionBusyOverlay();
+  const lockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+  const payload = JSON.stringify({ id: guestSessionId, ts: Date.now(), status: "ACTIVE" });
+  state.mqttClient.publish(lockTopic, payload, { qos: 0, retain: true });
+  startGuestLockHeartbeat();
+  console.log("[LOCK] Possesso esclusivo del link amico acquisito!");
+}
+
+function handleGuestSessionLockMessage(payload) {
+  if (!state.isGuestMode || state.isLiveMode) return;
+  let data = null;
+  try {
+    const text = (typeof payload === 'string')
+      ? payload.trim()
+      : new TextDecoder().decode(payload).trim();
+    if (!text || text === "FREE" || text === "NONE") {
+      data = { status: "FREE" };
+    } else {
+      data = JSON.parse(text);
+    }
+  } catch(e) {
+    data = { status: "FREE" };
+  }
+
+  const now = Date.now();
+  // Il lock è libero se è vuoto, status FREE, o se il possessore precedente non rinnova da oltre 60s
+  const isLockFree = !data || data.status === "FREE" || !data.id || (data.ts && (now - data.ts > 60000));
+  const isMyLock = data && data.id === guestSessionId;
+
+  if (isMyLock) {
+    // Siamo noi i legittimi possessori del link!
+    state.guestSessionLocked = false;
+    hideGuestSessionBusyOverlay();
+    startGuestLockHeartbeat();
+    console.log("[LOCK] Confermata sessione attiva per questo dispositivo.");
+  } else if (isLockFree) {
+    // Il link è libero: diventiamo noi i titolari del lock
+    claimGuestSessionLock();
+  } else {
+    // Il link è occupato da un'altra persona attiva: blocca l'accesso a questo secondo utente
+    state.guestSessionLocked = true;
+    showGuestSessionBusyOverlay();
+    stopGuestLockHeartbeat();
+    console.log("[LOCK] Link attualmente occupato da un altro utente (" + (data.id || 'altra sessione') + ")");
+  }
+}
+
+function releaseGuestSessionLock() {
+  if (state.isGuestMode && !state.isLiveMode && !state.guestSessionLocked && state.mqttClient && state.mqttClient.connected && state.deviceId && state.guestKey) {
+    const lockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+    const freePayload = JSON.stringify({ id: "", ts: 0, status: "FREE" });
+    state.mqttClient.publish(lockTopic, freePayload, { qos: 0, retain: true });
+  }
+}
+
+window.addEventListener('beforeunload', releaseGuestSessionLock);
+window.addEventListener('pagehide', releaseGuestSessionLock);
+
+// ==========================================================================
 //  NOTIFICHE DI SISTEMA SUL CELLULARE & PUSH STANDBY
 // ==========================================================================
 function sendSystemNotification(title, body) {
@@ -3882,6 +4027,10 @@ async function sendCanvasMqtt() {
   // Verifica autorizzazione ospite prima dell'invio
   if (state.isGuestMode && state.guestAuthorized !== true) {
     showToast(state.lang === 'it' ? "Non sei autorizzato a inviare disegni a questo Pixò." : "You are not authorized to send drawings to this Pixò.", "error");
+    return;
+  }
+  if (state.isGuestMode && !state.isLiveMode && state.guestSessionLocked) {
+    showToast(state.lang === 'it' ? "Questo link è attualmente occupato da un'altra persona." : "This link is currently in use by another person.", "warning");
     return;
   }
 
@@ -4054,6 +4203,19 @@ function setupEventListeners() {
       state.mqttClient.unsubscribe([accessKeysTopic, accessStatusTopic]);
       state.mqttClient.subscribe(accessKeysTopic, { qos: 1 });
       state.mqttClient.subscribe(accessStatusTopic, { qos: 1 });
+    } else {
+      connectMQTT();
+    }
+  });
+
+  // Riprova verifica disponibilità lock sessione ospite (First-Come, First-Served)
+  retryGuestSessionBtn?.addEventListener('click', () => {
+    playAudioClick();
+    showToast(state.lang === 'it' ? "Controllo se il link si è liberato... 🔄" : "Checking link availability... 🔄", "info");
+    if (state.mqttClient && state.mqttClient.connected && state.deviceId && state.guestKey) {
+      const guestLockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+      state.mqttClient.unsubscribe(guestLockTopic);
+      state.mqttClient.subscribe(guestLockTopic, { qos: 0 });
     } else {
       connectMQTT();
     }
