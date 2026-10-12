@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 
   <!-- Stili Apple Design -->
-  <link rel="stylesheet" href="style.css?v=34">
+  <link rel="stylesheet" href="style.css?v=35">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
@@ -111,6 +111,12 @@
           <div class="canvas-container" id="canvasContainer">
             <canvas id="paintCanvas" width="240" height="240"></canvas>
             
+            <!-- Overlay Faccina Pixò in Standby (0 byte sul canvas, zero lag di compressione) -->
+            <div class="standby-face-overlay" id="standbyFaceOverlay">
+              <img src="./pixo_face.png" alt="Pixò" class="standby-face-img">
+              <span class="standby-face-label">Pixò in Standby</span>
+            </div>
+
             <div class="element-overlay hidden" id="elementOverlay">
               <div class="floating-element" id="floatingElement">
                 <span id="floatingContent"></span>
@@ -1000,6 +1006,6 @@
 
   </div>
 
-  <script src="app.js?v=40"></script>
+  <script src="app.js?v=41"></script>
 </body>
 </html>
