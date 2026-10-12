@@ -1,14 +1,19 @@
 {
-  "id": "pixo-public-cloud-app-v1",
-  "name": "Pixò Cloud",
+  "id": "pixo-smart-canvas-pwa",
+  "name": "Pixò",
   "short_name": "Pixò",
-  "description": "Invia disegni, messaggi, meteo e foto al tuo display Pixò in tempo reale via MQTT Cloud.",
-  "start_url": "/pixo/",
-  "scope": "/pixo/",
+  "description": "Smart Canvas per Pixò Display",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "fullscreen",
+    "minimal-ui"
+  ],
   "orientation": "portrait",
-  "background_color": "#12141a",
-  "theme_color": "#1a1c23",
+  "background_color": "#0a0a0c",
+  "theme_color": "#0a0a0c",
   "icons": [
     {
       "src": "icon-192.png",
