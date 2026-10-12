@@ -682,37 +682,48 @@ function initDeviceAndSettings() {
 
 function updateSettingsUI() {
   if (state.isGuestMode) {
-    deviceIdDisplay.textContent = `${state.deviceName || state.deviceId || "Pixò"} (Ospite)`;
+    if (state.isLiveMode) {
+      deviceIdDisplay.textContent = `${state.deviceName || state.deviceId || "Pixò"} (🔴 Live)`;
+      // Per gli spettatori LIVE nascondiamo del tutto la Tab Impostazioni (vedono solo Disegno, Smart Crea e Foto)
+      const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
+      if (settingsTab) settingsTab.style.display = 'none';
+    } else {
+      deviceIdDisplay.textContent = `${state.deviceName || state.deviceId || "Pixò"} (Ospite)`;
+      const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
+      if (settingsTab) {
+        settingsTab.style.display = '';
+        const tabSpan = settingsTab.querySelector('span');
+        if (tabSpan) tabSpan.textContent = state.lang === 'it' ? 'Opzioni' : 'Options';
+      }
+    }
+
     if (openSettingsBtn) openSettingsBtn.style.display = 'none';
     if (shareBtn) shareBtn.style.display = 'none';
     if (devicePill) {
-      devicePill.style.cursor = 'pointer';
-      devicePill.title = "Apri opzioni e notifiche";
+      devicePill.style.cursor = state.isLiveMode ? 'default' : 'pointer';
+      devicePill.title = state.isLiveMode ? "Modalità Live attiva" : "Apri opzioni e notifiche";
     }
     if (devicePinInput) devicePinInput.value = "";
     if (factoryResetSection) factoryResetSection.style.display = 'none';
     if (wifiManagementSection) wifiManagementSection.style.display = 'none';
 
-    // Agli ospiti nascondiamo i controlli hardware (Luce stanza, Feed meteo/orologio/follower)
+    // Agli ospiti/live nascondiamo i controlli hardware (Luce stanza, Feed meteo/orologio/follower)
     if (lightToggleBtn) lightToggleBtn.style.display = 'none';
     if (weatherBtn) weatherBtn.style.display = 'none';
     if (clockBtn) clockBtn.style.display = 'none';
     if (followerBtn) followerBtn.style.display = 'none';
-    
-    // Per gli ospiti mostriamo la tab come "Opzioni" per gestire notifiche e lingua
-    const settingsTab = document.querySelector('.tab-item[data-tab="panelSettings"]');
-    if (settingsTab) {
-      settingsTab.style.display = '';
-      const tabSpan = settingsTab.querySelector('span');
-      if (tabSpan) tabSpan.textContent = state.lang === 'it' ? 'Opzioni' : 'Options';
-    }
+
     const settingsTitle = document.querySelector('#panelSettings .card-title');
     if (settingsTitle) settingsTitle.textContent = state.lang === 'it' ? 'Opzioni Pixò' : 'Pixò Options';
 
-    // Nasconde tutti i controlli riservati al proprietario
+    // Nasconde tutti i controlli riservati al proprietario (incluso Slideshow e Impostazioni Live)
     document.querySelectorAll('.owner-only-setting').forEach(el => el.style.display = 'none');
+    const slideshowSection = document.getElementById('slideshowSection');
+    if (slideshowSection) slideshowSection.style.display = 'none';
+    const liveOwnerSettingsCard = document.getElementById('liveOwnerSettingsCard');
+    if (liveOwnerSettingsCard) liveOwnerSettingsCard.style.display = 'none';
 
-    // La tab Foto resta visibile sia per gli ospiti che per i proprietari
+    // La tab Foto resta visibile per inserire singole foto/disegni, ma senza slideshow
     const photoTab = document.querySelector('.tab-item[data-tab="panelPhoto"]');
     if (photoTab) photoTab.style.display = '';
   } else {
@@ -4424,6 +4435,10 @@ function setupEventListeners() {
 
   if (btnUploadSlideshow) {
     btnUploadSlideshow.addEventListener('click', async () => {
+      if (state.isLiveMode || state.isGuestMode) {
+        showToast("Lo slideshow è riservato al proprietario di Pixò!", "error");
+        return;
+      }
       if (!state.mqttClient || !state.mqttClient.connected) {
         showToast("Disconnesso dal Cloud HiveMQ!", "error");
         return;
@@ -4493,6 +4508,10 @@ function setupEventListeners() {
 
   if (btnStartSlideshow) {
     btnStartSlideshow.addEventListener('click', () => {
+      if (state.isLiveMode || state.isGuestMode) {
+        showToast("Lo slideshow è riservato al proprietario di Pixò!", "error");
+        return;
+      }
       if (!state.mqttClient || !state.mqttClient.connected) {
         showToast("Disconnesso dal Cloud!", "error");
         return;
