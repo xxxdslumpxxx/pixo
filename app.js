@@ -232,6 +232,14 @@ const state = {
   ledEnabled: true,
   kidsModeEnabled: true,
   lightOn: false,
+
+  // Live Streaming (TikTok / Twitch)
+  isLiveMode: false,
+  liveCredits: 3,
+  liveFreeDraws: 3,
+  liveDrawsPerRose: 3,
+  liveCooldownSec: 20,
+  liveCooldownUntil: 0,
   phoneNotifications: localStorage.getItem('pixo_phone_notifications') === 'true',
   savedDrawings: [],
 
@@ -427,6 +435,27 @@ const eraserBtn = document.getElementById('eraserBtn');
 const sendBtn = document.getElementById('sendBtn');
 const toastContainer = document.getElementById('toastContainer');
 
+// Elementi Live Streaming Mode & Donazioni
+const liveStreamBanner = document.getElementById('liveStreamBanner');
+const liveCreditsCount = document.getElementById('liveCreditsCount');
+const liveFetchScreenBtn = document.getElementById('liveFetchScreenBtn');
+const liveUnlockModalBtn = document.getElementById('liveUnlockModalBtn');
+const liveUnlockModal = document.getElementById('liveUnlockModal');
+const closeLiveUnlockBtn = document.getElementById('closeLiveUnlockBtn');
+const closeLiveUnlockBackdrop = document.getElementById('closeLiveUnlockBackdrop');
+const liveModalRoseRewardText = document.getElementById('liveModalRoseRewardText');
+const liveDonationNickInput = document.getElementById('liveDonationNickInput');
+const liveClaimDonationBtn = document.getElementById('liveClaimDonationBtn');
+
+// Impostazioni Live per il Proprietario
+const liveModeToggle = document.getElementById('liveModeToggle');
+const liveSettingsBox = document.getElementById('liveSettingsBox');
+const liveLinkInput = document.getElementById('liveLinkInput');
+const copyLiveLinkBtn = document.getElementById('copyLiveLinkBtn');
+const liveFreeDrawsSelect = document.getElementById('liveFreeDrawsSelect');
+const liveDrawsPerRoseSelect = document.getElementById('liveDrawsPerRoseSelect');
+const liveCooldownSelect = document.getElementById('liveCooldownSelect');
+
 // ==========================================================================
 //  1. INTERNAZIONALIZZAZIONE (i18n)
 // ==========================================================================
@@ -564,12 +593,33 @@ function initDeviceAndSettings() {
     localStorage.setItem('pixo_device_id', 'ESP32-9205D4');
   }
 
-  // Verifica se l'app è aperta come ospite
-  if (urlParams.get('guest') === '1') {
+  // Verifica se l'app è aperta in modalità Live Streaming (TikTok/Twitch)
+  if (urlParams.get('live') === '1' || urlParams.get('live') === 'true') {
+    state.isLiveMode = true;
+    state.isGuestMode = true; // Si comporta da ospite (niente pin né admin)
+    state.devicePin = "";
+
+    const freeParam = parseInt(urlParams.get('free') || '3', 10);
+    const roseParam = parseInt(urlParams.get('rose') || '3', 10);
+    const cdParam = parseInt(urlParams.get('cd') || '20', 10);
+    state.liveFreeDraws = isNaN(freeParam) ? 3 : freeParam;
+    state.liveDrawsPerRose = isNaN(roseParam) ? 3 : roseParam;
+    state.liveCooldownSec = isNaN(cdParam) ? 20 : cdParam;
+
+    const savedCred = localStorage.getItem(`pixo_live_credits_${state.deviceId}`);
+    if (savedCred !== null) {
+      state.liveCredits = parseInt(savedCred, 10);
+    } else {
+      state.liveCredits = state.liveFreeDraws;
+      localStorage.setItem(`pixo_live_credits_${state.deviceId}`, state.liveCredits);
+    }
+  } else if (urlParams.get('guest') === '1') {
+    state.isLiveMode = false;
     state.isGuestMode = true;
     state.guestKey = urlParams.get('key') || 'pixo123';
     state.devicePin = ""; // L'ospite NON ha e NON vede il PIN proprietario
   } else {
+    state.isLiveMode = false;
     state.isGuestMode = false;
     try {
       const stored = localStorage.getItem('pixo_guest_keys');
@@ -728,6 +778,207 @@ function updateSettingsUI() {
   if (ledToggle) ledToggle.checked = state.ledEnabled;
   if (kidsModeToggle) kidsModeToggle.checked = state.kidsModeEnabled;
   if (allowGuestsToggle) allowGuestsToggle.checked = state.allowGuests;
+
+  // Gestione Interfaccia Modalità Live Streaming
+  if (state.isLiveMode) {
+    if (liveStreamBanner) {
+      liveStreamBanner.style.display = 'flex';
+      liveStreamBanner.classList.remove('hidden');
+    }
+    if (liveCreditsCount) {
+      liveCreditsCount.textContent = state.liveCredits;
+    }
+    if (liveModalRoseRewardText) {
+      liveModalRoseRewardText.textContent = `+${state.liveDrawsPerRose || 3} Disegni`;
+    }
+    deviceIdDisplay.textContent = `${state.deviceName || state.deviceId || "Pixò"} (🔴 Live)`;
+    if (statusDot) {
+      statusDot.className = "status-pulse status-dot online";
+      statusDot.title = "Modalità Live (Invio on-demand lampo)";
+    }
+    if (deviceSubtitle) {
+      deviceSubtitle.textContent = "Live Stream";
+      deviceSubtitle.style.color = "#ff375f";
+    }
+  } else {
+    if (liveStreamBanner) {
+      liveStreamBanner.style.display = 'none';
+    }
+    if (liveModeToggle) {
+      const isLiveActive = localStorage.getItem('pixo_live_enabled') === 'true';
+      liveModeToggle.checked = isLiveActive;
+      if (liveSettingsBox) liveSettingsBox.style.display = isLiveActive ? 'block' : 'none';
+    }
+    if (liveFreeDrawsSelect) liveFreeDrawsSelect.value = localStorage.getItem('pixo_live_free_draws') || '3';
+    if (liveDrawsPerRoseSelect) liveDrawsPerRoseSelect.value = localStorage.getItem('pixo_live_draws_per_rose') || '3';
+    if (liveCooldownSelect) liveCooldownSelect.value = localStorage.getItem('pixo_live_cooldown') || '20';
+    updateLiveShareLink();
+  }
+}
+
+
+// ==========================================================================
+//  LIVE STREAMING MODE (TikTok / Twitch Zero-Footprint & Donazioni)
+// ==========================================================================
+function updateLiveShareLink() {
+  if (!liveLinkInput) return;
+  const baseUrl = window.location.origin + window.location.pathname;
+  const url = new URL(baseUrl);
+  url.searchParams.set('id', state.deviceId || '');
+  url.searchParams.set('live', '1');
+  const freeVal = liveFreeDrawsSelect ? liveFreeDrawsSelect.value : (state.liveFreeDraws || '3');
+  const roseVal = liveDrawsPerRoseSelect ? liveDrawsPerRoseSelect.value : (state.liveDrawsPerRose || '3');
+  const cdVal = liveCooldownSelect ? liveCooldownSelect.value : (state.liveCooldownSec || '20');
+  url.searchParams.set('free', freeVal);
+  url.searchParams.set('rose', roseVal);
+  url.searchParams.set('cd', cdVal);
+  liveLinkInput.value = url.toString();
+}
+
+async function sendLiveDrawingMqtt() {
+  if (state.liveCredits <= 0) {
+    if (liveUnlockModal) liveUnlockModal.classList.remove('hidden');
+    showToast("Disegni gratis esauriti! Dona una 🌹 su TikTok per sbloccare altri disegni", "warning");
+    return;
+  }
+
+  const now = Date.now();
+  if (now < state.liveCooldownUntil) {
+    const remainingSec = Math.ceil((state.liveCooldownUntil - now) / 1000);
+    showToast(`Attendi ancora ${remainingSec}s prima di inviare! (Anti-spam diretta)`, "warning");
+    return;
+  }
+
+  if (state.kidsModeEnabled) {
+    const safety = checkImageSafety(canvas);
+    if (!safety.safe) {
+      showToast(t("toastKidsModeImgBlocked"), "error");
+      return;
+    }
+  }
+
+  state.isSending = true;
+  sendBtn.disabled = true;
+  const lbl = sendBtn.querySelector('.send-label');
+  const origText = lbl ? lbl.textContent : "Invia a Pixò";
+  if (lbl) lbl.textContent = "Connessione lampo 0.5s...";
+
+  try {
+    const blob = await getCanvasJpegBlob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+
+    const tempId = "PixoLive_" + Math.random().toString(36).substr(2, 7);
+    const liveClient = mqtt.connect(state.brokerUrl, {
+      clientId: tempId,
+      clean: true,
+      connectTimeout: 5000,
+      username: state.brokerUser,
+      password: state.brokerPass
+    });
+
+    let sent = false;
+    await new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        try { liveClient.end(true); } catch(e){}
+        resolve();
+      }, 5000);
+
+      liveClient.on('connect', () => {
+        // Invia su topic diretto di visualizzazione
+        liveClient.publish(`pixo/device/${state.deviceId}/draw`, uint8Array, { qos: 0 });
+        // Salva retained current per consentire lo scaricamento immediato agli altri spettatori
+        liveClient.publish(`pixo/device/${state.deviceId}/current`, uint8Array, { qos: 0, retain: true });
+        sent = true;
+        setTimeout(() => {
+          clearTimeout(timer);
+          try { liveClient.end(true); } catch(e){}
+          resolve();
+        }, 400); // 400ms per flush TCP
+      });
+
+      liveClient.on('error', (err) => {
+        console.error('[Live MQTT error]', err);
+        clearTimeout(timer);
+        try { liveClient.end(true); } catch(e){}
+        resolve();
+      });
+    });
+
+    if (sent) {
+      state.liveCredits--;
+      localStorage.setItem(`pixo_live_credits_${state.deviceId}`, state.liveCredits);
+      if (liveCreditsCount) liveCreditsCount.textContent = state.liveCredits;
+      state.liveCooldownUntil = Date.now() + (state.liveCooldownSec * 1000);
+      showToast(`Disegno inviato in diretta! 🚀 (${state.liveCredits} rimasti)`, "success");
+    } else {
+      showToast("Invio non riuscito. Controlla la connessione e riprova!", "error");
+    }
+  } catch(e) {
+    console.error("Errore durante invio live:", e);
+    showToast("Errore durante l'invio in diretta.", "error");
+  } finally {
+    state.isSending = false;
+    sendBtn.disabled = false;
+    if (lbl) lbl.textContent = origText;
+  }
+}
+
+async function fetchLiveScreen() {
+  if (!state.deviceId) return;
+  showToast("Scaricamento schermata Pixò in corso... ⏳", "info");
+
+  const tempId = "PixoFetch_" + Math.random().toString(36).substr(2, 7);
+  const fetchClient = mqtt.connect(state.brokerUrl, {
+    clientId: tempId,
+    clean: true,
+    connectTimeout: 5000,
+    username: state.brokerUser,
+    password: state.brokerPass
+  });
+
+  let received = false;
+  const timeout = setTimeout(() => {
+    if (!received) {
+      try { fetchClient.end(true); } catch(e){}
+      showToast("Nessuna schermata ricevuta (Pixò potrebbe essere spento o in standby)", "warning");
+    }
+  }, 4000);
+
+  fetchClient.on('connect', () => {
+    fetchClient.subscribe(`pixo/device/${state.deviceId}/current`, { qos: 0 });
+  });
+
+  fetchClient.on('message', (topic, payload) => {
+    if (topic === `pixo/device/${state.deviceId}/current`) {
+      received = true;
+      clearTimeout(timeout);
+      try { fetchClient.end(true); } catch(e){}
+
+      const text = new TextDecoder().decode(payload.slice(0, 5));
+      if (text === "CLEAR") {
+        showToast("Pixò è attualmente in standby (faccina animata)", "info");
+        return;
+      }
+
+      const blob = new Blob([payload], { type: 'image/jpeg' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        saveState();
+        updatePayloadPreview();
+        URL.revokeObjectURL(url);
+        showToast("Schermata Pixò caricata sulla lavagna! 🎨", "success");
+      };
+      img.src = url;
+    }
+  });
+
+  fetchClient.on('error', () => {
+    clearTimeout(timeout);
+    try { fetchClient.end(true); } catch(e){}
+  });
 }
 
 function buildGuestUrl(key) {
@@ -3090,7 +3341,17 @@ function connectMQTT() {
   statusDot.className = "status-pulse status-dot connecting";
   statusDot.title = "Connessione a Pixò Cloud...";
 
-  const clientId = "WebPixo_" + Math.random().toString(16).substr(2, 8);
+  let clientId;
+  if (state.isGuestMode && !state.isLiveMode) {
+    // PROTEZIONE ANTI-SATURAZIONE CLUSTER:
+    // Un link amico privato permette 1 sola sessione contemporanea.
+    // Usando un ClientID deterministico basato su deviceId e guestKey,
+    // se una seconda persona apre lo stesso link, HiveMQ disconnette automaticamente
+    // la sessione precedente evitando l'accumulo di connessioni concorrenti!
+    clientId = "PixoFriend_" + (state.deviceId || "dev") + "_" + (state.guestKey || "key");
+  } else {
+    clientId = "WebPixo_" + Math.random().toString(16).substr(2, 8);
+  }
   const options = {
     clientId: clientId,
     clean: true,
@@ -3591,6 +3852,12 @@ async function sendToDisplay() {
 
   if (!state.deviceId) {
     settingsModal.classList.remove('hidden');
+    return;
+  }
+
+  // Se siamo in modalità Live Streaming, invio istantaneo con connessione on-demand di 0.5s!
+  if (state.isLiveMode) {
+    await sendLiveDrawingMqtt();
     return;
   }
 
@@ -4394,6 +4661,77 @@ function setupEventListeners() {
     factoryResetBtn.addEventListener('click', handleFactoryReset);
   }
 
+  // --- EVENT LISTENERS LIVE STREAMING & DONAZIONI ---
+  if (liveModeToggle) {
+    liveModeToggle.addEventListener('change', (e) => {
+      localStorage.setItem('pixo_live_enabled', e.target.checked);
+      if (liveSettingsBox) liveSettingsBox.style.display = e.target.checked ? 'block' : 'none';
+      updateLiveShareLink();
+    });
+  }
+
+  if (liveFreeDrawsSelect) {
+    liveFreeDrawsSelect.addEventListener('change', (e) => {
+      localStorage.setItem('pixo_live_free_draws', e.target.value);
+      updateLiveShareLink();
+    });
+  }
+
+  if (liveDrawsPerRoseSelect) {
+    liveDrawsPerRoseSelect.addEventListener('change', (e) => {
+      localStorage.setItem('pixo_live_draws_per_rose', e.target.value);
+      updateLiveShareLink();
+    });
+  }
+
+  if (liveCooldownSelect) {
+    liveCooldownSelect.addEventListener('change', (e) => {
+      localStorage.setItem('pixo_live_cooldown', e.target.value);
+      updateLiveShareLink();
+    });
+  }
+
+  if (copyLiveLinkBtn) {
+    copyLiveLinkBtn.addEventListener('click', () => {
+      if (liveLinkInput) {
+        navigator.clipboard.writeText(liveLinkInput.value).then(() => {
+          showToast("Link Live per i follower copiato! 🔴📋", "success");
+        }).catch(() => {
+          liveLinkInput.select();
+          document.execCommand('copy');
+          showToast("Link Live copiato! 🔴📋", "success");
+        });
+      }
+    });
+  }
+
+  if (liveFetchScreenBtn) {
+    liveFetchScreenBtn.addEventListener('click', fetchLiveScreen);
+  }
+
+  if (liveUnlockModalBtn) {
+    liveUnlockModalBtn.addEventListener('click', () => {
+      if (liveUnlockModal) liveUnlockModal.classList.remove('hidden');
+    });
+  }
+
+  const closeLiveUnlock = () => {
+    if (liveUnlockModal) liveUnlockModal.classList.add('hidden');
+  };
+  if (closeLiveUnlockBtn) closeLiveUnlockBtn.addEventListener('click', closeLiveUnlock);
+  if (closeLiveUnlockBackdrop) closeLiveUnlockBackdrop.addEventListener('click', closeLiveUnlock);
+
+  if (liveClaimDonationBtn) {
+    liveClaimDonationBtn.addEventListener('click', () => {
+      const added = state.liveDrawsPerRose || 3;
+      state.liveCredits += added;
+      localStorage.setItem(`pixo_live_credits_${state.deviceId}`, state.liveCredits);
+      if (liveCreditsCount) liveCreditsCount.textContent = state.liveCredits;
+      closeLiveUnlock();
+      showToast(`Grazie per il regalo! 🌹 Sbloccati +${added} disegni!`, "success");
+    });
+  }
+
   // Gestione Wi-Fi Pixò (Solo Proprietario)
   if (btnToggleNewWifi) {
     btnToggleNewWifi.addEventListener('click', () => {
@@ -4815,6 +5153,7 @@ function registerServiceWorker() {
 let wakeDebounceTimer = null;
 
 function handleAppWakeup() {
+  if (state.isLiveMode) return; // In Live mode, connessioni solo on-demand!
   if (wakeDebounceTimer) clearTimeout(wakeDebounceTimer);
   wakeDebounceTimer = setTimeout(() => {
     if (!state.mqttClient || (!state.mqttClient.connected && !state.mqttConnecting)) {
@@ -4841,8 +5180,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initStickers();
   setupEventListeners();
   if (state.deviceId) {
-    connectMQTT();
-  } else if (!state.isGuestMode) {
+    if (!state.isLiveMode) {
+      connectMQTT();
+    }
+  } else if (!state.isGuestMode && !state.isLiveMode) {
     showOnboardingModal(false);
   }
   registerServiceWorker();
