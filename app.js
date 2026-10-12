@@ -1105,6 +1105,16 @@ function showStandbyOverlay(visible) {
   }
 }
 
+// Cliccando o toccando ovunque sopra la faccina, viene rimossa all'istante
+if (standbyFaceOverlay) {
+  standbyFaceOverlay.addEventListener('pointerdown', () => {
+    showStandbyOverlay(false);
+  });
+  standbyFaceOverlay.addEventListener('click', () => {
+    showStandbyOverlay(false);
+  });
+}
+
 function renderStandbyFaceOnCanvas() {
   // Mostra l'overlay grafico in tempo reale senza inquinare la memoria del canvas:
   // in questo modo il payload JPEG rimane ultra-leggero (~1 KB) e l'invio è istantaneo!
@@ -1214,10 +1224,8 @@ function startDrawing(e) {
   stopAutomaticFeed(); // Se l'utente disegna, ferma l'eventuale rassegna automatica
   if (state.interactiveElement.active) return;
 
-  // Se a schermo c'è l'overlay di standby, nascondilo subito
-  if (state.isShowingStandbyFace) {
-    showStandbyOverlay(false);
-  }
+  // Se a schermo c'è l'overlay di standby, nascondilo incondizionatamente subito
+  showStandbyOverlay(false);
 
   e.preventDefault();
   canvas.setPointerCapture(e.pointerId);
@@ -3350,18 +3358,7 @@ function handleDiagSync(payload) {
       }
     }
 
-    // Se Pixò si è appena avviato (uptime < 45s o POWERON_RESET) e l'utente non ha inviato un disegno di recente,
-    // garantisci che la lavagna mostri lo standby (faccina gialla) e pulisci residui retained dal Cloud.
-    if ((data.uptime_s !== undefined && data.uptime_s < 45) || data.reset_reason === 'POWERON_RESET') {
-      const now = Date.now();
-      if (!state.userHasDrawnLocally && (now - lastLocalSendTime > 15000)) {
-        console.log("[DIAG] Pixò riavviato di recente (" + (data.uptime_s || 0) + "s fa). Ripristino standby sulla WebApp.");
-        showStandbyOverlay(true);
-        if (state.mqttClient && state.mqttClient.connected && state.deviceId) {
-          state.mqttClient.publish(`pixo/device/${state.deviceId}/current`, "CLEAR", { qos: 0, retain: true });
-        }
-      }
-    }
+    // Aggiornamento telemetria
   } catch (err) {
     console.warn('[DIAG] Errore parsing telemetria diagnostica:', err);
   }
@@ -4342,6 +4339,7 @@ function setupEventListeners() {
   document.querySelectorAll('.color-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       playAudioClick();
+      showStandbyOverlay(false);
       document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.currentColor = btn.dataset.color;
@@ -4354,6 +4352,7 @@ function setupEventListeners() {
   document.querySelectorAll('.stroke-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       playAudioClick();
+      showStandbyOverlay(false);
       document.querySelectorAll('.stroke-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.currentStroke = parseInt(btn.dataset.size, 10);
@@ -4365,6 +4364,7 @@ function setupEventListeners() {
   // Gomma
   eraserBtn.addEventListener('click', () => {
     playAudioClick();
+    showStandbyOverlay(false);
     state.isEraser = !state.isEraser;
     eraserBtn.classList.toggle('active', state.isEraser);
     if (!state.isEraser) {
