@@ -15,7 +15,7 @@
   <link rel="apple-touch-icon" href="icon-192.png">
 
   <!-- Stili Apple Design -->
-  <link rel="stylesheet" href="style.css?v=37">
+  <link rel="stylesheet" href="style.css?v=38">
   <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 </head>
 <body>
@@ -708,12 +708,15 @@
     <!-- Sticker Sheet Drawer -->
     <div class="ios-sheet hidden" id="stickerDrawer">
       <div class="sheet-backdrop" id="closeStickerBackdrop"></div>
-      <div class="sheet-card">
+      <div class="sheet-card" style="max-height: 84vh;">
         <div class="sheet-grabber"></div>
         <div class="sheet-header">
-          <h3 data-i18n="chooseSticker">Scegli uno Sticker</h3>
+          <h3 data-i18n="chooseSticker">Scegli uno Sticker (150+ disponibili)</h3>
           <button class="sheet-close-btn" id="closeStickerBtn">&times;</button>
         </div>
+        <!-- Barra Categorie Sticker ad Accesso Rapido -->
+        <div class="sticker-categories-bar" id="stickerCategoriesBar"></div>
+        <!-- Griglia Sticker ad Alta Definizione -->
         <div class="sticker-grid" id="stickerGrid"></div>
       </div>
     </div>
@@ -1028,6 +1031,6 @@
 
   </div>
 
-  <script src="app.js?v=43"></script>
+  <script src="app.js?v=44"></script>
 </body>
 </html>
