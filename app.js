@@ -3,10 +3,26 @@
    ========================================================================== */
 
 // --- CONFIGURAZIONE PREDEFINITA BROKER MQTT ---
+// Server Dedicato Oracle Sempre Gratuito a vita con SSL Let's Encrypt + Fallback HiveMQ
+const BROKER_SERVERS = [
+  {
+    name: "Oracle Dedicated Cloud (dslumpstudio)",
+    brokerUrl: "wss://mqtt.dslumpstudio.com:443/mqtt",
+    brokerUser: "pixo",
+    brokerPass: "projectLavagna!"
+  },
+  {
+    name: "HiveMQ Cloud Secondary",
+    brokerUrl: "wss://e58d8ef9b4cb45b9b8250157f6c5b7c2.s1.eu.hivemq.cloud:8884/mqtt",
+    brokerUser: "dslump",
+    brokerPass: "projectLavagna!"
+  }
+];
+
 const DEFAULT_CONFIG = {
-  brokerUrl: "wss://e58d8ef9b4cb45b9b8250157f6c5b7c2.s1.eu.hivemq.cloud:8884/mqtt",
-  brokerUser: "dslump",
-  brokerPass: "projectLavagna!",
+  brokerUrl: BROKER_SERVERS[0].brokerUrl,
+  brokerUser: BROKER_SERVERS[0].brokerUser,
+  brokerPass: BROKER_SERVERS[0].brokerPass,
   defaultDeviceId: "",
   defaultDeviceName: "Il mio Pixò",
   jpegQuality: 0.90, // Qualità 90%: elimina ringing e blocchi DCT, nitidezza assoluta (~6 KB)
