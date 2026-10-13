@@ -124,7 +124,6 @@
         <div class="overlay-toolbar hidden" id="overlayToolbar">
           <span class="overlay-hint" id="overlayHintText">🖐️ Trascina e ridimensiona</span>
           <div class="overlay-btns">
-            <button type="button" id="togglePixelArtBtn" class="pill-btn secondary mini hidden" title="Converti in Pixel Art Rétro">👾 Pixel Art</button>
             <button id="confirmOverlayBtn" class="pill-btn primary mini">Applica</button>
             <button id="cancelOverlayBtn" class="pill-btn danger mini">Annulla</button>
           </div>
@@ -260,36 +259,7 @@
               </button>
             </div>
 
-            <!-- OPZIONE EFFETTO PIXEL ART RÉTRO -->
-            <div style="margin-top:14px; padding:12px; border-radius:var(--radius-md); background:rgba(255,255,255,0.04); border:1px solid var(--glass-border);">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span style="font-size:1.3rem;">👾</span>
-                  <div>
-                    <strong style="font-size:0.88rem; color:#fff;">Effetto Pixel Art Rétro</strong>
-                    <small style="color:var(--text-secondary); font-size:0.75rem; display:block;">Trasforma la foto in grafica arcade 8-bit</small>
-                  </div>
-                </div>
-                <label class="ios-toggle">
-                  <input type="checkbox" id="pixelArtToggle">
-                  <span class="toggle-slider"></span>
-                </label>
-              </div>
-
-              <!-- SELETTORE RISOLUZIONE PIXEL ART (Visibile se toggle attivo) -->
-              <div id="pixelArtGrainBox" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.06);">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                  <span style="font-size:0.75rem; color:var(--text-secondary);">Grana Pixel:</span>
-                  <span id="pixelArtGrainLabel" style="font-size:0.75rem; color:var(--accent-blue); font-weight:600;">Classica 🎮</span>
-                </div>
-                <div style="display:flex; gap:6px;">
-                  <button type="button" class="pill-btn mini secondary pixel-grain-btn" data-grain="3" style="flex:1;">HD (3px)</button>
-                  <button type="button" class="pill-btn mini primary pixel-grain-btn" data-grain="5" style="flex:1;">Classica 🎮</button>
-                  <button type="button" class="pill-btn mini secondary pixel-grain-btn" data-grain="8" style="flex:1;">8-Bit 🕹️</button>
-                </div>
-              </div>
             </div>
-          </div>
 
           <!-- CARD CORNICE DIGITALE / SLIDESHOW AUTONOMO (Solo Proprietario) -->
           <div class="panel-card glass owner-only-setting" id="slideshowSection" style="margin-top:14px;">
@@ -1031,6 +1001,6 @@
 
   </div>
 
-  <script src="app.js?v=46"></script>
+  <script src="app.js?v=47"></script>
 </body>
 </html>
