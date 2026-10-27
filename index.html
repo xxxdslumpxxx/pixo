@@ -66,7 +66,7 @@
 
 
 
-  <link rel="stylesheet" href="style.css?v=55">
+  <link rel="stylesheet" href="style.css?v=56">
 
 
 
@@ -1833,7 +1833,7 @@
 
               <!-- Pulsantone di Registrazione Hold-to-Talk -->
               <div style="display:flex; justify-content:center; margin:10px 0;">
-                <button type="button" class="voice-record-btn" id="btnVoiceRecord">
+                <button type="button" class="voice-record-btn" id="btnVoiceRecord" onclick="toggleVoiceRecording(event)" onpointerdown="onVoicePointerDown(event)" onpointerup="onVoicePointerUp(event)" onpointercancel="onVoicePointerUp(event)">
                   <div class="vr-inner">
                     <span class="vr-icon">🎙️</span>
                     <span class="vr-label" id="vrLabel">Tocca o Tieni Premuto per Parlare</span>
@@ -4799,7 +4799,7 @@
 
 
 
-  <script src="app.js?v=55"></script>
+  <script src="app.js?v=56"></script>
 
 
 
