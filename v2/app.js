@@ -17526,22 +17526,56 @@ window.selectJinglePreset = selectJinglePreset;
 
 // ==============================================================
 // ==============================================================
-// MODULO REGISTRATORE VOCALE ROBOTICO (ROBUST TOUCH & MEDIARECORDER)
 // ==============================================================
+// MODULO REGISTRATORE VOCALE ROBOTICO PIXO (DIRECT ENGINE V3)
+// ==============================================================
+let isVoiceRecording = false;
+let voiceRecorder = null;
+let voiceStream = null;
+let voiceChunks = [];
+let voiceTimer = null;
+let voiceStartTime = 0;
+let lastVoicePcm = null;
+let lastVoiceBase64 = null;
+let isHoldGestureActive = false;
+let holdStartTimeout = null;
 
-let isRecordingVoice = false;
-let voiceRecordStartTime = 0;
-let voiceMediaStream = null;
-let voiceMediaRecorder = null;
-let voiceAudioChunks = [];
-let voiceProgressTimer = null;
-let lastRecordedVoicePcm = null;
-let lastRecordedVoiceBase64 = null;
-let touchHoldTimer = null;
-let isHoldGesture = false;
+async function toggleVoiceRecording(e) {
+  if (e) e.stopPropagation();
+  if (isHoldGestureActive) {
+    isHoldGestureActive = false;
+    return;
+  }
+  if (!isVoiceRecording) {
+    await startVoiceRecording();
+  } else {
+    stopVoiceRecording();
+  }
+}
+
+function onVoicePointerDown(e) {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  isHoldGestureActive = false;
+  holdStartTimeout = setTimeout(function() {
+    isHoldGestureActive = true;
+    if (!isVoiceRecording) {
+      startVoiceRecording();
+    }
+  }, 260);
+}
+
+function onVoicePointerUp(e) {
+  if (holdStartTimeout) {
+    clearTimeout(holdStartTimeout);
+    holdStartTimeout = null;
+  }
+  if (isHoldGestureActive && isVoiceRecording) {
+    stopVoiceRecording();
+  }
+}
 
 async function startVoiceRecording() {
-  if (isRecordingVoice) return;
+  if (isVoiceRecording) return;
 
   const btn = document.getElementById('btnVoiceRecord');
   const badge = document.getElementById('voiceRecordBadge');
@@ -17550,18 +17584,18 @@ async function startVoiceRecording() {
   const actionsWrap = document.getElementById('voiceActionsWrap');
 
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    showToast("⚠️ Il microfono richiede connessione protetta (HTTPS) o browser compatibile", "error");
-    if (btn) btn.classList.remove('recording');
-    if (label) label.textContent = "Tocca per Parlare";
+    alert("⚠️ Il microfono richiede connessione protetta (HTTPS) o permessi abilitati nel browser!");
+    showToast("Microfono non disponibile: verifica permessi o HTTPS", "error");
     return;
   }
 
-  try {
-    if (btn) btn.classList.add('recording');
-    if (label) label.textContent = "Connessione microfono...";
-    if (actionsWrap) actionsWrap.style.display = 'none';
+  if (btn) btn.classList.add('recording');
+  if (label) label.textContent = "🎙️ Apertura microfono...";
+  if (actionsWrap) actionsWrap.style.display = 'none';
+  if (progBar) progBar.style.width = '0%';
 
-    voiceMediaStream = await navigator.mediaDevices.getUserMedia({
+  try {
+    voiceStream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
         noiseSuppression: true,
@@ -17569,25 +17603,39 @@ async function startVoiceRecording() {
       }
     });
 
-    voiceAudioChunks = [];
-    voiceMediaRecorder = new MediaRecorder(voiceMediaStream);
+    voiceChunks = [];
 
-    voiceMediaRecorder.ondataavailable = function(e) {
-      if (e.data && e.data.size > 0) {
-        voiceAudioChunks.push(e.data);
+    // Supporto MIME type per tutti i browser (Android Chrome, iOS Safari)
+    let mimeType = '';
+    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
+      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
+        mimeType = 'audio/webm;codecs=opus';
+      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
+        mimeType = 'audio/webm';
+      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
+        mimeType = 'audio/mp4';
+      } else if (MediaRecorder.isTypeSupported('audio/aac')) {
+        mimeType = 'audio/aac';
+      }
+    }
+
+    voiceRecorder = mimeType ? new MediaRecorder(voiceStream, { mimeType: mimeType }) : new MediaRecorder(voiceStream);
+
+    voiceRecorder.ondataavailable = function(evt) {
+      if (evt.data && evt.data.size > 0) {
+        voiceChunks.push(evt.data);
       }
     };
 
-    voiceMediaRecorder.onstart = function() {
-      isRecordingVoice = true;
-      voiceRecordStartTime = performance.now();
-      if (label) label.textContent = "🔴 Sto Registrando... (Max 3s)";
+    voiceRecorder.onstart = function() {
+      isVoiceRecording = true;
+      voiceStartTime = performance.now();
+      if (label) label.textContent = "🔴 Registrazione... (Tocca per Stop)";
 
-      // Timer di aggiornamento progresso
-      if (voiceProgressTimer) clearInterval(voiceProgressTimer);
-      voiceProgressTimer = setInterval(function() {
-        if (!isRecordingVoice) return;
-        const elapsed = (performance.now() - voiceRecordStartTime) / 1000;
+      if (voiceTimer) clearInterval(voiceTimer);
+      voiceTimer = setInterval(function() {
+        if (!isVoiceRecording) return;
+        const elapsed = (performance.now() - voiceStartTime) / 1000;
         const maxSec = 3.0;
         if (badge) badge.textContent = Math.min(elapsed, maxSec).toFixed(1) + "s / 3.0s";
         if (progBar) progBar.style.width = Math.min(100, (elapsed / maxSec) * 100) + "%";
@@ -17598,43 +17646,41 @@ async function startVoiceRecording() {
       }, 50);
     };
 
-    voiceMediaRecorder.onstop = async function() {
-      isRecordingVoice = false;
-      if (voiceProgressTimer) {
-        clearInterval(voiceProgressTimer);
-        voiceProgressTimer = null;
+    voiceRecorder.onstop = async function() {
+      isVoiceRecording = false;
+      if (voiceTimer) {
+        clearInterval(voiceTimer);
+        voiceTimer = null;
       }
 
       if (btn) btn.classList.remove('recording');
-      if (label) label.textContent = "Tocca per Registrare";
+      if (label) label.textContent = "Tocca o Tieni Premuto per Parlare";
 
-      // Ferma tracce microfono
-      if (voiceMediaStream) {
-        voiceMediaStream.getTracks().forEach(t => t.stop());
-        voiceMediaStream = null;
+      if (voiceStream) {
+        voiceStream.getTracks().forEach(t => t.stop());
+        voiceStream = null;
       }
 
-      if (voiceAudioChunks.length === 0) {
-        showToast("Nessun dato audio registrato", "warning");
+      if (voiceChunks.length === 0) {
+        showToast("Nessun dato registrato", "warning");
         return;
       }
 
       try {
-        const audioBlob = new Blob(voiceAudioChunks, { type: 'audio/webm' });
+        const audioBlob = new Blob(voiceChunks, { type: mimeType || 'audio/webm' });
         const arrayBuffer = await audioBlob.arrayBuffer();
 
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         const tempCtx = new AudioContextClass();
         const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
 
-        // DSP Downsample to 8000 Hz, Bandpass + Peaking + Soft Saturation
         const rawData = audioBuffer.getChannelData(0);
         const rawRate = audioBuffer.sampleRate;
         const targetRate = 8000;
-        const maxSamples = 24000; // 3.0s max
+        const maxSamples = 24000;
         const targetSamples = Math.min(maxSamples, Math.floor(rawData.length * (targetRate / rawRate)));
 
-        if (targetSamples < 800) { // Meno di 0.1s
+        if (targetSamples < 800) {
           showToast("Registrazione troppo breve!", "warning");
           tempCtx.close();
           return;
@@ -17647,10 +17693,8 @@ async function startVoiceRecording() {
         for (let i = 0; i < targetSamples; i++) {
           const srcIdx = Math.floor(i * step);
           const s = rawData[srcIdx] || 0.0;
-          // Filtro passa-alto DC-blocker
           const hp = s - prevSample * 0.82;
           prevSample = s;
-          // Compressione morbida walkie-talkie
           const clipped = Math.tanh(hp * 2.8);
           let u8 = Math.round((clipped + 1.0) * 127.5);
           if (u8 < 0) u8 = 0;
@@ -17660,87 +17704,48 @@ async function startVoiceRecording() {
 
         tempCtx.close();
 
-        // Convert to Base64
-        let binaryStr = '';
-        const chunkSize = 0x8000;
-        for (let i = 0; i < pcmUint8.length; i += chunkSize) {
-          binaryStr += String.fromCharCode.apply(null, pcmUint8.subarray(i, i + chunkSize));
+        let bin = '';
+        const chk = 0x8000;
+        for (let i = 0; i < pcmUint8.length; i += chk) {
+          bin += String.fromCharCode.apply(null, pcmUint8.subarray(i, i + chk));
         }
-        const base64Str = btoa(binaryStr);
+        const b64 = btoa(bin);
 
-        lastRecordedVoicePcm = pcmUint8;
-        lastRecordedVoiceBase64 = base64Str;
+        lastVoicePcm = pcmUint8;
+        lastVoiceBase64 = b64;
 
         if (actionsWrap) actionsWrap.style.display = 'flex';
         const durSec = (targetSamples / 8000).toFixed(1);
         if (badge) badge.textContent = durSec + "s / 3.0s";
         if (progBar) progBar.style.width = ((durSec / 3.0) * 100) + "%";
-        showToast("Registrazione vocale pronta! (" + durSec + "s) Tocca Riascolta o Invia 🎙️", "info");
+        showToast("Registrazione pronta (" + durSec + "s)! Riascolta o invia 🎙️", "info");
 
       } catch (err) {
-        console.error("[VoiceDSP] Errore elaborazione audio:", err);
-        showToast("Errore decodifica audio: " + err.message, "error");
+        console.error("DSP decode error:", err);
+        showToast("Errore decodifica: " + err.message, "error");
       }
     };
 
-    voiceMediaRecorder.start(100);
+    voiceRecorder.start(100);
 
   } catch (err) {
-    console.error("[VoiceRecorder] Errore accesso microfono:", err);
+    console.error("getUserMedia error:", err);
     if (btn) btn.classList.remove('recording');
-    if (label) label.textContent = "Tocca per Parlare";
-    showToast("Permesso microfono negato o non disponibile: " + err.message, "error");
+    if (label) label.textContent = "Tocca o Tieni Premuto per Parlare";
+    alert("⚠️ Errore microfono: " + err.message + "\nAssicurati di aver concesso il permesso.");
+    showToast("Permesso microfono negato o non disponibile", "error");
   }
 }
 
 function stopVoiceRecording() {
-  if (voiceMediaRecorder && voiceMediaRecorder.state === 'recording') {
-    voiceMediaRecorder.stop();
+  if (voiceRecorder && voiceRecorder.state === 'recording') {
+    voiceRecorder.stop();
   }
-  isRecordingVoice = false;
-}
-
-function initVoiceRecorderUI() {
-  const btn = document.getElementById('btnVoiceRecord');
-  if (!btn) return;
-
-  // Rimuove eventuali vecchi listener
-  btn.onclick = null;
-
-  // Supporto gesture universale (sia Tap che Hold)
-  btn.addEventListener('pointerdown', function(e) {
-    if (e.pointerType === 'mouse' && e.button !== 0) return;
-    isHoldGesture = false;
-    touchHoldTimer = setTimeout(function() {
-      isHoldGesture = true;
-    }, 280);
-
-    if (!isRecordingVoice) {
-      startVoiceRecording();
-    } else {
-      stopVoiceRecording();
-    }
-  });
-
-  function handleRelease(e) {
-    if (touchHoldTimer) {
-      clearTimeout(touchHoldTimer);
-      touchHoldTimer = null;
-    }
-    // Se l'utente ha tenuto premuto per più di 280ms, al rilascio ferma la registrazione
-    if (isHoldGesture && isRecordingVoice) {
-      stopVoiceRecording();
-    }
-    isHoldGesture = false;
-  }
-
-  window.addEventListener('pointerup', handleRelease);
-  window.addEventListener('pointercancel', handleRelease);
-  btn.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+  isVoiceRecording = false;
 }
 
 function playVoicePreview() {
-  if (!lastRecordedVoicePcm || lastRecordedVoicePcm.length === 0) {
+  if (!lastVoicePcm || lastVoicePcm.length === 0) {
     showToast("Nessuna registrazione disponibile!", "warning");
     return;
   }
@@ -17749,11 +17754,11 @@ function playVoicePreview() {
   if (!AudioContextClass) return;
 
   const previewCtx = new AudioContextClass();
-  const audioBuf = previewCtx.createBuffer(1, lastRecordedVoicePcm.length, 8000);
+  const audioBuf = previewCtx.createBuffer(1, lastVoicePcm.length, 8000);
   const chData = audioBuf.getChannelData(0);
 
-  for (let i = 0; i < lastRecordedVoicePcm.length; i++) {
-    chData[i] = (lastRecordedVoicePcm[i] - 128) / 127.5;
+  for (let i = 0; i < lastVoicePcm.length; i++) {
+    chData[i] = (lastVoicePcm[i] - 128) / 127.5;
   }
 
   const source = previewCtx.createBufferSource();
@@ -17764,7 +17769,7 @@ function playVoicePreview() {
 }
 
 function sendVoiceToPixo() {
-  if (!lastRecordedVoiceBase64) {
+  if (!lastVoiceBase64) {
     showToast("Registra prima un messaggio vocale!", "warning");
     return;
   }
@@ -17774,13 +17779,13 @@ function sendVoiceToPixo() {
   }
 
   const voiceTopic = "pixo/device/" + state.deviceId + "/voice";
-  state.mqttClient.publish(voiceTopic, lastRecordedVoiceBase64, { qos: 0 });
+  state.mqttClient.publish(voiceTopic, lastVoiceBase64, { qos: 0 });
   showToast("🚀 Vocale citofono inviato a Pixò!", "success");
 }
 
 function discardVoiceRecording() {
-  lastRecordedVoicePcm = null;
-  lastRecordedVoiceBase64 = null;
+  lastVoicePcm = null;
+  lastVoiceBase64 = null;
   const actionsWrap = document.getElementById('voiceActionsWrap');
   if (actionsWrap) actionsWrap.style.display = 'none';
   const badge = document.getElementById('voiceRecordBadge');
@@ -17790,13 +17795,14 @@ function discardVoiceRecording() {
   showToast("Registrazione vocale cancellata", "info");
 }
 
+window.toggleVoiceRecording = toggleVoiceRecording;
+window.onVoicePointerDown = onVoicePointerDown;
+window.onVoicePointerUp = onVoicePointerUp;
 window.startVoiceRecording = startVoiceRecording;
 window.stopVoiceRecording = stopVoiceRecording;
 window.playVoicePreview = playVoicePreview;
 window.sendVoiceToPixo = sendVoiceToPixo;
 window.discardVoiceRecording = discardVoiceRecording;
-window.initVoiceRecorderUI = initVoiceRecorderUI;
-
 
 window.initJingleStudio = initJingleStudio;
 window.sendJingleToPixo = sendJingleToPixo;
