@@ -3744,3 +3744,139 @@ body[data-active-tab="panelSettings"] .canvas-stage,
   color: rgba(255, 255, 255, 0.5);
 }
 
+
+
+/* Voice Recorder Card & Buttons */
+.voice-recorder-card {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+
+.voice-badge {
+  font-size: 0.75rem;
+  font-weight: 800;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: rgba(255, 45, 85, 0.15);
+  color: #ff375f;
+  border: 1px solid rgba(255, 45, 85, 0.3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.voice-progress-bg {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.voice-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff375f, #ff9f0a);
+  transition: width 0.1s linear;
+}
+
+.voice-record-btn {
+  width: 100%;
+  max-width: 280px;
+  height: 56px;
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(255, 45, 85, 0.2), rgba(255, 159, 10, 0.2));
+  border: 2px solid rgba(255, 45, 85, 0.5);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(255, 45, 85, 0.2);
+}
+
+.voice-record-btn:active,
+.voice-record-btn.recording {
+  background: linear-gradient(135deg, #ff375f, #ff2d55);
+  border-color: #ff375f;
+  transform: scale(0.96);
+  box-shadow: 0 0 25px rgba(255, 55, 95, 0.7);
+  animation: pulseRecording 1s infinite alternate;
+}
+
+@keyframes pulseRecording {
+  from { box-shadow: 0 0 15px rgba(255, 55, 95, 0.5); }
+  to { box-shadow: 0 0 30px rgba(255, 55, 95, 0.9); }
+}
+
+.vr-inner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.vr-icon {
+  font-size: 1.3rem;
+}
+
+.vr-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.voice-actions-wrap {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  animation: fadeInVoice 0.2s ease;
+}
+
+@keyframes fadeInVoice {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.voice-act-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  border: none;
+}
+
+.voice-act-btn.secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #fff;
+}
+
+.voice-act-btn.primary {
+  background: linear-gradient(135deg, #ff375f, #af52de);
+  border: 1px solid #ff375f;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(255, 55, 95, 0.3);
+}
+
+.voice-act-btn.danger {
+  flex: 0 0 44px;
+  background: rgba(255, 69, 58, 0.15);
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  color: #ff453a;
+}
+
