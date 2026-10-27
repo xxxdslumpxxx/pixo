@@ -17523,6 +17523,419 @@ if (typeof document !== 'undefined') {
 window.setPianoOctave = setPianoOctave;
 window.handlePianoKeyPress = handlePianoKeyPress;
 window.selectJinglePreset = selectJinglePreset;
+
+// ==============================================================
+// MODULO PIEZO AUDIO RECORDER & CITOFONO/ROBOT DSP (FreeLLMAPI)
+// ==============================================================
+class PiezoAudioRecorder {
+    constructor(options = {}) {
+        this.maxRecordSeconds = options.maxRecordSeconds || 3.0;
+        this.targetSampleRate = options.targetSampleRate || 8000;
+
+        // State variables
+        this.audioCtx = null;
+        this.mediaStream = null;
+        this.sourceNode = null;
+        this.filterNode1 = null;
+        this.filterNode2 = null;
+        this.compressorNode = null;
+        this.processorNode = null;
+        
+        this.isRecording = false;
+        this.recordedChunks = [];
+        this.recordedFramesCount = 0;
+        this.maxFrames = Math.floor(this.targetSampleRate * this.maxRecordSeconds);
+        this.timerId = null;
+        this.startTime = 0;
+        this.activeSource = null; // For preview playback
+
+        // Callbacks
+        this.onRecordingStart = options.onRecordingStart || (() => {});
+        this.onRecordingProgress = options.onRecordingProgress || (() => {});
+        this.onRecordingComplete = options.onRecordingComplete || (() => {});
+        this.onError = options.onError || (() => {});
+
+        // Bound event listeners for cleanup
+        this._boundStart = this.handlePointerDown.bind(this);
+        this._boundStop = this.handlePointerUp.bind(this);
+    }
+
+    /**
+     * Bind touch/mouse events to a target DOM element.
+     * @param {HTMLElement} element 
+     */
+    attachToElement(element) {
+        if (!element) return;
+        this.targetElement = element;
+
+        element.addEventListener('pointerdown', this._boundStart);
+        window.addEventListener('pointerup', this._boundStop);
+        window.addEventListener('pointercancel', this._boundStop);
+    }
+
+    /**
+     * Remove event listeners from target DOM element.
+     */
+    detachFromElement() {
+        if (!this.targetElement) return;
+
+        this.targetElement.removeEventListener('pointerdown', this._boundStart);
+        window.removeEventListener('pointerup', this._boundStop);
+        window.removeEventListener('pointercancel', this._boundStop);
+        this.targetElement = null;
+    }
+
+    async handlePointerDown(e) {
+        // Prevent default touch behaviors like scrolling/zooming on the button
+        if (e.cancelable) e.preventDefault();
+        if (this.isRecording) return;
+
+        try {
+            await this.startRecording();
+        } catch (err) {
+            this.onError(err.message || 'Failed to start recording');
+        }
+    }
+
+    handlePointerUp(e) {
+        if (!this.isRecording) return;
+        this.stopRecording();
+    }
+
+    /**
+     * Initialize AudioContext and getUserMedia stream.
+     */
+    async startRecording() {
+        // Resume AudioContext if suspended (browser autoplay policies)
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) {
+            throw new Error('Web Audio API is not supported in this browser.');
+        }
+
+        if (!this.audioCtx) {
+            // Force 8000Hz or let browser handle native and downsample via Offline/ScriptProcessor.
+            // Using native context rate for best input capture quality, then processing down.
+            this.audioCtx = new AudioContextClass();
+        }
+
+        if (this.audioCtx.state === 'suspended') {
+            await this.audioCtx.resume();
+        }
+
+        try {
+            this.mediaStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                },
+                video: false
+            });
+        } catch (err) {
+            throw new Error('Microphone access denied or not available: ' + err.message);
+        }
+
+        this.recordedChunks = [];
+        this.recordedFramesCount = 0;
+        this.isRecording = true;
+        this.startTime = performance.now();
+
+        // Setup DSP Pipeline
+        this.sourceNode = this.audioCtx.createMediaStreamSource(this.mediaStream);
+
+        // 1. BiquadFilter bandpass (center 1800Hz, Q 1.2)
+        this.filterNode1 = this.audioCtx.createBiquadFilter();
+        this.filterNode1.type = 'bandpass';
+        this.filterNode1.frequency.setValueAtTime(1800, this.audioCtx.currentTime);
+        this.filterNode1.Q.setValueAtTime(1.2, this.audioCtx.currentTime);
+
+        // 2. Peaking filter at 2500Hz (+6dB) for piezo resonance
+        this.filterNode2 = this.audioCtx.createBiquadFilter();
+        this.filterNode2.type = 'peaking';
+        this.filterNode2.frequency.setValueAtTime(2500, this.audioCtx.currentTime);
+        this.filterNode2.gain.setValueAtTime(6.0, this.audioCtx.currentTime);
+        this.filterNode2.Q.setValueAtTime(2.0, this.audioCtx.currentTime);
+
+        // 3. DynamicsCompressor to boost volume and prevent clipping
+        this.compressorNode = this.audioCtx.createDynamicsCompressor();
+        this.compressorNode.threshold.setValueAtTime(-20, this.audioCtx.currentTime);
+        this.compressorNode.knee.setValueAtTime(10, this.audioCtx.currentTime);
+        this.compressorNode.ratio.setValueAtTime(12, this.audioCtx.currentTime);
+        this.compressorNode.attack.setValueAtTime(0.003, this.audioCtx.currentTime);
+        this.compressorNode.release.setValueAtTime(0.25, this.audioCtx.currentTime);
+
+        // 4. ScriptProcessorNode to capture raw PCM data
+        // Buffer size 2048 balances latency and performance
+        const bufferSize = 2048;
+        this.processorNode = this.audioCtx.createScriptProcessor(bufferSize, 1, 1);
+
+        const sourceSampleRate = this.audioCtx.sampleRate;
+        const targetRate = this.targetSampleRate;
+
+        this.processorNode.onaudioprocess = (event) => {
+            if (!this.isRecording) return;
+
+            const inputData = event.inputBuffer.getChannelData(0);
+            
+            // Downsample and convert on the fly
+            // Simple linear/step rate conversion loop
+            for (let i = 0; i < inputData.length; i++) {
+                // Accumulate based on sample rate ratio step
+                // To keep it performant, we downsample directly:
+                // We sample every (sourceSampleRate / targetRate) frames.
+            }
+        };
+
+        // More robust continuous downsampling buffer approach:
+        let sampleAccumulator = 0;
+        const rateRatio = sourceSampleRate / targetRate;
+
+        this.processorNode.onaudioprocess = (event) => {
+            if (!this.isRecording) return;
+
+            const input = event.inputBuffer.getChannelData(0);
+            
+            for (let i = 0; i < input.length; i++) {
+                sampleAccumulator += 1;
+                if (sampleAccumulator >= rateRatio) {
+                    sampleAccumulator -= rateRatio;
+
+                    if (this.recordedFramesCount < this.maxFrames) {
+                        // Push sample
+                        this.recordedChunks.push(input[i]);
+                        this.recordedFramesCount++;
+
+                        if (this.recordedFramesCount >= this.maxFrames) {
+                            // Reached max duration limit automatically
+                            this.stopRecording();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Fire progress callback
+            const elapsed = (performance.now() - this.startTime) / 1000;
+            this.onRecordingProgress(Math.min(elapsed, this.maxRecordSeconds), this.maxRecordSeconds);
+        };
+
+        // Connect graph: Source -> Filter1 -> Filter2 -> Compressor -> Processor -> Destination (mute)
+        this.sourceNode.connect(this.filterNode1);
+        this.filterNode1.connect(this.filterNode2);
+        this.filterNode2.connect(this.compressorNode);
+        this.compressorNode.connect(this.processorNode);
+        this.processorNode.connect(this.audioCtx.destination); // Required for Chrome to fire onaudioprocess
+
+        this.onRecordingStart();
+    }
+
+    /**
+     * Stop the recording pipeline and format the output buffer.
+     */
+    stopRecording() {
+        if (!this.isRecording) return;
+        this.isRecording = false;
+
+        // Clean up audio nodes
+        if (this.processorNode) {
+            this.processorNode.disconnect();
+            this.processorNode.onaudioprocess = null;
+        }
+        if (this.compressorNode) this.compressorNode.disconnect();
+        if (this.filterNode2) this.filterNode2.disconnect();
+        if (this.filterNode1) this.filterNode1.disconnect();
+        if (this.sourceNode) this.sourceNode.disconnect();
+
+        // Stop microphone tracks
+        if (this.mediaStream) {
+            this.mediaStream.getTracks().forEach(track => track.stop());
+            this.mediaStream = null;
+        }
+
+        // Process final buffer into 8-bit Unsigned PCM (0-255, silence = 128)
+        const pcmUint8 = new Uint8Array(this.recordedChunks.length);
+        for (let i = 0; i < this.recordedChunks.length; i++) {
+            let sample = this.recordedChunks[i]; // Float32 [-1.0, 1.0]
+            
+            // Clip values strictly between -1 and 1
+            if (sample < -1) sample = -1;
+            if (sample > 1) sample = 1;
+
+            // Map float [-1, 1] to unsigned 8-bit [0, 255] (128 is center/silence)
+            const uint8Val = Math.round((sample + 1) * 127.5);
+            pcmUint8[i] = uint8Val;
+        }
+
+        const base64Str = this.getPcmBase64(pcmUint8);
+        this.onRecordingComplete(pcmUint8, base64Str);
+    }
+
+    /**
+     * Encodes Uint8Array PCM data to standard Base64 string.
+     * @param {Uint8Array} pcmUint8Array 
+     * @returns {string}
+     */
+    getPcmBase64(pcmUint8Array) {
+        let binaryString = '';
+        const len = pcmUint8Array.byteLength;
+        // Process in chunks to prevent stack overflow on large arrays
+        const chunkSize = 0x8000;
+        for (let i = 0; i < len; i += chunkSize) {
+            const chunk = pcmUint8Array.subarray(i, i + chunkSize);
+            binaryString += String.fromCharCode.apply(null, chunk);
+        }
+        return btoa(binaryString);
+    }
+
+    /**
+     * Plays back the 8000 Hz 8-bit PCM buffer through the AudioContext.
+     * @param {Uint8Array} pcmUint8Array 
+     */
+    async playProcessedPreview(pcmUint8Array) {
+        if (!pcmUint8Array || pcmUint8Array.length === 0) {
+            this.onError('No audio data available for preview.');
+            return;
+        }
+
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!this.audioCtx) {
+            this.audioCtx = new AudioContextClass();
+        }
+
+        if (this.audioCtx.state === 'suspended') {
+            await this.audioCtx.resume();
+        }
+
+        // Stop any currently playing preview
+        if (this.activeSource) {
+            try { this.activeSource.stop(); } catch(e) {}
+            this.activeSource = null;
+        }
+
+        // Convert 8-bit unsigned PCM (0-255, 128=silence) back to Float32AudioBuffer
+        const audioBuffer = this.audioCtx.createBuffer(1, pcmUint8Array.length, this.targetSampleRate);
+        const channelData = audioBuffer.getChannelData(0);
+
+        for (let i = 0; i < pcmUint8Array.length; i++) {
+            // Map [0, 255] back to [-1.0, 1.0]
+            channelData[i] = (pcmUint8Array[i] - 128) / 127.5;
+        }
+
+        // Play via AudioBufferSourceNode
+        this.activeSource = this.audioCtx.createBufferSource();
+        this.activeSource.buffer = audioBuffer;
+        this.activeSource.connect(this.audioCtx.destination);
+        
+        this.activeSource.onended = () => {
+            this.activeSource = null;
+        };
+
+        this.activeSource.start(0);
+    }
+
+    /**
+     * Complete cleanup of contexts and handlers.
+     */
+    destroy() {
+        this.stopRecording();
+        this.detachFromElement();
+        if (this.audioCtx && this.audioCtx.state !== 'closed') {
+            this.audioCtx.close();
+            this.audioCtx = null;
+        }
+    }
+}
+
+let piezoVoiceRecorder = null;
+let lastRecordedVoicePcm = null;
+let lastRecordedVoiceBase64 = null;
+
+function initVoiceRecorderUI() {
+  const btn = document.getElementById('btnVoiceRecord');
+  if (!btn) return;
+
+  const badge = document.getElementById('voiceRecordBadge');
+  const progBar = document.getElementById('voiceProgressBar');
+  const label = document.getElementById('vrLabel');
+  const actionsWrap = document.getElementById('voiceActionsWrap');
+
+  piezoVoiceRecorder = new PiezoAudioRecorder({
+    maxRecordSeconds: 3.0,
+    targetSampleRate: 8000,
+    onRecordingStart: function() {
+      btn.classList.add('recording');
+      if (label) label.textContent = "Sto Registrando... (Rilascia per stop)";
+      if (actionsWrap) actionsWrap.style.display = 'none';
+      if (progBar) progBar.style.width = '0%';
+    },
+    onRecordingProgress: function(elapsed, max) {
+      if (badge) badge.textContent = elapsed.toFixed(1) + "s / " + max.toFixed(1) + "s";
+      if (progBar) progBar.style.width = ((elapsed / max) * 100) + "%";
+    },
+    onRecordingComplete: function(pcmUint8, base64Str) {
+      btn.classList.remove('recording');
+      if (label) label.textContent = "Tieni Premuto per Parlare";
+      lastRecordedVoicePcm = pcmUint8;
+      lastRecordedVoiceBase64 = base64Str;
+
+      if (pcmUint8 && pcmUint8.length > 800) { // Almeno 0.1s
+        if (actionsWrap) actionsWrap.style.display = 'flex';
+        showToast("Registrazione completata! Tocca Riascolta o Invia 🎙️", "info");
+      } else {
+        showToast("Registrazione troppo breve!", "warning");
+      }
+    },
+    onError: function(err) {
+      btn.classList.remove('recording');
+      if (label) label.textContent = "Tieni Premuto per Parlare";
+      showToast("Errore Microfono: " + err, "error");
+    }
+  });
+
+  piezoVoiceRecorder.attachToElement(btn);
+}
+
+function playVoicePreview() {
+  if (!lastRecordedVoicePcm || !piezoVoiceRecorder) {
+    showToast("Nessuna registrazione disponibile!", "warning");
+    return;
+  }
+  piezoVoiceRecorder.playProcessedPreview(lastRecordedVoicePcm);
+}
+
+function sendVoiceToPixo() {
+  if (!lastRecordedVoiceBase64) {
+    showToast("Registra prima un messaggio vocale!", "warning");
+    return;
+  }
+  if (!state.mqttConnected || !state.mqttClient || !state.deviceId) {
+    showToast("Pixò non connesso!", "error");
+    return;
+  }
+
+  const voiceTopic = "pixo/device/" + state.deviceId + "/voice";
+  state.mqttClient.publish(voiceTopic, lastRecordedVoiceBase64, { qos: 0 });
+  showToast("🚀 Vocale citofono inviato a Pixò!", "success");
+}
+
+function discardVoiceRecording() {
+  lastRecordedVoicePcm = null;
+  lastRecordedVoiceBase64 = null;
+  const actionsWrap = document.getElementById('voiceActionsWrap');
+  if (actionsWrap) actionsWrap.style.display = 'none';
+  const badge = document.getElementById('voiceRecordBadge');
+  if (badge) badge.textContent = "0.0s / 3.0s";
+  const progBar = document.getElementById('voiceProgressBar');
+  if (progBar) progBar.style.width = "0%";
+  showToast("Registrazione vocale cancellata", "info");
+}
+
+window.playVoicePreview = playVoicePreview;
+window.sendVoiceToPixo = sendVoiceToPixo;
+window.discardVoiceRecording = discardVoiceRecording;
+window.initVoiceRecorderUI = initVoiceRecorderUI;
+
+
 window.initJingleStudio = initJingleStudio;
 window.sendJingleToPixo = sendJingleToPixo;
 
