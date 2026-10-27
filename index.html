@@ -66,7 +66,7 @@
 
 
 
-  <link rel="stylesheet" href="style.css?v=52">
+  <link rel="stylesheet" href="style.css?v=53">
 
 
 
@@ -1701,14 +1701,14 @@
                 <!-- TAB 4: JINGLE STUDIO 8-BIT & REAL PIANO -->
         <div class="tab-panel" id="panelJingle">
           <div class="panel-card glass" style="margin-bottom:14px; padding:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-              <div>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px;">
+              <div style="flex:1; min-width:0;">
                 <h3 style="font-size:1.15rem; margin:0; display:flex; align-items:center; gap:8px;">
                   🎹 Jingle Studio 8-Bit
                 </h3>
-                <small style="color:var(--text-secondary); font-size:0.75rem;">Componi con la tastiera touch o carica melodie su Pixò</small>
+                <small style="color:var(--text-secondary); font-size:0.73rem; display:block; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Componi melodie o caricale su Pixò</small>
               </div>
-              <div style="text-align:right;">
+              <div style="flex-shrink:0; text-align:right;">
                 <span id="jingleDurationBadge" class="jingle-dur-badge">0.0s / 10.0s</span>
               </div>
             </div>
@@ -1815,9 +1815,9 @@
 
             <!-- 8 JINGLE PREIMPOSTATI ICONICI (FINO A 10 SECONDI) -->
             <div>
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:4px;">
                 <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-secondary); font-weight:800; margin:0;">
-                  ⭐ Jingle Iconici Preimpostati (Fino a 10s)
+                  ⭐ Jingle Iconici (Fino a 10s)
                 </label>
                 <small style="font-size:0.7rem; color:var(--text-secondary);">Tocca per ascoltare e caricare</small>
               </div>
@@ -2238,6 +2238,57 @@
 
 
 
+              </div>
+
+              <!-- Selezione Tono Notifica Buzzer (5 Tipologie) -->
+              <div class="setting-item owner-only-setting" id="notifSoundSettingWrap" style="flex-direction:column; align-items:flex-start; gap:10px; margin-bottom:14px; border-top:1px solid rgba(255,255,255,0.06); padding-top:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                  <div class="setting-info">
+                    <strong>Tono Notifica Messaggio</strong>
+                    <small>Effetto sonoro all'arrivo di un disegno (max 1s)</small>
+                  </div>
+                  <button type="button" class="pill-btn mini secondary" id="btnTestNotifSound" onclick="testCurrentNotifSound()" title="Ascolta tono selezionato" style="gap:4px; font-weight:700; padding:5px 10px;">
+                    <span>🔔</span> Prova
+                  </button>
+                </div>
+
+                <div class="notif-sound-grid">
+                  <button type="button" class="notif-sound-card active" data-sound="1" onclick="setNotifSoundType(1)">
+                    <span class="ns-badge">1</span>
+                    <div class="ns-content">
+                      <span class="ns-title">🔔 Bip Singolo</span>
+                      <span class="ns-sub">Classico pulito (0.10s)</span>
+                    </div>
+                  </button>
+                  <button type="button" class="notif-sound-card" data-sound="2" onclick="setNotifSoundType(2)">
+                    <span class="ns-badge">2</span>
+                    <div class="ns-content">
+                      <span class="ns-title">⚡ Doppio Bip</span>
+                      <span class="ns-sub">Chirp rapido (0.18s)</span>
+                    </div>
+                  </button>
+                  <button type="button" class="notif-sound-card" data-sound="3" onclick="setNotifSoundType(3)">
+                    <span class="ns-badge">3</span>
+                    <div class="ns-content">
+                      <span class="ns-title">🎶 Arpeggio Dolce</span>
+                      <span class="ns-sub">Do-Mi-Sol (0.30s)</span>
+                    </div>
+                  </button>
+                  <button type="button" class="notif-sound-card" data-sound="4" onclick="setNotifSoundType(4)">
+                    <span class="ns-badge">4</span>
+                    <div class="ns-content">
+                      <span class="ns-title">🛎️ Ding-Dong</span>
+                      <span class="ns-sub">Due toni (0.43s)</span>
+                    </div>
+                  </button>
+                  <button type="button" class="notif-sound-card" data-sound="5" onclick="setNotifSoundType(5)">
+                    <span class="ns-badge">5</span>
+                    <div class="ns-content">
+                      <span class="ns-title">⭐ Moneta 8-Bit</span>
+                      <span class="ns-sub">Coin Arcade (0.38s)</span>
+                    </div>
+                  </button>
+                </div>
               </div>
 
 
@@ -4706,7 +4757,7 @@
 
 
 
-  <script src="app.js?v=52"></script>
+  <script src="app.js?v=53"></script>
 
 
 
