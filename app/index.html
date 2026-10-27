@@ -66,7 +66,7 @@
 
 
 
-  <link rel="stylesheet" href="style.css?v=53">
+  <link rel="stylesheet" href="style.css?v=54">
 
 
 
@@ -1811,6 +1811,48 @@
               <button type="button" class="jingle-action-btn primary" id="btnSendJingle">
                 <span>🚀</span> Suona su Pixò
               </button>
+            </div>
+
+                        <!-- REGISTRATORE VOCALE ROBOTICO (HOLD TO TALK) -->
+            <div class="voice-recorder-card">
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span style="font-size:1.3rem;">🎙️</span>
+                  <div>
+                    <strong style="font-size:0.92rem; color:#fff; display:block;">Vocale Citofono / Robot</strong>
+                    <small style="color:var(--text-secondary); font-size:0.7rem;">Tieni premuto per registrare (Max 3s)</small>
+                  </div>
+                </div>
+                <span id="voiceRecordBadge" class="voice-badge">0.0s / 3.0s</span>
+              </div>
+
+              <!-- Barra di avanzamento registrazione vocale -->
+              <div class="voice-progress-bg">
+                <div id="voiceProgressBar" class="voice-progress-fill" style="width:0%;"></div>
+              </div>
+
+              <!-- Pulsantone di Registrazione Hold-to-Talk -->
+              <div style="display:flex; justify-content:center; margin:10px 0;">
+                <button type="button" class="voice-record-btn" id="btnVoiceRecord">
+                  <div class="vr-inner">
+                    <span class="vr-icon">🎙️</span>
+                    <span class="vr-label" id="vrLabel">Tieni Premuto per Parlare</span>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Controlli Post-Registrazione (Riascolta / Invia / Cancella) -->
+              <div id="voiceActionsWrap" class="voice-actions-wrap" style="display:none;">
+                <button type="button" class="voice-act-btn secondary" id="btnVoicePreview" onclick="playVoicePreview()">
+                  <span>▶️</span> Riascolta
+                </button>
+                <button type="button" class="voice-act-btn primary" id="btnVoiceSend" onclick="sendVoiceToPixo()">
+                  <span>🚀</span> Invia a Pixò
+                </button>
+                <button type="button" class="voice-act-btn danger" id="btnVoiceDiscard" onclick="discardVoiceRecording()" title="Cancella registrazione">
+                  <span>🗑️</span>
+                </button>
+              </div>
             </div>
 
             <!-- 8 JINGLE PREIMPOSTATI ICONICI (FINO A 10 SECONDI) -->
@@ -4757,7 +4799,7 @@
 
 
 
-  <script src="app.js?v=53"></script>
+  <script src="app.js?v=54"></script>
 
 
 
