@@ -17778,8 +17778,15 @@ function sendVoiceToPixo() {
     return;
   }
 
-  const voiceTopic = "pixo/device/" + state.deviceId + "/voice";
-  state.mqttClient.publish(voiceTopic, lastVoiceBase64, { qos: 0 });
+  const voicePayload = "VOICE:" + lastVoiceBase64;
+  const devId = state.deviceId;
+  const pin = state.devicePin || "1234";
+
+  // Triplo canale di recapito sicuro (standard /voice, con PIN, e via /buzzer)
+  state.mqttClient.publish(`pixo/device/${devId}/voice`, voicePayload, { qos: 0 });
+  state.mqttClient.publish(`pixo/device/${devId}/${pin}/voice`, voicePayload, { qos: 0 });
+  state.mqttClient.publish(`pixo/device/${devId}/buzzer`, voicePayload, { qos: 0 });
+
   showToast("🚀 Vocale citofono inviato a Pixò!", "success");
 }
 
