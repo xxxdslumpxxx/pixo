@@ -11229,6 +11229,54 @@ function sendScreensaverConfig(enabled) {
 }
 
 
+// ==================== PROFILI AUDIO NOTIFICA (5 TIPI) ====================
+const NOTIF_SOUND_PRESETS = {
+  1: [{ f: 2500, d: 100 }],
+  2: [{ f: 2400, d: 60 }, { f: 0, d: 40 }, { f: 3000, d: 80 }],
+  3: [{ f: 523, d: 70 }, { f: 0, d: 20 }, { f: 659, d: 70 }, { f: 0, d: 20 }, { f: 784, d: 120 }],
+  4: [{ f: 784, d: 150 }, { f: 0, d: 30 }, { f: 659, d: 240 }],
+  5: [{ f: 988, d: 80 }, { f: 0, d: 20 }, { f: 1319, d: 260 }]
+};
+
+function playNotifSoundAudio(typeId) {
+  const notes = NOTIF_SOUND_PRESETS[typeId] || NOTIF_SOUND_PRESETS[1];
+  playWebAudioJingle(notes);
+}
+
+function setNotifSoundType(typeId) {
+  const snd = parseInt(typeId) || 1;
+  state.notifSoundType = snd;
+  localStorage.setItem('pixo_notif_sound_type', snd.toString());
+
+  // Aggiorna UI
+  document.querySelectorAll('.notif-sound-card').forEach(card => {
+    card.classList.toggle('active', parseInt(card.getAttribute('data-sound')) === snd);
+  });
+
+  // Riproduce anteprima sul telefono
+  playNotifSoundAudio(snd);
+
+  // Invia comando a Pixo
+  if (state.mqttConnected && state.mqttClient && state.deviceId) {
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, `BUZZER:SOUND:${snd}`, { qos: 0 });
+  }
+
+  showToast(`Tono notifica ${snd} impostato! 🔔`, "info");
+}
+
+function testCurrentNotifSound() {
+  const current = state.notifSoundType || parseInt(localStorage.getItem('pixo_notif_sound_type')) || 1;
+  playNotifSoundAudio(current);
+  if (state.mqttConnected && state.mqttClient && state.deviceId) {
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, `BUZZER:SOUND:${current}`, { qos: 0 });
+  }
+}
+
+window.setNotifSoundType = setNotifSoundType;
+window.testCurrentNotifSound = testCurrentNotifSound;
+
+
+
 
 
 
