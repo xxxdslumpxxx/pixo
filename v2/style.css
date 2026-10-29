@@ -3880,3 +3880,22 @@ body[data-active-tab="panelSettings"] .canvas-stage,
   color: #ff453a;
 }
 
+
+/* Badge buttons per frasi rapide TTS Grillo Parlante */
+.badge-btn {
+  background: var(--bg-surface, #232731);
+  border: 1px solid var(--border-color, #3a3f50);
+  color: var(--text-primary, #ffffff);
+  padding: 6px 12px;
+  border-radius: 16px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.badge-btn:hover, .badge-btn:active {
+  background: var(--primary, #00d2ff);
+  color: #000000;
+  border-color: var(--primary, #00d2ff);
+}
