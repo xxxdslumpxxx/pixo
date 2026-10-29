@@ -17529,153 +17529,83 @@ window.selectJinglePreset = selectJinglePreset;
 // ==============================================================
 // MODULO REGISTRATORE VOCALE ROBOTICO PIXO (DIRECT ENGINE V3)
 // ==============================================================
-// ==================== GESTIONE REGISTRAZIONE VOCALE CITOFONO RETRO ====================
+// ==================== GESTIONE REGISTRAZIONE VOCALE: GRILLO PARLANTE (TMS5220 VOCODER) ====================
 
 /**
- * RetroCitofonoDSP - DSP audio per simulazione autentica citofono / walkie-talkie / buzzer piezoelettrico.
- * Converte la voce del microfono in audio 8-bit con filtro passa-banda 350-3200Hz,
- * forte saturazione/overdrive e risonanza piezoelettrica sia in anteprima che su Pixò.
+ * GrilloParlanteVocoder
+ * Modulo di sintesi vocale LPC vintage stile Texas Instruments Speak & Spell / Grillo Parlante (chip TMS5220).
+ * Converte la voce del microfono in treno di impulsi risonanti con pitch-tracking per buzzer piezoelettrico.
  */
-class RetroCitofonoDSP {
+class GrilloParlanteVocoder {
   constructor() {
     this.targetSampleRate = 8000;
+    this.frameSize = 160; // 20 ms a 8 kHz
+    this.hopSize = 80;   // 10 ms hop (50% overlap)
     this.activeSource = null;
     this.activeCtx = null;
   }
 
-  processRecording(rawData, srcRate, maxDurationSec = 3.0) {
-    const targetRate = this.targetSampleRate;
-    const maxSamples = Math.floor(maxDurationSec * targetRate); // 24000
-    const rawLen = rawData.length;
-    const ratio = srcRate / targetRate;
-    const targetSamples = Math.min(maxSamples, Math.floor(rawLen / ratio));
+  processAudio(float32Data, inputSampleRate, maxDurationSec = 3.0) {
+    const maxSamples = Math.floor(inputSampleRate * maxDurationSec);
+    const inputToProcess = float32Data.length > maxSamples 
+      ? float32Data.subarray(0, maxSamples) 
+      : float32Data;
 
-    if (targetSamples < 800) {
-      return null;
-    }
+    // 1. Resample a 8000 Hz
+    const resampled = this._resample(inputToProcess, inputSampleRate, this.targetSampleRate);
 
-    // 1. Resampling con interpolazione lineare a 8000 Hz
-    const resampled = new Float32Array(targetSamples);
-    for (let i = 0; i < targetSamples; i++) {
-      const srcIdx = i * ratio;
-      const idx0 = Math.floor(srcIdx);
-      const frac = srcIdx - idx0;
-      const s0 = rawData[idx0] || 0.0;
-      const s1 = rawData[idx0 + 1] !== undefined ? rawData[idx0 + 1] : s0;
-      resampled[i] = s0 + frac * (s1 - s0);
-    }
+    if (resampled.length < 800) return null;
 
-    // 2. Filtro Passa-Banda (350 Hz High-Pass + 3000 Hz Low-Pass)
-    const dt = 1.0 / targetRate;
-    const rcLow = 1.0 / (2.0 * Math.PI * 350.0);
-    const alphaLow = dt / (rcLow + dt);
-    const rcHigh = 1.0 / (2.0 * Math.PI * 3000.0);
-    const alphaHigh = rcHigh / (rcHigh + dt);
+    // 2. Analisi e Sintesi Vocoder (TMS5220 / Speak & Spell LPC style)
+    const synthesized = this._synthesizeVocoder(resampled);
 
-    const filtered = new Float32Array(targetSamples);
-    let hpPrevIn = 0.0, hpPrevOut = 0.0;
-    let lpPrevOut = 0.0;
+    // 3. Quantizzazione Uint8Array (0..255, centro a 128)
+    const pcmUint8 = this._quantizeToUint8(synthesized);
 
-    for (let i = 0; i < targetSamples; i++) {
-      const cur = resampled[i];
-      const hp = alphaLow * (hpPrevOut + cur - hpPrevIn);
-      hpPrevIn = cur;
-      hpPrevOut = hp;
-
-      const lp = lpPrevOut + (1.0 - alphaHigh) * (hp - lpPrevOut);
-      lpPrevOut = lp;
-      filtered[i] = lp;
-    }
-
-    // 3. Forte Overdrive non lineare & Hard Clipping asimmetrico (stile microfono a carbone citofono)
-    const processed = new Float32Array(targetSamples);
-    const drive = 4.2;
-    const threshold = 0.72;
-
-    for (let i = 0; i < targetSamples; i++) {
-      let s = filtered[i] * drive;
-      // Saturazione morbida tanh unita a clipping per massimizzare la resa vocale
-      s = Math.tanh(s);
-      if (s > threshold) s = threshold;
-      if (s < -threshold) s = -threshold;
-      processed[i] = s / threshold;
-    }
-
-    // 4. Quantizzazione in Uint8Array PCM (0-255, 128 = centro)
-    const pcmUint8 = new Uint8Array(targetSamples);
-    for (let i = 0; i < targetSamples; i++) {
-      let norm = (processed[i] + 1.0) * 0.5;
-      if (norm < 0.0) norm = 0.0;
-      if (norm > 1.0) norm = 1.0;
-      pcmUint8[i] = Math.round(norm * 255);
-    }
-
-    // 5. Conversione in stringa Base64
-    let bin = '';
-    const chk = 0x8000;
-    for (let i = 0; i < pcmUint8.length; i += chk) {
-      bin += String.fromCharCode.apply(null, pcmUint8.subarray(i, i + chk));
-    }
-    const b64 = btoa(bin);
+    // 4. Base64
+    const base64Payload = this._uint8ToBase64(pcmUint8);
 
     return {
-      pcmUint8: pcmUint8,
-      durationSec: (targetSamples / targetRate),
-      base64Payload: b64
+      pcmUint8,
+      durationSec: pcmUint8.length / this.targetSampleRate,
+      base64Payload
     };
   }
 
-  playPreview(pcmUint8, onEndedCallback) {
+  playPreview(pcmUint8, onEndedCallback = null) {
     if (!pcmUint8 || pcmUint8.length === 0) return null;
-
     this.stopPreview();
 
     const AudioContextClass = window.AudioContext || window.webkitAudioContext;
     if (!AudioContextClass) return null;
 
-    const ctx = new AudioContextClass();
-    this.activeCtx = ctx;
+    const audioCtx = new AudioContextClass();
+    this.activeCtx = audioCtx;
 
-    const audioBuf = ctx.createBuffer(1, pcmUint8.length, this.targetSampleRate);
-    const chData = audioBuf.getChannelData(0);
-
+    const float32Buffer = audioCtx.createBuffer(1, pcmUint8.length, this.targetSampleRate);
+    const channelData = float32Buffer.getChannelData(0);
     for (let i = 0; i < pcmUint8.length; i++) {
-      chData[i] = (pcmUint8[i] - 128) / 127.5;
+      channelData[i] = (pcmUint8[i] - 128) / 128.0;
     }
 
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuf;
+    const source = audioCtx.createBufferSource();
+    source.buffer = float32Buffer;
 
-    // Catena acustica risonante piezoelettrica / altoparlante citofono
-    // 1. Peaking filter a 2600 Hz (+14 dB, Q=3.0) per riprodurre il timbro metallico
-    const piezoResonance = ctx.createBiquadFilter();
-    piezoResonance.type = 'peaking';
-    piezoResonance.frequency.value = 2600;
-    piezoResonance.Q.value = 3.0;
-    piezoResonance.gain.value = 14.0;
+    // Biquad peaking filter risonante a 2400 Hz (simula l'altoparlante del Grillo Parlante e il piezo)
+    const bq = audioCtx.createBiquadFilter();
+    bq.type = 'peaking';
+    bq.frequency.value = 2400;
+    bq.Q.value = 2.2;
+    bq.gain.value = 8.0;
 
-    // 2. Highpass a 450 Hz per tagliare i bassi che il dischetto piezo non ha
-    const hpFilter = ctx.createBiquadFilter();
-    hpFilter.type = 'highpass';
-    hpFilter.frequency.value = 450;
-    hpFilter.Q.value = 1.2;
-
-    // 3. Lowpass a 3400 Hz
-    const lpFilter = ctx.createBiquadFilter();
-    lpFilter.type = 'lowpass';
-    lpFilter.frequency.value = 3400;
-
-    // Connessione: source -> hp -> piezoResonance -> lp -> destination
-    source.connect(hpFilter);
-    hpFilter.connect(piezoResonance);
-    piezoResonance.connect(lpFilter);
-    lpFilter.connect(ctx.destination);
+    source.connect(bq);
+    bq.connect(audioCtx.destination);
 
     source.onended = () => {
       if (typeof onEndedCallback === 'function') onEndedCallback();
-      try { ctx.close(); } catch (e) {}
+      try { audioCtx.close(); } catch (e) {}
       if (this.activeSource === source) this.activeSource = null;
-      if (this.activeCtx === ctx) this.activeCtx = null;
+      if (this.activeCtx === audioCtx) this.activeCtx = null;
     };
 
     source.start(0);
@@ -17684,7 +17614,7 @@ class RetroCitofonoDSP {
     return {
       stop: () => {
         try { source.stop(); } catch (e) {}
-        try { ctx.close(); } catch (e) {}
+        try { audioCtx.close(); } catch (e) {}
       }
     };
   }
@@ -17699,9 +17629,147 @@ class RetroCitofonoDSP {
       this.activeCtx = null;
     }
   }
+
+  _resample(input, srcRate, dstRate) {
+    if (srcRate === dstRate) return input;
+    const ratio = srcRate / dstRate;
+    const newLength = Math.round(input.length / ratio);
+    const result = new Float32Array(newLength);
+
+    for (let i = 0; i < newLength; i++) {
+      const srcIdx = i * ratio;
+      const idxInt = Math.floor(srcIdx);
+      const idxFrac = srcIdx - idxInt;
+      const v0 = input[idxInt] || 0;
+      const v1 = input[idxInt + 1] !== undefined ? input[idxInt + 1] : v0;
+      result[i] = v0 + (v1 - v0) * idxFrac;
+    }
+    return result;
+  }
+
+  _synthesizeVocoder(input) {
+    const output = new Float32Array(input.length);
+    const numFrames = Math.floor((input.length - this.frameSize) / this.hopSize) + 1;
+
+    let phase = 0.0;
+    let noiseState = 12345;
+
+    // Finestra di Hanning
+    const window = new Float32Array(this.frameSize);
+    for (let i = 0; i < this.frameSize; i++) {
+      window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (this.frameSize - 1)));
+    }
+
+    for (let f = 0; f < numFrames; f++) {
+      const startIdx = f * this.hopSize;
+      let sumSq = 0;
+      const frame = new Float32Array(this.frameSize);
+
+      for (let i = 0; i < this.frameSize; i++) {
+        const sample = (input[startIdx + i] || 0) * window[i];
+        frame[i] = sample;
+        sumSq += sample * sample;
+      }
+      const rms = Math.sqrt(sumSq / this.frameSize);
+
+      // Noise gate
+      if (rms < 0.015) {
+        continue;
+      }
+
+      // Pitch Detection Autocorrelazione (85Hz - 320Hz a 8kHz: lag da 25 a 94)
+      let bestPitch = 50;
+      let maxCorr = -1;
+      const minLag = 25;
+      const maxLag = 94;
+
+      for (let lag = minLag; lag <= maxLag; lag++) {
+        let corr = 0;
+        for (let i = 0; i < this.frameSize - lag; i++) {
+          corr += frame[i] * frame[i + lag];
+        }
+        if (corr > maxCorr) {
+          maxCorr = corr;
+          bestPitch = lag;
+        }
+      }
+
+      const isVoiced = maxCorr > (0.18 * sumSq);
+
+      // Analisi spettrale grossolana a 3 bande
+      let eLow = 0, eMid = 0, eHigh = 0;
+      for (let i = 0; i < this.frameSize; i++) {
+        const val = Math.abs(frame[i]);
+        if (i % 3 === 0) eLow += val;
+        else if (i % 3 === 1) eMid += val;
+        else eHigh += val;
+      }
+      const totalE = eLow + eMid + eHigh || 1;
+      const wLow = eLow / totalE;
+      const wMid = eMid / totalE;
+      const wHigh = eHigh / totalE;
+
+      // Sintesi del frame
+      for (let i = 0; i < this.hopSize; i++) {
+        const outIdx = startIdx + i;
+        if (outIdx >= output.length) break;
+
+        let excitation = 0;
+        if (isVoiced) {
+          phase += 1.0 / bestPitch;
+          if (phase >= 1.0) {
+            phase -= 1.0;
+            excitation = 1.0 * rms * 16.0; // Impulso pieno Grillo Parlante
+          } else {
+            // Ronzio armonico costante tra gli impulsi
+            excitation = (Math.sin(phase * Math.PI * 4) * 0.22) * rms * 6.0;
+          }
+        } else {
+          // Rumore bianco per sibilanti
+          noiseState = (noiseState * 1664525 + 1013904223) | 0;
+          const whiteNoise = (noiseState / 2147483648.0);
+          excitation = whiteNoise * rms * 14.0;
+        }
+
+        const synthSample = excitation * (wLow * 0.8 + wMid * 1.5 + wHigh * 2.2);
+        output[outIdx] += synthSample;
+      }
+    }
+
+    return output;
+  }
+
+  _quantizeToUint8(float32Array) {
+    const uint8 = new Uint8Array(float32Array.length);
+    let peak = 0.001;
+    for (let i = 0; i < float32Array.length; i++) {
+      const abs = Math.abs(float32Array[i]);
+      if (abs > peak) peak = abs;
+    }
+
+    const scale = 115.0 / peak;
+
+    for (let i = 0; i < float32Array.length; i++) {
+      const clipped = Math.tanh(float32Array[i] * scale);
+      const val = Math.round(128 + clipped * 127);
+      uint8[i] = val < 0 ? 0 : (val > 255 ? 255 : val);
+    }
+    return uint8;
+  }
+
+  _uint8ToBase64(uint8Array) {
+    let binary = '';
+    const len = uint8Array.byteLength;
+    const chunkSize = 0x8000;
+    for (let i = 0; i < len; i += chunkSize) {
+      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, len));
+      binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+  }
 }
 
-const citofonoDSP = new RetroCitofonoDSP();
+const grilloVocoder = new GrilloParlanteVocoder();
 let isVoiceRecording = false;
 let voiceRecorder = null;
 let voiceStream = null;
@@ -17834,8 +17902,8 @@ async function startVoiceRecording() {
 
         tempCtx.close();
 
-        // Elaborazione completa tramite RetroCitofonoDSP
-        const result = citofonoDSP.processRecording(rawData, rawRate, 3.0);
+        // Elaborazione tramite GrilloParlanteVocoder
+        const result = grilloVocoder.processAudio(rawData, rawRate, 3.0);
         if (!result) {
           showToast("Registrazione troppo breve!", "warning");
           return;
@@ -17849,11 +17917,11 @@ async function startVoiceRecording() {
         if (badge) badge.textContent = durSec + "s / 3.0s";
         if (progBar) progBar.style.width = Math.min(100, Math.round((result.durationSec / 3.0) * 100)) + '%';
 
-        showToast("🎙️ Vocale citofono pronto! Tocca Anteprima per ascoltare.", "success");
+        showToast("🤖 Voce Grillo Parlante pronta! Tocca Anteprima per ascoltare.", "success");
 
       } catch (err) {
-        console.error("Errore elaborazione audio:", err);
-        showToast("Errore codifica vocale: " + err.message, "error");
+        console.error("Errore elaborazione vocoder:", err);
+        showToast("Errore sintesi Grillo Parlante: " + err.message, "error");
       }
     };
 
@@ -17902,8 +17970,8 @@ function playVoicePreview() {
     activeVoicePreview = null;
   }
 
-  showToast("🔊 Riproduzione anteprima citofono...", "info");
-  activeVoicePreview = citofonoDSP.playPreview(lastVoicePcm, () => {
+  showToast("🤖 Riproduzione voce Grillo Parlante...", "info");
+  activeVoicePreview = grilloVocoder.playPreview(lastVoicePcm, () => {
     activeVoicePreview = null;
   });
 }
@@ -17927,11 +17995,11 @@ function sendVoiceToPixo() {
   state.mqttClient.publish(`pixo/device/${devId}/${pin}/voice`, voicePayload, { qos: 0 });
   state.mqttClient.publish(`pixo/device/${devId}/buzzer`, voicePayload, { qos: 0 });
 
-  showToast("🚀 Vocale citofono inviato a Pixò!", "success");
+  showToast("🚀 Vocale Grillo Parlante inviato a Pixò!", "success");
 }
 
 function discardVoiceRecording() {
-  citofonoDSP.stopPreview();
+  grilloVocoder.stopPreview();
   lastVoicePcm = null;
   lastVoiceBase64 = null;
   const actionsWrap = document.getElementById('voiceActionsWrap');
