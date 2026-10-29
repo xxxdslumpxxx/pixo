@@ -17529,7 +17529,6 @@ window.selectJinglePreset = selectJinglePreset;
 // ==============================================================
 // MODULO REGISTRATORE VOCALE ROBOTICO PIXO (DIRECT ENGINE V3)
 // ==============================================================
-let isVoiceRecording = false;
 // ==================== GESTIONE REGISTRAZIONE VOCALE CITOFONO RETRO ====================
 
 /**
