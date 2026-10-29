@@ -15862,50 +15862,24 @@ window.addEventListener('pagehide', releaseGuestSessionLock);
 
 
 
+let isInitialMqttDisplaySync = true;
+
 function sendSystemNotification(title, body) {
-
-
-
   if (!state.phoneNotifications) return;
-
-
-
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
 
-
-
-
-
-
+  // Mai inviare notifiche se l'app è già in primo piano e attiva sullo schermo!
+  if (document.visibilityState === 'visible' && !document.hidden) {
+    return;
+  }
 
   const notifIcon = new URL('pixo_face.png', window.location.href).href;
-
-
-
   const options = {
-
-
-
     body: body,
-
-
-
     icon: notifIcon,
-
-
-
     vibrate: [200, 100, 200],
-
-
-
-    tag: 'pixo-drawing-alert',
-
-
-
-    renotify: true
-
-
-
+    tag: 'pixo-drawing-alert', // tag unico per raggruppare/aggiornare senza duplicati
+    renotify: false // non ripete l'allarme se ce n'è già una attiva nel cassetto notifiche
   };
 
 
@@ -16050,19 +16024,15 @@ function handleCurrentDisplaySync(payload) {
 
 
 
-  sendSystemNotification(
-
-
-
-    state.lang === 'it' ? "Nuovo messaggio su Pixò! 🎨" : "New drawing on Pixò! 🎨",
-
-
-
-    state.lang === 'it' ? "È appena apparso un nuovo disegno o messaggio sul display." : "A new drawing has appeared on the display."
-
-
-
-  );
+    // Notifica sul cellulare SOLO se non è la sincronizzazione iniziale e solo se il disegno è nuovo
+  if (isInitialMqttDisplaySync) {
+    isInitialMqttDisplaySync = false;
+  } else {
+    sendSystemNotification(
+      state.lang === 'it' ? "Nuovo messaggio su Pixò! 🎨" : "New drawing on Pixò! 🎨",
+      state.lang === 'it' ? "È appena apparso un nuovo disegno o messaggio sul display." : "A new drawing has appeared on the display."
+    );
+  }
 
 
 
@@ -17529,47 +17499,204 @@ window.selectJinglePreset = selectJinglePreset;
 // ==============================================================
 // MODULO REGISTRATORE VOCALE ROBOTICO PIXO (DIRECT ENGINE V3)
 // ==============================================================
-// ==================== GESTIONE REGISTRAZIONE VOCALE: GRILLO PARLANTE (TMS5220 VOCODER) ====================
+// ==================== SINTETIZZATORE VOCALE: GRILLO PARLANTE TTS (TMS5220) ====================
 
 /**
- * GrilloParlanteVocoder
- * Modulo di sintesi vocale LPC vintage stile Texas Instruments Speak & Spell / Grillo Parlante (chip TMS5220).
- * Converte la voce del microfono in treno di impulsi risonanti con pitch-tracking per buzzer piezoelettrico.
+ * GrilloParlanteTTS
+ * Sintetizzatore vocale a formanti robotico stile Texas Instruments TMS5220 / Speak & Spell / SAM.
+ * Converte direttamente il testo digitato in audio PCM 8-bit a 8000 Hz pulito e scandito.
  */
-class GrilloParlanteVocoder {
+class GrilloParlanteTTS {
   constructor() {
-    this.targetSampleRate = 8000;
-    this.frameSize = 160; // 20 ms a 8 kHz
-    this.hopSize = 80;   // 10 ms hop (50% overlap)
+    this.sampleRate = 8000;
+    this.pitch = 130; // Hz - Pitch fondamentale robotico Speak & Spell
     this.activeSource = null;
     this.activeCtx = null;
+
+    this.formants = {
+      'A': { f1: 750,  f2: 1250, f3: 2500, bw1: 80,  bw2: 90,  bw3: 100 },
+      'E': { f1: 500,  f2: 1800, f3: 2600, bw1: 70,  bw2: 80,  bw3: 90  },
+      'I': { f1: 300,  f2: 2300, f3: 3000, bw1: 60,  bw2: 70,  bw3: 80  },
+      'O': { f1: 500,  f2: 1000, f3: 2400, bw1: 70,  bw2: 90,  bw3: 100 },
+      'U': { f1: 350,  f2: 800,  f3: 2300, bw1: 60,  bw2: 80,  bw3: 90  },
+      'M': { f1: 300,  f2: 1000, f3: 2200, bw1: 50,  bw2: 80,  bw3: 100 },
+      'N': { f1: 400,  f2: 1500, f3: 2500, bw1: 50,  bw2: 80,  bw3: 100 },
+      'L': { f1: 400,  f2: 1200, f3: 2600, bw1: 60,  bw2: 80,  bw3: 100 },
+      'R': { f1: 450,  f2: 1300, f3: 2300, bw1: 70,  bw2: 90,  bw3: 100 },
+      'V': { f1: 350,  f2: 1100, f3: 2400, bw1: 60,  bw2: 80,  bw3: 100 },
+      'Z': { f1: 400,  f2: 1600, f3: 2500, bw1: 60,  bw2: 90,  bw3: 100 },
+      'B': { f1: 350,  f2: 900,  f3: 2200, bw1: 60,  bw2: 80,  bw3: 100 },
+      'D': { f1: 400,  f2: 1700, f3: 2600, bw1: 60,  bw2: 80,  bw3: 100 },
+      'G': { f1: 300,  f2: 2100, f3: 2800, bw1: 60,  bw2: 80,  bw3: 100 },
+      'P': { f1: 350,  f2: 900,  f3: 2200, bw1: 60,  bw2: 80,  bw3: 100 },
+      'T': { f1: 400,  f2: 1700, f3: 2600, bw1: 60,  bw2: 80,  bw3: 100 },
+      'C': { f1: 300,  f2: 2000, f3: 2800, bw1: 60,  bw2: 80,  bw3: 100 },
+      'K': { f1: 300,  f2: 2000, f3: 2800, bw1: 60,  bw2: 80,  bw3: 100 },
+      'Q': { f1: 350,  f2: 800,  f3: 2300, bw1: 60,  bw2: 80,  bw3: 90  }
+    };
   }
 
-  processAudio(float32Data, inputSampleRate, maxDurationSec = 3.0) {
-    const maxSamples = Math.floor(inputSampleRate * maxDurationSec);
-    const inputToProcess = float32Data.length > maxSamples 
-      ? float32Data.subarray(0, maxSamples) 
-      : float32Data;
-
-    // 1. Resample a 8000 Hz
-    const resampled = this._resample(inputToProcess, inputSampleRate, this.targetSampleRate);
-
-    if (resampled.length < 800) return null;
-
-    // 2. Analisi e Sintesi Vocoder (TMS5220 / Speak & Spell LPC style)
-    const synthesized = this._synthesizeVocoder(resampled);
-
-    // 3. Quantizzazione Uint8Array (0..255, centro a 128)
-    const pcmUint8 = this._quantizeToUint8(synthesized);
-
-    // 4. Base64
-    const base64Payload = this._uint8ToBase64(pcmUint8);
-
-    return {
-      pcmUint8,
-      durationSec: pcmUint8.length / this.targetSampleRate,
-      base64Payload
+  normalizeText(text) {
+    if (!text) return "";
+    let upper = text.toUpperCase();
+    const numMap = {
+      '0': 'ZERO', '1': 'UNO', '2': 'DUE', '3': 'TRE', '4': 'QUATTRO',
+      '5': 'CINQUE', '6': 'SEI', '7': 'SETTE', '8': 'OTTO', '9': 'NOVE'
     };
+    upper = upper.replace(/[0-9]/g, match => ' ' + numMap[match] + ' ');
+    upper = upper.replace(/[ÀÁÂÃÄÅ]/g, 'A')
+                 .replace(/[ÈÉÊË]/g, 'E')
+                 .replace(/[ÌÍÎÏ]/g, 'I')
+                 .replace(/[ÒÓÔÕÖ]/g, 'O')
+                 .replace(/[ÙÚÛÜ]/g, 'U');
+    upper = upper.replace(/[^A-Z\s,\.\?!]/g, '');
+    return upper.replace(/\s+/g, ' ').trim();
+  }
+
+  textToPhoneSequence(text) {
+    const sequence = [];
+    const words = text.split(' ');
+
+    for (let w = 0; w < words.length; w++) {
+      const word = words[w];
+      for (let i = 0; i < word.length; i++) {
+        const char = word[i];
+        if (char === ',') {
+          sequence.push({ type: 'SILENCE', duration: 110 });
+        } else if (char === '.' || char === '!' || char === '?') {
+          sequence.push({ type: 'SILENCE', duration: 240 });
+        } else if (['S', 'F'].includes(char)) {
+          sequence.push({ type: 'FRICATIVE', duration: 110, char: char });
+        } else if (this.formants[char]) {
+          let dur = 85;
+          if (['A', 'E', 'I', 'O', 'U'].includes(char)) dur = 130;
+          if (['M', 'N', 'L', 'R'].includes(char)) dur = 95;
+          if (['P', 'T', 'K', 'C', 'B', 'D', 'G'].includes(char)) {
+            sequence.push({ type: 'PLOSIVE_GAP', duration: 30 });
+            dur = 55;
+          }
+          sequence.push({ type: char, duration: dur });
+        }
+      }
+      if (w < words.length - 1) {
+        sequence.push({ type: 'SILENCE', duration: 90 });
+      }
+    }
+    return sequence;
+  }
+
+  createResonator(f, bw, fs) {
+    const theta = 2.0 * Math.PI * f / fs;
+    const r = Math.exp(-Math.PI * bw / fs);
+    const b1 = -2.0 * r * Math.cos(theta);
+    const b2 = r * r;
+    const a0 = 1.0 + b1 + b2;
+
+    let y1 = 0, y2 = 0;
+    return {
+      process: (x) => {
+        let y = x * a0 - b1 * y1 - b2 * y2;
+        y2 = y1;
+        y1 = y;
+        return y;
+      }
+    };
+  }
+
+  synthesizePhoneSequence(sequence) {
+    const maxSamples = this.sampleRate * 3.0; // Max 3 secondi
+    const floatBuffer = [];
+    let samplePeriod = this.sampleRate / this.pitch;
+    let pitchCounter = 0;
+
+    for (let phone of sequence) {
+      const numSamples = Math.floor((phone.duration / 1000) * this.sampleRate);
+      if (phone.type === 'SILENCE' || phone.type === 'PLOSIVE_GAP') {
+        for (let i = 0; i < numSamples; i++) {
+          floatBuffer.push(0.0);
+        }
+        continue;
+      }
+
+      let targetFormants = this.formants[phone.type] || this.formants['A'];
+      if (phone.type === 'FRICATIVE') {
+        targetFormants = phone.char === 'S' 
+          ? { f1: 2000, bw1: 200, f2: 4000, bw2: 300, f3: 5500, bw3: 400 }
+          : { f1: 1200, bw1: 150, f2: 2500, bw2: 250, f3: 4000, bw3: 300 };
+      }
+
+      let resF1 = this.createResonator(targetFormants.f1, targetFormants.bw1, this.sampleRate);
+      let resF2 = this.createResonator(targetFormants.f2, targetFormants.bw2, this.sampleRate);
+      let resF3 = this.createResonator(targetFormants.f3, targetFormants.bw3, this.sampleRate);
+
+      const isVoiced = phone.type !== 'FRICATIVE';
+
+      for (let i = 0; i < numSamples; i++) {
+        let env = 1.0;
+        let rampSamples = Math.floor(0.006 * this.sampleRate);
+        if (i < rampSamples) env = i / rampSamples;
+        if (i > numSamples - rampSamples) env = (numSamples - i) / rampSamples;
+
+        let excitation = 0.0;
+        if (isVoiced) {
+          pitchCounter++;
+          if (pitchCounter >= samplePeriod) {
+            pitchCounter -= samplePeriod;
+            excitation = 1.0; // Impulso Speak & Spell
+          }
+        } else {
+          excitation = (Math.random() * 2.0 - 1.0) * 0.45;
+        }
+
+        let out1 = resF1.process(excitation);
+        let out2 = resF2.process(excitation);
+        let out3 = resF3.process(excitation);
+
+        let sample = (out1 * 0.6 + out2 * 0.3 + out3 * 0.1) * env;
+        floatBuffer.push(sample);
+        if (floatBuffer.length >= maxSamples) break;
+      }
+      if (floatBuffer.length >= maxSamples) break;
+    }
+
+    if (floatBuffer.length === 0) return new Uint8Array(0);
+
+    let maxVal = 0.001;
+    for (let i = 0; i < floatBuffer.length; i++) {
+      if (Math.abs(floatBuffer[i]) > maxVal) maxVal = Math.abs(floatBuffer[i]);
+    }
+
+    const gain = 0.95 / maxVal;
+    const pcmUint8 = new Uint8Array(floatBuffer.length);
+    for (let i = 0; i < floatBuffer.length; i++) {
+      let val = floatBuffer[i] * gain;
+      if (val > 1.0) val = 1.0;
+      if (val < -1.0) val = -1.0;
+      pcmUint8[i] = Math.round((val + 1.0) * 127.5);
+    }
+    return pcmUint8;
+  }
+
+  arrayBufferToBase64(uint8Array) {
+    let binary = '';
+    const len = uint8Array.byteLength;
+    const chunkSize = 0x8000;
+    for (let i = 0; i < len; i += chunkSize) {
+      let chunk = uint8Array.subarray(i, Math.min(i + chunkSize, len));
+      binary += String.fromCharCode.apply(null, chunk);
+    }
+    return btoa(binary);
+  }
+
+  synthesizeText(text) {
+    const normalized = this.normalizeText(text);
+    if (!normalized) return null;
+    const sequence = this.textToPhoneSequence(normalized);
+    const pcmUint8 = this.synthesizePhoneSequence(sequence);
+    if (pcmUint8.length === 0) return null;
+    const durationSec = pcmUint8.length / this.sampleRate;
+    const base64Payload = this.arrayBufferToBase64(pcmUint8);
+    return { pcmUint8, durationSec, base64Payload };
   }
 
   playPreview(pcmUint8, onEndedCallback = null) {
@@ -17582,24 +17709,23 @@ class GrilloParlanteVocoder {
     const audioCtx = new AudioContextClass();
     this.activeCtx = audioCtx;
 
-    const float32Buffer = audioCtx.createBuffer(1, pcmUint8.length, this.targetSampleRate);
-    const channelData = float32Buffer.getChannelData(0);
+    const floatBuffer = audioCtx.createBuffer(1, pcmUint8.length, this.sampleRate);
+    const channelData = floatBuffer.getChannelData(0);
     for (let i = 0; i < pcmUint8.length; i++) {
       channelData[i] = (pcmUint8[i] - 128) / 128.0;
     }
 
     const source = audioCtx.createBufferSource();
-    source.buffer = float32Buffer;
+    source.buffer = floatBuffer;
 
-    // Biquad peaking filter risonante a 2400 Hz (simula l'altoparlante del Grillo Parlante e il piezo)
-    const bq = audioCtx.createBiquadFilter();
-    bq.type = 'peaking';
-    bq.frequency.value = 2400;
-    bq.Q.value = 2.2;
-    bq.gain.value = 8.0;
+    const biquad = audioCtx.createBiquadFilter();
+    biquad.type = 'peaking';
+    biquad.frequency.value = 2400;
+    biquad.Q.value = 2.0;
+    biquad.gain.value = 6.0;
 
-    source.connect(bq);
-    bq.connect(audioCtx.destination);
+    source.connect(biquad);
+    biquad.connect(audioCtx.destination);
 
     source.onended = () => {
       if (typeof onEndedCallback === 'function') onEndedCallback();
@@ -17629,387 +17755,99 @@ class GrilloParlanteVocoder {
       this.activeCtx = null;
     }
   }
+}
 
-  _resample(input, srcRate, dstRate) {
-    if (srcRate === dstRate) return input;
-    const ratio = srcRate / dstRate;
-    const newLength = Math.round(input.length / ratio);
-    const result = new Float32Array(newLength);
+const grilloTTS = new GrilloParlanteTTS();
+let lastTtsResult = null;
+let activeTtsPreview = null;
 
-    for (let i = 0; i < newLength; i++) {
-      const srcIdx = i * ratio;
-      const idxInt = Math.floor(srcIdx);
-      const idxFrac = srcIdx - idxInt;
-      const v0 = input[idxInt] || 0;
-      const v1 = input[idxInt + 1] !== undefined ? input[idxInt + 1] : v0;
-      result[i] = v0 + (v1 - v0) * idxFrac;
-    }
-    return result;
-  }
-
-  _synthesizeVocoder(input) {
-    const output = new Float32Array(input.length);
-    const numFrames = Math.floor((input.length - this.frameSize) / this.hopSize) + 1;
-
-    let phase = 0.0;
-    let noiseState = 12345;
-
-    // Finestra di Hanning
-    const window = new Float32Array(this.frameSize);
-    for (let i = 0; i < this.frameSize; i++) {
-      window[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (this.frameSize - 1)));
-    }
-
-    for (let f = 0; f < numFrames; f++) {
-      const startIdx = f * this.hopSize;
-      let sumSq = 0;
-      const frame = new Float32Array(this.frameSize);
-
-      for (let i = 0; i < this.frameSize; i++) {
-        const sample = (input[startIdx + i] || 0) * window[i];
-        frame[i] = sample;
-        sumSq += sample * sample;
-      }
-      const rms = Math.sqrt(sumSq / this.frameSize);
-
-      // Noise gate
-      if (rms < 0.015) {
-        continue;
-      }
-
-      // Pitch Detection Autocorrelazione (85Hz - 320Hz a 8kHz: lag da 25 a 94)
-      let bestPitch = 50;
-      let maxCorr = -1;
-      const minLag = 25;
-      const maxLag = 94;
-
-      for (let lag = minLag; lag <= maxLag; lag++) {
-        let corr = 0;
-        for (let i = 0; i < this.frameSize - lag; i++) {
-          corr += frame[i] * frame[i + lag];
-        }
-        if (corr > maxCorr) {
-          maxCorr = corr;
-          bestPitch = lag;
-        }
-      }
-
-      const isVoiced = maxCorr > (0.18 * sumSq);
-
-      // Analisi spettrale grossolana a 3 bande
-      let eLow = 0, eMid = 0, eHigh = 0;
-      for (let i = 0; i < this.frameSize; i++) {
-        const val = Math.abs(frame[i]);
-        if (i % 3 === 0) eLow += val;
-        else if (i % 3 === 1) eMid += val;
-        else eHigh += val;
-      }
-      const totalE = eLow + eMid + eHigh || 1;
-      const wLow = eLow / totalE;
-      const wMid = eMid / totalE;
-      const wHigh = eHigh / totalE;
-
-      // Sintesi del frame
-      for (let i = 0; i < this.hopSize; i++) {
-        const outIdx = startIdx + i;
-        if (outIdx >= output.length) break;
-
-        let excitation = 0;
-        if (isVoiced) {
-          phase += 1.0 / bestPitch;
-          if (phase >= 1.0) {
-            phase -= 1.0;
-            excitation = 1.0 * rms * 16.0; // Impulso pieno Grillo Parlante
-          } else {
-            // Ronzio armonico costante tra gli impulsi
-            excitation = (Math.sin(phase * Math.PI * 4) * 0.22) * rms * 6.0;
-          }
-        } else {
-          // Rumore bianco per sibilanti
-          noiseState = (noiseState * 1664525 + 1013904223) | 0;
-          const whiteNoise = (noiseState / 2147483648.0);
-          excitation = whiteNoise * rms * 14.0;
-        }
-
-        const synthSample = excitation * (wLow * 0.8 + wMid * 1.5 + wHigh * 2.2);
-        output[outIdx] += synthSample;
-      }
-    }
-
-    return output;
-  }
-
-  _quantizeToUint8(float32Array) {
-    const uint8 = new Uint8Array(float32Array.length);
-    let peak = 0.001;
-    for (let i = 0; i < float32Array.length; i++) {
-      const abs = Math.abs(float32Array[i]);
-      if (abs > peak) peak = abs;
-    }
-
-    const scale = 115.0 / peak;
-
-    for (let i = 0; i < float32Array.length; i++) {
-      const clipped = Math.tanh(float32Array[i] * scale);
-      const val = Math.round(128 + clipped * 127);
-      uint8[i] = val < 0 ? 0 : (val > 255 ? 255 : val);
-    }
-    return uint8;
-  }
-
-  _uint8ToBase64(uint8Array) {
-    let binary = '';
-    const len = uint8Array.byteLength;
-    const chunkSize = 0x8000;
-    for (let i = 0; i < len; i += chunkSize) {
-      const chunk = uint8Array.subarray(i, Math.min(i + chunkSize, len));
-      binary += String.fromCharCode.apply(null, chunk);
-    }
-    return btoa(binary);
+function setTtsQuickPhrase(phrase) {
+  const input = document.getElementById('ttsTextInput');
+  if (input) {
+    input.value = phrase;
+    onTtsInputChange();
   }
 }
 
-const grilloVocoder = new GrilloParlanteVocoder();
-let isVoiceRecording = false;
-let voiceRecorder = null;
-let voiceStream = null;
-let voiceChunks = [];
-let voiceTimer = null;
-let voiceStartTime = 0;
-let lastVoicePcm = null;
-let lastVoiceBase64 = null;
-let isHoldGestureActive = false;
-let holdStartTimeout = null;
-let activeVoicePreview = null;
-
-async function toggleVoiceRecording(e) {
-  if (e) e.stopPropagation();
-  if (isHoldGestureActive) {
-    isHoldGestureActive = false;
-    return;
-  }
-  if (!isVoiceRecording) {
-    await startVoiceRecording();
-  } else {
-    stopVoiceRecording();
-  }
-}
-
-function onVoicePointerDown(e) {
-  if (e.pointerType === 'mouse' && e.button !== 0) return;
-  isHoldGestureActive = false;
-  holdStartTimeout = setTimeout(function() {
-    isHoldGestureActive = true;
-    if (!isVoiceRecording) {
-      startVoiceRecording();
-    }
-  }, 260);
-}
-
-function onVoicePointerUp(e) {
-  if (holdStartTimeout) {
-    clearTimeout(holdStartTimeout);
-    holdStartTimeout = null;
-  }
-  if (isHoldGestureActive && isVoiceRecording) {
-    stopVoiceRecording();
-  }
-}
-
-async function startVoiceRecording() {
-  if (isVoiceRecording) return;
-
-  const btn = document.getElementById('btnVoiceRecord');
-  const badge = document.getElementById('voiceRecordBadge');
-  const progBar = document.getElementById('voiceProgressBar');
-  const label = document.getElementById('vrLabel');
-  const actionsWrap = document.getElementById('voiceActionsWrap');
-
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    alert("⚠️ Il microfono richiede connessione protetta (HTTPS) o permessi abilitati nel browser!");
-    showToast("Microfono non disponibile: verifica permessi o HTTPS", "error");
+function onTtsInputChange() {
+  const input = document.getElementById('ttsTextInput');
+  const badge = document.getElementById('ttsDurationBadge');
+  const text = input ? input.value.trim() : "";
+  
+  if (!text) {
+    lastTtsResult = null;
+    if (badge) badge.textContent = "0.0s / 3.0s";
     return;
   }
 
-  if (btn) btn.classList.add('recording');
-  if (label) label.textContent = "🎙️ Apertura microfono...";
-  if (actionsWrap) actionsWrap.style.display = 'none';
-  if (progBar) progBar.style.width = '0%';
-
-  try {
-    voiceStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true
-      }
-    });
-
-    voiceChunks = [];
-
-    let mimeType = '';
-    if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
-      if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
-        mimeType = 'audio/webm;codecs=opus';
-      } else if (MediaRecorder.isTypeSupported('audio/webm')) {
-        mimeType = 'audio/webm';
-      } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
-        mimeType = 'audio/mp4';
-      }
-    }
-
-    try {
-      voiceRecorder = mimeType ? new MediaRecorder(voiceStream, { mimeType }) : new MediaRecorder(voiceStream);
-    } catch (e) {
-      voiceRecorder = new MediaRecorder(voiceStream);
-    }
-
-    voiceRecorder.ondataavailable = function(e) {
-      if (e.data && e.data.size > 0) {
-        voiceChunks.push(e.data);
-      }
-    };
-
-    voiceRecorder.onstop = async function() {
-      isVoiceRecording = false;
-      if (voiceTimer) {
-        clearInterval(voiceTimer);
-        voiceTimer = null;
-      }
-
-      if (btn) btn.classList.remove('recording');
-      if (label) label.textContent = "Tocca o Tieni Premuto per Parlare";
-
-      if (voiceStream) {
-        voiceStream.getTracks().forEach(t => t.stop());
-        voiceStream = null;
-      }
-
-      if (voiceChunks.length === 0) {
-        showToast("Nessun dato registrato", "warning");
-        return;
-      }
-
-      try {
-        const audioBlob = new Blob(voiceChunks, { type: mimeType || 'audio/webm' });
-        const arrayBuffer = await audioBlob.arrayBuffer();
-
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        const tempCtx = new AudioContextClass();
-        const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
-        const rawData = audioBuffer.getChannelData(0);
-        const rawRate = audioBuffer.sampleRate;
-
-        tempCtx.close();
-
-        // Elaborazione tramite GrilloParlanteVocoder
-        const result = grilloVocoder.processAudio(rawData, rawRate, 3.0);
-        if (!result) {
-          showToast("Registrazione troppo breve!", "warning");
-          return;
-        }
-
-        lastVoicePcm = result.pcmUint8;
-        lastVoiceBase64 = result.base64Payload;
-
-        if (actionsWrap) actionsWrap.style.display = 'flex';
-        const durSec = result.durationSec.toFixed(1);
-        if (badge) badge.textContent = durSec + "s / 3.0s";
-        if (progBar) progBar.style.width = Math.min(100, Math.round((result.durationSec / 3.0) * 100)) + '%';
-
-        showToast("🤖 Voce Grillo Parlante pronta! Tocca Anteprima per ascoltare.", "success");
-
-      } catch (err) {
-        console.error("Errore elaborazione vocoder:", err);
-        showToast("Errore sintesi Grillo Parlante: " + err.message, "error");
-      }
-    };
-
-    voiceRecorder.start(100);
-    isVoiceRecording = true;
-    voiceStartTime = Date.now();
-
-    if (label) label.textContent = "🔴 PARLA ORA (Max 3.0s)";
-    showToast("Registrazione avviata...", "info");
-
-    voiceTimer = setInterval(function() {
-      const elapsed = (Date.now() - voiceStartTime) / 1000.0;
-      const pct = Math.min(100, (elapsed / 3.0) * 100);
-      if (progBar) progBar.style.width = pct + '%';
-      if (badge) badge.textContent = elapsed.toFixed(1) + "s / 3.0s";
-
-      if (elapsed >= 3.0) {
-        stopVoiceRecording();
-      }
-    }, 50);
-
-  } catch (err) {
-    console.error("Errore accesso microfono:", err);
-    if (btn) btn.classList.remove('recording');
-    if (label) label.textContent = "Tocca o Tieni Premuto per Parlare";
-    isVoiceRecording = false;
-    showToast("Permesso microfono negato o non disponibile", "error");
+  lastTtsResult = grilloTTS.synthesizeText(text);
+  if (lastTtsResult && badge) {
+    badge.textContent = lastTtsResult.durationSec.toFixed(1) + "s / 3.0s";
   }
 }
 
-function stopVoiceRecording() {
-  if (voiceRecorder && voiceRecorder.state === 'recording') {
-    voiceRecorder.stop();
-  }
-  isVoiceRecording = false;
-}
-
-function playVoicePreview() {
-  if (!lastVoicePcm || lastVoicePcm.length === 0) {
-    showToast("Nessuna registrazione disponibile!", "warning");
+function playTtsPreview() {
+  const input = document.getElementById('ttsTextInput');
+  const text = input ? input.value.trim() : "";
+  if (!text) {
+    showToast("Scrivi prima una frase da far pronunciare!", "warning");
     return;
   }
 
-  if (activeVoicePreview) {
-    activeVoicePreview.stop();
-    activeVoicePreview = null;
+  lastTtsResult = grilloTTS.synthesizeText(text);
+  if (!lastTtsResult || lastTtsResult.pcmUint8.length === 0) {
+    showToast("Frase non valida o troppo breve", "error");
+    return;
+  }
+
+  if (activeTtsPreview) {
+    activeTtsPreview.stop();
+    activeTtsPreview = null;
   }
 
   showToast("🤖 Riproduzione voce Grillo Parlante...", "info");
-  activeVoicePreview = grilloVocoder.playPreview(lastVoicePcm, () => {
-    activeVoicePreview = null;
+  activeTtsPreview = grilloTTS.playPreview(lastTtsResult.pcmUint8, () => {
+    activeTtsPreview = null;
   });
 }
 
-function sendVoiceToPixo() {
-  if (!lastVoiceBase64) {
-    showToast("Registra prima un messaggio vocale!", "warning");
+function sendTtsToPixo() {
+  const input = document.getElementById('ttsTextInput');
+  const text = input ? input.value.trim() : "";
+  if (!text) {
+    showToast("Scrivi prima una frase da far pronunciare!", "warning");
     return;
   }
+
+  if (!lastTtsResult) {
+    lastTtsResult = grilloTTS.synthesizeText(text);
+  }
+
+  if (!lastTtsResult || !lastTtsResult.base64Payload) {
+    showToast("Errore sintesi vocale", "error");
+    return;
+  }
+
   if (!state.mqttConnected || !state.mqttClient || !state.deviceId) {
     showToast("Pixò non connesso!", "error");
     return;
   }
 
-  const voicePayload = "VOICE:" + lastVoiceBase64;
+  const voicePayload = "VOICE:" + lastTtsResult.base64Payload;
   const devId = state.deviceId;
   const pin = state.devicePin || "1234";
 
-  // Triplo canale di recapito sicuro (standard /voice, con PIN, e via /buzzer)
   state.mqttClient.publish(`pixo/device/${devId}/voice`, voicePayload, { qos: 0 });
   state.mqttClient.publish(`pixo/device/${devId}/${pin}/voice`, voicePayload, { qos: 0 });
   state.mqttClient.publish(`pixo/device/${devId}/buzzer`, voicePayload, { qos: 0 });
 
-  showToast("🚀 Vocale Grillo Parlante inviato a Pixò!", "success");
+  showToast(`🚀 "${text}" inviato a Pixò!`, "success");
 }
 
-function discardVoiceRecording() {
-  grilloVocoder.stopPreview();
-  lastVoicePcm = null;
-  lastVoiceBase64 = null;
-  const actionsWrap = document.getElementById('voiceActionsWrap');
-  if (actionsWrap) actionsWrap.style.display = 'none';
-  const badge = document.getElementById('voiceRecordBadge');
-  if (badge) badge.textContent = "0.0s / 3.0s";
-  const progBar = document.getElementById('voiceProgressBar');
-  if (progBar) progBar.style.width = "0%";
-  showToast("Registrazione vocale cancellata", "info");
-}
+window.setTtsQuickPhrase = setTtsQuickPhrase;
+window.onTtsInputChange = onTtsInputChange;
+window.playTtsPreview = playTtsPreview;
+window.sendTtsToPixo = sendTtsToPixo;
 
 window.toggleVoiceRecording = toggleVoiceRecording;
 window.onVoicePointerDown = onVoicePointerDown;
