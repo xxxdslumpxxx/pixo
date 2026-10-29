@@ -17530,6 +17530,180 @@ window.selectJinglePreset = selectJinglePreset;
 // MODULO REGISTRATORE VOCALE ROBOTICO PIXO (DIRECT ENGINE V3)
 // ==============================================================
 let isVoiceRecording = false;
+// ==================== GESTIONE REGISTRAZIONE VOCALE CITOFONO RETRO ====================
+
+/**
+ * RetroCitofonoDSP - DSP audio per simulazione autentica citofono / walkie-talkie / buzzer piezoelettrico.
+ * Converte la voce del microfono in audio 8-bit con filtro passa-banda 350-3200Hz,
+ * forte saturazione/overdrive e risonanza piezoelettrica sia in anteprima che su Pixò.
+ */
+class RetroCitofonoDSP {
+  constructor() {
+    this.targetSampleRate = 8000;
+    this.activeSource = null;
+    this.activeCtx = null;
+  }
+
+  processRecording(rawData, srcRate, maxDurationSec = 3.0) {
+    const targetRate = this.targetSampleRate;
+    const maxSamples = Math.floor(maxDurationSec * targetRate); // 24000
+    const rawLen = rawData.length;
+    const ratio = srcRate / targetRate;
+    const targetSamples = Math.min(maxSamples, Math.floor(rawLen / ratio));
+
+    if (targetSamples < 800) {
+      return null;
+    }
+
+    // 1. Resampling con interpolazione lineare a 8000 Hz
+    const resampled = new Float32Array(targetSamples);
+    for (let i = 0; i < targetSamples; i++) {
+      const srcIdx = i * ratio;
+      const idx0 = Math.floor(srcIdx);
+      const frac = srcIdx - idx0;
+      const s0 = rawData[idx0] || 0.0;
+      const s1 = rawData[idx0 + 1] !== undefined ? rawData[idx0 + 1] : s0;
+      resampled[i] = s0 + frac * (s1 - s0);
+    }
+
+    // 2. Filtro Passa-Banda (350 Hz High-Pass + 3000 Hz Low-Pass)
+    const dt = 1.0 / targetRate;
+    const rcLow = 1.0 / (2.0 * Math.PI * 350.0);
+    const alphaLow = dt / (rcLow + dt);
+    const rcHigh = 1.0 / (2.0 * Math.PI * 3000.0);
+    const alphaHigh = rcHigh / (rcHigh + dt);
+
+    const filtered = new Float32Array(targetSamples);
+    let hpPrevIn = 0.0, hpPrevOut = 0.0;
+    let lpPrevOut = 0.0;
+
+    for (let i = 0; i < targetSamples; i++) {
+      const cur = resampled[i];
+      const hp = alphaLow * (hpPrevOut + cur - hpPrevIn);
+      hpPrevIn = cur;
+      hpPrevOut = hp;
+
+      const lp = lpPrevOut + (1.0 - alphaHigh) * (hp - lpPrevOut);
+      lpPrevOut = lp;
+      filtered[i] = lp;
+    }
+
+    // 3. Forte Overdrive non lineare & Hard Clipping asimmetrico (stile microfono a carbone citofono)
+    const processed = new Float32Array(targetSamples);
+    const drive = 4.2;
+    const threshold = 0.72;
+
+    for (let i = 0; i < targetSamples; i++) {
+      let s = filtered[i] * drive;
+      // Saturazione morbida tanh unita a clipping per massimizzare la resa vocale
+      s = Math.tanh(s);
+      if (s > threshold) s = threshold;
+      if (s < -threshold) s = -threshold;
+      processed[i] = s / threshold;
+    }
+
+    // 4. Quantizzazione in Uint8Array PCM (0-255, 128 = centro)
+    const pcmUint8 = new Uint8Array(targetSamples);
+    for (let i = 0; i < targetSamples; i++) {
+      let norm = (processed[i] + 1.0) * 0.5;
+      if (norm < 0.0) norm = 0.0;
+      if (norm > 1.0) norm = 1.0;
+      pcmUint8[i] = Math.round(norm * 255);
+    }
+
+    // 5. Conversione in stringa Base64
+    let bin = '';
+    const chk = 0x8000;
+    for (let i = 0; i < pcmUint8.length; i += chk) {
+      bin += String.fromCharCode.apply(null, pcmUint8.subarray(i, i + chk));
+    }
+    const b64 = btoa(bin);
+
+    return {
+      pcmUint8: pcmUint8,
+      durationSec: (targetSamples / targetRate),
+      base64Payload: b64
+    };
+  }
+
+  playPreview(pcmUint8, onEndedCallback) {
+    if (!pcmUint8 || pcmUint8.length === 0) return null;
+
+    this.stopPreview();
+
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextClass) return null;
+
+    const ctx = new AudioContextClass();
+    this.activeCtx = ctx;
+
+    const audioBuf = ctx.createBuffer(1, pcmUint8.length, this.targetSampleRate);
+    const chData = audioBuf.getChannelData(0);
+
+    for (let i = 0; i < pcmUint8.length; i++) {
+      chData[i] = (pcmUint8[i] - 128) / 127.5;
+    }
+
+    const source = ctx.createBufferSource();
+    source.buffer = audioBuf;
+
+    // Catena acustica risonante piezoelettrica / altoparlante citofono
+    // 1. Peaking filter a 2600 Hz (+14 dB, Q=3.0) per riprodurre il timbro metallico
+    const piezoResonance = ctx.createBiquadFilter();
+    piezoResonance.type = 'peaking';
+    piezoResonance.frequency.value = 2600;
+    piezoResonance.Q.value = 3.0;
+    piezoResonance.gain.value = 14.0;
+
+    // 2. Highpass a 450 Hz per tagliare i bassi che il dischetto piezo non ha
+    const hpFilter = ctx.createBiquadFilter();
+    hpFilter.type = 'highpass';
+    hpFilter.frequency.value = 450;
+    hpFilter.Q.value = 1.2;
+
+    // 3. Lowpass a 3400 Hz
+    const lpFilter = ctx.createBiquadFilter();
+    lpFilter.type = 'lowpass';
+    lpFilter.frequency.value = 3400;
+
+    // Connessione: source -> hp -> piezoResonance -> lp -> destination
+    source.connect(hpFilter);
+    hpFilter.connect(piezoResonance);
+    piezoResonance.connect(lpFilter);
+    lpFilter.connect(ctx.destination);
+
+    source.onended = () => {
+      if (typeof onEndedCallback === 'function') onEndedCallback();
+      try { ctx.close(); } catch (e) {}
+      if (this.activeSource === source) this.activeSource = null;
+      if (this.activeCtx === ctx) this.activeCtx = null;
+    };
+
+    source.start(0);
+    this.activeSource = source;
+
+    return {
+      stop: () => {
+        try { source.stop(); } catch (e) {}
+        try { ctx.close(); } catch (e) {}
+      }
+    };
+  }
+
+  stopPreview() {
+    if (this.activeSource) {
+      try { this.activeSource.stop(); } catch (e) {}
+      this.activeSource = null;
+    }
+    if (this.activeCtx) {
+      try { this.activeCtx.close(); } catch (e) {}
+      this.activeCtx = null;
+    }
+  }
+}
+
+const citofonoDSP = new RetroCitofonoDSP();
+let isVoiceRecording = false;
 let voiceRecorder = null;
 let voiceStream = null;
 let voiceChunks = [];
@@ -17539,6 +17713,7 @@ let lastVoicePcm = null;
 let lastVoiceBase64 = null;
 let isHoldGestureActive = false;
 let holdStartTimeout = null;
+let activeVoicePreview = null;
 
 async function toggleVoiceRecording(e) {
   if (e) e.stopPropagation();
@@ -17605,7 +17780,6 @@ async function startVoiceRecording() {
 
     voiceChunks = [];
 
-    // Supporto MIME type per tutti i browser (Android Chrome, iOS Safari)
     let mimeType = '';
     if (typeof MediaRecorder !== 'undefined' && MediaRecorder.isTypeSupported) {
       if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) {
@@ -17614,36 +17788,19 @@ async function startVoiceRecording() {
         mimeType = 'audio/webm';
       } else if (MediaRecorder.isTypeSupported('audio/mp4')) {
         mimeType = 'audio/mp4';
-      } else if (MediaRecorder.isTypeSupported('audio/aac')) {
-        mimeType = 'audio/aac';
       }
     }
 
-    voiceRecorder = mimeType ? new MediaRecorder(voiceStream, { mimeType: mimeType }) : new MediaRecorder(voiceStream);
+    try {
+      voiceRecorder = mimeType ? new MediaRecorder(voiceStream, { mimeType }) : new MediaRecorder(voiceStream);
+    } catch (e) {
+      voiceRecorder = new MediaRecorder(voiceStream);
+    }
 
-    voiceRecorder.ondataavailable = function(evt) {
-      if (evt.data && evt.data.size > 0) {
-        voiceChunks.push(evt.data);
+    voiceRecorder.ondataavailable = function(e) {
+      if (e.data && e.data.size > 0) {
+        voiceChunks.push(e.data);
       }
-    };
-
-    voiceRecorder.onstart = function() {
-      isVoiceRecording = true;
-      voiceStartTime = performance.now();
-      if (label) label.textContent = "🔴 Registrazione... (Tocca per Stop)";
-
-      if (voiceTimer) clearInterval(voiceTimer);
-      voiceTimer = setInterval(function() {
-        if (!isVoiceRecording) return;
-        const elapsed = (performance.now() - voiceStartTime) / 1000;
-        const maxSec = 3.0;
-        if (badge) badge.textContent = Math.min(elapsed, maxSec).toFixed(1) + "s / 3.0s";
-        if (progBar) progBar.style.width = Math.min(100, (elapsed / maxSec) * 100) + "%";
-
-        if (elapsed >= maxSec) {
-          stopVoiceRecording();
-        }
-      }, 50);
     };
 
     voiceRecorder.onstop = async function() {
@@ -17673,66 +17830,57 @@ async function startVoiceRecording() {
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
         const tempCtx = new AudioContextClass();
         const audioBuffer = await tempCtx.decodeAudioData(arrayBuffer);
-
         const rawData = audioBuffer.getChannelData(0);
         const rawRate = audioBuffer.sampleRate;
-        const targetRate = 8000;
-        const maxSamples = 24000;
-        const targetSamples = Math.min(maxSamples, Math.floor(rawData.length * (targetRate / rawRate)));
-
-        if (targetSamples < 800) {
-          showToast("Registrazione troppo breve!", "warning");
-          tempCtx.close();
-          return;
-        }
-
-        const pcmUint8 = new Uint8Array(targetSamples);
-        const step = rawRate / targetRate;
-        let prevSample = 0.0;
-
-        for (let i = 0; i < targetSamples; i++) {
-          const srcIdx = Math.floor(i * step);
-          const s = rawData[srcIdx] || 0.0;
-          const hp = s - prevSample * 0.82;
-          prevSample = s;
-          const clipped = Math.tanh(hp * 2.8);
-          let u8 = Math.round((clipped + 1.0) * 127.5);
-          if (u8 < 0) u8 = 0;
-          if (u8 > 255) u8 = 255;
-          pcmUint8[i] = u8;
-        }
 
         tempCtx.close();
 
-        let bin = '';
-        const chk = 0x8000;
-        for (let i = 0; i < pcmUint8.length; i += chk) {
-          bin += String.fromCharCode.apply(null, pcmUint8.subarray(i, i + chk));
+        // Elaborazione completa tramite RetroCitofonoDSP
+        const result = citofonoDSP.processRecording(rawData, rawRate, 3.0);
+        if (!result) {
+          showToast("Registrazione troppo breve!", "warning");
+          return;
         }
-        const b64 = btoa(bin);
 
-        lastVoicePcm = pcmUint8;
-        lastVoiceBase64 = b64;
+        lastVoicePcm = result.pcmUint8;
+        lastVoiceBase64 = result.base64Payload;
 
         if (actionsWrap) actionsWrap.style.display = 'flex';
-        const durSec = (targetSamples / 8000).toFixed(1);
+        const durSec = result.durationSec.toFixed(1);
         if (badge) badge.textContent = durSec + "s / 3.0s";
-        if (progBar) progBar.style.width = ((durSec / 3.0) * 100) + "%";
-        showToast("Registrazione pronta (" + durSec + "s)! Riascolta o invia 🎙️", "info");
+        if (progBar) progBar.style.width = Math.min(100, Math.round((result.durationSec / 3.0) * 100)) + '%';
+
+        showToast("🎙️ Vocale citofono pronto! Tocca Anteprima per ascoltare.", "success");
 
       } catch (err) {
-        console.error("DSP decode error:", err);
-        showToast("Errore decodifica: " + err.message, "error");
+        console.error("Errore elaborazione audio:", err);
+        showToast("Errore codifica vocale: " + err.message, "error");
       }
     };
 
     voiceRecorder.start(100);
+    isVoiceRecording = true;
+    voiceStartTime = Date.now();
+
+    if (label) label.textContent = "🔴 PARLA ORA (Max 3.0s)";
+    showToast("Registrazione avviata...", "info");
+
+    voiceTimer = setInterval(function() {
+      const elapsed = (Date.now() - voiceStartTime) / 1000.0;
+      const pct = Math.min(100, (elapsed / 3.0) * 100);
+      if (progBar) progBar.style.width = pct + '%';
+      if (badge) badge.textContent = elapsed.toFixed(1) + "s / 3.0s";
+
+      if (elapsed >= 3.0) {
+        stopVoiceRecording();
+      }
+    }, 50);
 
   } catch (err) {
-    console.error("getUserMedia error:", err);
+    console.error("Errore accesso microfono:", err);
     if (btn) btn.classList.remove('recording');
     if (label) label.textContent = "Tocca o Tieni Premuto per Parlare";
-    alert("⚠️ Errore microfono: " + err.message + "\nAssicurati di aver concesso il permesso.");
+    isVoiceRecording = false;
     showToast("Permesso microfono negato o non disponibile", "error");
   }
 }
@@ -17750,22 +17898,15 @@ function playVoicePreview() {
     return;
   }
 
-  const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  if (!AudioContextClass) return;
-
-  const previewCtx = new AudioContextClass();
-  const audioBuf = previewCtx.createBuffer(1, lastVoicePcm.length, 8000);
-  const chData = audioBuf.getChannelData(0);
-
-  for (let i = 0; i < lastVoicePcm.length; i++) {
-    chData[i] = (lastVoicePcm[i] - 128) / 127.5;
+  if (activeVoicePreview) {
+    activeVoicePreview.stop();
+    activeVoicePreview = null;
   }
 
-  const source = previewCtx.createBufferSource();
-  source.buffer = audioBuf;
-  source.connect(previewCtx.destination);
-  source.onended = function() { previewCtx.close(); };
-  source.start(0);
+  showToast("🔊 Riproduzione anteprima citofono...", "info");
+  activeVoicePreview = citofonoDSP.playPreview(lastVoicePcm, () => {
+    activeVoicePreview = null;
+  });
 }
 
 function sendVoiceToPixo() {
@@ -17791,6 +17932,7 @@ function sendVoiceToPixo() {
 }
 
 function discardVoiceRecording() {
+  citofonoDSP.stopPreview();
   lastVoicePcm = null;
   lastVoiceBase64 = null;
   const actionsWrap = document.getElementById('voiceActionsWrap');
