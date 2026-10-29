@@ -17346,7 +17346,19 @@ function selectJinglePreset(presetKey) {
 
   // Riproduce subito l'anteprima sul telefono
   playWebAudioJingle(state.jingleNotes);
-  showToast(`Preset "${presetKey}" caricato! 🎵`, "info");
+    const presetLabels = {
+    pixo_chime: "Jingle Ufficiale Pixò",
+    tetris: "Puzzle 8-Bit (Korobeiniki)",
+    mario_theme: "Mondo Fungo (8-Bit Run)",
+    star_wars: "Marcia Galattica",
+    zelda_theme: "Regno Fatato",
+    pacman: "Arcade Labirinto",
+    pink_panther: "Passo Felino",
+    nokia_tune: "Suoneria Vintage (Gran Vals)",
+    mario_underground: "Sotterraneo Rétro"
+  };
+  const label = presetLabels[presetKey] || presetKey;
+  showToast(`Preset "${label}" caricato! 🎵`, "info");
 }
 
 function renderJingleSequence() {
