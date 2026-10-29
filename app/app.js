@@ -447,6 +447,54 @@ const TRANSLATIONS = {
 
 
     appTitle: "Pixò",
+    navDraw: "Disegno",
+    navSmart: "Crea & Feed",
+    navPhoto: "Foto",
+    navJingle: "Jingle",
+    navSettings: "Dispositivo",
+    pianoTitle: "Tastiera Jingle",
+    octave: "Ottava",
+    noteDuration: "Durata Nota",
+    pauseBtn: "Pausa",
+    previewBtn: "Ascolta Anteprima",
+    sendJingleBtn: "Suona su Pixò",
+    clearSequence: "Svuota Sequenza",
+    maxDurationReached: "Limite di 10.0 secondi raggiunto!",
+    uploadPhoto: "Carica Foto",
+    crop: "Ritaglia",
+    dithering: "Algoritmo Dithering",
+    contrast: "Contrasto",
+    brightness: "Luminosità",
+    invertColors: "Inverti Colori",
+    sendPhoto: "Invia PixelArt",
+    displayBrightness: "Luminosità Schermo",
+    screensaver: "Standby / Screensaver",
+    screensaverTimeout: "Timeout Standby",
+    ledNotif: "LED di Notifica",
+    buzzerSound: "Suoni Buzzer",
+    notifTone: "Suoneria Notifiche",
+    liveMode: "Modalità Live Canvas",
+    liveModeDesc: "Invia ogni tratto del disegno in tempo reale",
+    deviceIdLabel: "ID Dispositivo",
+    devicePinLabel: "PIN di Accesso",
+    changePin: "Cambia PIN",
+    restartPixo: "Riavvia Pixò",
+    checkOta: "Verifica Aggiornamenti",
+    resetDefaults: "Ripristina Default",
+    saveSettings: "Salva Impostazioni",
+    toastDrawingSent: "Disegno inviato con successo!",
+    toastDrawingSaved: "Disegno salvato nella galleria!",
+    toastDrawingDeleted: "Disegno eliminato.",
+    toastSmartSent: "Widget inviato al Pixò!",
+    toastJingleSent: "Jingle inviato a Pixò!",
+    toastPhotoSent: "Foto inviata con successo!",
+    toastConnected: "Pixò connesso!",
+    toastDisconnected: "Pixò non connesso",
+    toastPinError: "PIN errato o non autorizzato!",
+    toastOtaChecking: "Verifica aggiornamenti in corso...",
+    toastOtaLatest: "Il tuo Pixò è già aggiornato!",
+    toastSettingsSaved: "Impostazioni salvate con successo!",
+    confirmClear: "Cancellare l'intero disegno?",
 
 
 
@@ -751,6 +799,54 @@ const TRANSLATIONS = {
 
 
     appTitle: "Pixò",
+    navDraw: "Draw",
+    navSmart: "Create & Feed",
+    navPhoto: "Photo",
+    navJingle: "Jingle",
+    navSettings: "Device",
+    pianoTitle: "Jingle Studio",
+    octave: "Octave",
+    noteDuration: "Note Duration",
+    pauseBtn: "Pause",
+    previewBtn: "Play Preview",
+    sendJingleBtn: "Play on Pixò",
+    clearSequence: "Clear Sequence",
+    maxDurationReached: "10.0 seconds limit reached!",
+    uploadPhoto: "Upload Photo",
+    crop: "Crop",
+    dithering: "Dithering Algorithm",
+    contrast: "Contrast",
+    brightness: "Brightness",
+    invertColors: "Invert Colors",
+    sendPhoto: "Send PixelArt",
+    displayBrightness: "Display Brightness",
+    screensaver: "Standby / Screensaver",
+    screensaverTimeout: "Standby Timeout",
+    ledNotif: "Notification LED",
+    buzzerSound: "Buzzer Sounds",
+    notifTone: "Notification Chime",
+    liveMode: "Live Canvas Mode",
+    liveModeDesc: "Stream every stroke directly in real-time",
+    deviceIdLabel: "Device ID",
+    devicePinLabel: "Access PIN",
+    changePin: "Change PIN",
+    restartPixo: "Restart Pixò",
+    checkOta: "Check for Updates",
+    resetDefaults: "Reset to Defaults",
+    saveSettings: "Save Settings",
+    toastDrawingSent: "Drawing sent successfully!",
+    toastDrawingSaved: "Drawing saved to gallery!",
+    toastDrawingDeleted: "Drawing deleted.",
+    toastSmartSent: "Widget sent to Pixò!",
+    toastJingleSent: "Jingle sent to Pixò!",
+    toastPhotoSent: "Photo sent successfully!",
+    toastConnected: "Pixò connected!",
+    toastDisconnected: "Pixò not connected",
+    toastPinError: "Incorrect or unauthorized PIN!",
+    toastOtaChecking: "Checking for updates...",
+    toastOtaLatest: "Your Pixò is already up to date!",
+    toastSettingsSaved: "Settings saved successfully!",
+    confirmClear: "Clear canvas completely?",
 
 
 
@@ -2251,77 +2347,79 @@ const liveCooldownSelect = document.getElementById('liveCooldownSelect');
 
 
 function setLanguage(lang) {
-
-
-
   state.lang = lang;
-
-
-
   localStorage.setItem('pixo_lang', lang);
-
-
-
   const dict = TRANSLATIONS[lang] || TRANSLATIONS.it;
 
-
-
-
-
-
-
+  // 1. Traduzione testi standard (textContent)
   document.querySelectorAll('[data-i18n]').forEach(el => {
-
-
-
     const key = el.dataset.i18n;
-
-
-
     if (dict[key]) {
-
-
-
       el.textContent = dict[key];
-
-
-
     }
-
-
-
   });
 
+  // 2. Traduzione placeholder input
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.dataset.i18nPlaceholder;
+    if (dict[key]) {
+      el.placeholder = dict[key];
+    }
+  });
 
+  // 3. Traduzione title / tooltip
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.dataset.i18nTitle;
+    if (dict[key]) {
+      el.title = dict[key];
+    }
+  });
 
+  // 4. Localizzazione dinamica dei Preset del Jingle Studio
+  const presetLabels = {
+    it: {
+      pixo_chime: { name: "Jingle Pixò", sub: "Avvio Ufficiale (0.7s)" },
+      tetris: { name: "Puzzle 8-Bit", sub: "Korobeiniki (8.6s)" },
+      mario_theme: { name: "Mondo Fungo", sub: "Avventura 8-Bit (7.1s)" },
+      star_wars: { name: "Marcia Galattica", sub: "Anthem Spaziale (7.1s)" },
+      zelda_theme: { name: "Regno Fatato", sub: "Fantasy Quest (7.9s)" },
+      pacman: { name: "Arcade Labirinto", sub: "Dot Eater (4.9s)" },
+      pink_panther: { name: "Passo Felino", sub: "Jazz Investigatore (5.4s)" },
+      nokia_tune: { name: "Suoneria Vintage", sub: "Gran Vals 1902 (7.0s)" },
+      mario_underground: { name: "Sotterraneo Rétro", sub: "Dungeon 8-Bit (4.9s)" }
+    },
+    en: {
+      pixo_chime: { name: "Pixò Chime", sub: "Official Startup (0.7s)" },
+      tetris: { name: "8-Bit Puzzle", sub: "Korobeiniki (8.6s)" },
+      mario_theme: { name: "Mushroom World", sub: "8-Bit Adventure (7.1s)" },
+      star_wars: { name: "Galactic March", sub: "Space Anthem (7.1s)" },
+      zelda_theme: { name: "Fairy Kingdom", sub: "Fantasy Quest (7.9s)" },
+      pacman: { name: "Arcade Maze", sub: "Dot Eater (4.9s)" },
+      pink_panther: { name: "Cat Step", sub: "Retro Jazz (5.4s)" },
+      nokia_tune: { name: "Vintage Ring", sub: "Gran Vals 1902 (7.0s)" },
+      mario_underground: { name: "Retro Dungeon", sub: "8-Bit Underground (4.9s)" }
+    }
+  };
+  const curPresets = presetLabels[lang] || presetLabels.it;
+  document.querySelectorAll('.jingle-preset-card').forEach(btn => {
+    const key = btn.getAttribute('data-preset');
+    if (key && curPresets[key]) {
+      const nameEl = btn.querySelector('.preset-name');
+      const subEl = btn.querySelector('.preset-sub');
+      if (nameEl) nameEl.textContent = curPresets[key].name;
+      if (subEl) subEl.textContent = curPresets[key].sub;
+    }
+  });
 
+  if (typeof themeSelect !== 'undefined' && themeSelect) {
+    const themeOptDark = themeSelect.querySelector('option[value="dark"]');
+    const themeOptLight = themeSelect.querySelector('option[value="light"]');
+    if (themeOptDark && dict.themeDark) themeOptDark.textContent = dict.themeDark;
+    if (themeOptLight && dict.themeLight) themeOptLight.textContent = dict.themeLight;
+  }
 
-
-
-  const themeOptDark = themeSelect.querySelector('option[value="dark"]');
-
-
-
-  const themeOptLight = themeSelect.querySelector('option[value="light"]');
-
-
-
-  if (themeOptDark) themeOptDark.textContent = dict.themeDark;
-
-
-
-  if (themeOptLight) themeOptLight.textContent = dict.themeLight;
-
-
-
-
-
-
-
-  langSelect.value = lang;
-
-
-
+  const langEl = document.getElementById('langSelect');
+  if (langEl) langEl.value = lang;
 }
 
 
