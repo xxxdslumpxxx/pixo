@@ -2892,6 +2892,10 @@ function initDeviceAndSettings() {
 
 
 
+    const roomParam = urlParams.get('room');
+    if (roomParam) {
+      state.liveRoom = roomParam.trim();
+    }
     const freeParam = parseInt(urlParams.get('free') || '3', 10);
 
 
@@ -3820,58 +3824,54 @@ function updateSettingsUI() {
 
 
 
+
+function generateLiveRoomCode() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "PIX-";
+  for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  return code;
+}
+
+function regenerateLiveRoomCode() {
+  state.liveRoomCode = generateLiveRoomCode();
+  localStorage.setItem('pixo_live_room_code', state.liveRoomCode);
+  updateLiveShareLink();
+  showToast(`Nuovo codice stanza generato: ${state.liveRoomCode}! 🔒`, "info");
+}
+window.generateLiveRoomCode = generateLiveRoomCode;
+window.regenerateLiveRoomCode = regenerateLiveRoomCode;
+
 function updateLiveShareLink() {
-
-
-
   if (!liveLinkInput) return;
 
-
+  if (!state.liveRoomCode) {
+    state.liveRoomCode = localStorage.getItem('pixo_live_room_code') || generateLiveRoomCode();
+    localStorage.setItem('pixo_live_room_code', state.liveRoomCode);
+  }
 
   const baseUrl = window.location.origin + window.location.pathname;
-
-
-
   const url = new URL(baseUrl);
 
-
-
-  url.searchParams.set('id', state.deviceId || '');
-
-
-
+  // NESSUN ID HARDWARE: Solo Room Code anonimo!
+  url.searchParams.set('room', state.liveRoomCode);
   url.searchParams.set('live', '1');
 
-
-
   const freeVal = liveFreeDrawsSelect ? liveFreeDrawsSelect.value : (state.liveFreeDraws || '3');
-
-
-
   const roseVal = liveDrawsPerRoseSelect ? liveDrawsPerRoseSelect.value : (state.liveDrawsPerRose || '3');
-
-
-
   const cdVal = liveCooldownSelect ? liveCooldownSelect.value : (state.liveCooldownSec || '20');
 
-
-
   url.searchParams.set('free', freeVal);
-
-
-
   url.searchParams.set('rose', roseVal);
-
-
-
   url.searchParams.set('cd', cdVal);
-
-
 
   liveLinkInput.value = url.toString();
 
-
-
+  // Sincronizza lo stato della Live su Pixò via MQTT se connessi
+  if (state.mqttConnected && state.mqttClient && state.deviceId) {
+    const isEn = liveModeToggle ? liveModeToggle.checked : (state.isLiveMode || false);
+    const cfgPayload = JSON.stringify({ enabled: isEn, room: state.liveRoomCode });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/live_config`, cfgPayload, { qos: 1, retain: true });
+  }
 }
 
 
