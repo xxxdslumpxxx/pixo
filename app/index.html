@@ -66,7 +66,7 @@
 
 
 
-  <link rel="stylesheet" href="style.css?v=63">
+  <link rel="stylesheet" href="style.css?v=64">
 
 
 
@@ -1813,47 +1813,7 @@
               </button>
             </div>
 
-                        <!-- SINTETIZZATORE VOCALE ROBOT (GRILLO PARLANTE TTS) -->
-            <div class="voice-recorder-card" style="margin-bottom:16px;">
-              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                  <span style="font-size:1.3rem;">🤖</span>
-                  <div>
-                    <strong style="font-size:0.92rem; color:#fff; display:block;">Sintetizzatore Vocale Robot (Grillo Parlante)</strong>
-                    <small style="color:var(--text-secondary); font-size:0.7rem;">Scrivi cosa deve dire Pixò (Max 3s / ~45 caratteri)</small>
-                  </div>
-                </div>
-                <span id="ttsDurationBadge" class="voice-badge">0.0s / 3.0s</span>
-              </div>
-
-              <!-- Campo di Testo -->
-              <div style="display:flex; gap:8px; margin: 10px 0 8px 0;">
-                <input type="text" id="ttsTextInput" placeholder="Scrivi una frase... (es. Ciao Pixò!)" maxlength="45" oninput="onTtsInputChange()" style="flex:1; padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: #fff; font-size: 0.95rem;">
-                <button type="button" class="btn secondary" onclick="document.getElementById('ttsTextInput').value = ''; onTtsInputChange();" style="padding: 0 12px; min-width:38px;" title="Cancella">✕</button>
-              </div>
-
-              <!-- Frasi Rapide Predefinite -->
-              <div style="display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px;">
-                <button type="button" class="badge-btn" onclick="setTtsQuickPhrase('Ciao Pixò!')">👋 Ciao Pixò!</button>
-                <button type="button" class="badge-btn" onclick="setTtsQuickPhrase('Bravo!')">🌟 Bravo!</button>
-                <button type="button" class="badge-btn" onclick="setTtsQuickPhrase('Sveglia!')">⏰ Sveglia!</button>
-                <button type="button" class="badge-btn" onclick="setTtsQuickPhrase('Attenzione!')">⚠️ Attenzione!</button>
-                <button type="button" class="badge-btn" onclick="setTtsQuickPhrase('Ti voglio bene!')">❤️ Ti voglio bene!</button>
-                <button type="button" class="badge-btn" onclick="setTtsQuickPhrase('Buonanotte!')">🌙 Buonanotte!</button>
-              </div>
-
-              <!-- Controlli Ascolta ed Invia -->
-              <div style="display:flex; gap:10px;">
-                <button type="button" class="voice-act-btn secondary" id="btnTtsPreview" onclick="playTtsPreview()" style="flex:1;">
-                  <span>🔊</span> Ascolta Anteprima
-                </button>
-                <button type="button" class="voice-act-btn primary" id="btnTtsSend" onclick="sendTtsToPixo()" style="flex:1;">
-                  <span>🚀</span> Fai Parlare Pixò
-                </button>
-              </div>
-            </div>
-
-            <!-- 8 JINGLE PREIMPOSTATI ICONICI (FINO A 10 SECONDI) -->
+                        <!-- 8 JINGLE PREIMPOSTATI ICONICI (FINO A 10 SECONDI) -->
             <div>
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:4px;">
                 <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-secondary); font-weight:800; margin:0;">
@@ -1863,6 +1823,14 @@
               </div>
 
               <div class="jingle-preset-grid">
+                <!-- Jingle Ufficiale Pixò -->
+                <button type="button" class="jingle-preset-card active" data-preset="pixo_chime" onclick="selectJinglePreset('pixo_chime')">
+                  <span class="preset-ico">✨</span>
+                  <div class="preset-info">
+                    <span class="preset-name">Jingle Pixò</span>
+                    <span class="preset-sub">Avvio Ufficiale (0.7s)</span>
+                  </div>
+                </button>
                 <button type="button" class="jingle-preset-card" data-preset="tetris" onclick="selectJinglePreset('tetris')">
                   <span class="preset-ico">🕹️</span>
                   <div class="preset-info">
@@ -4797,7 +4765,7 @@
 
 
 
-  <script src="app.js?v=63"></script>
+  <script src="app.js?v=64"></script>
 
 
 
