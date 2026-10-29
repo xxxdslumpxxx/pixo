@@ -98,7 +98,7 @@ const DEFAULT_CONFIG = {
 
 
 
-  defaultDeviceId: "",
+  defaultDeviceId: "ESP32-9205D4",
 
 
 
@@ -2723,14 +2723,14 @@ function initDeviceAndSettings() {
 
 
     state.deviceId = (localStorage.getItem('pixo_device_id') || 
-
-
-
                       localStorage.getItem('lavagna_device_id') || 
+                      DEFAULT_CONFIG.defaultDeviceId || 
+                      "ESP32-9205D4").trim().toUpperCase();
 
-
-
-                      "").trim().toUpperCase();
+  if (!state.deviceId) {
+    state.deviceId = "ESP32-9205D4";
+    localStorage.setItem('pixo_device_id', 'ESP32-9205D4');
+  }
 
 
 
@@ -17849,14 +17849,7 @@ window.onTtsInputChange = onTtsInputChange;
 window.playTtsPreview = playTtsPreview;
 window.sendTtsToPixo = sendTtsToPixo;
 
-window.toggleVoiceRecording = toggleVoiceRecording;
-window.onVoicePointerDown = onVoicePointerDown;
-window.onVoicePointerUp = onVoicePointerUp;
-window.startVoiceRecording = startVoiceRecording;
-window.stopVoiceRecording = stopVoiceRecording;
-window.playVoicePreview = playVoicePreview;
-window.sendVoiceToPixo = sendVoiceToPixo;
-window.discardVoiceRecording = discardVoiceRecording;
+// Vecchie funzioni vocali rimosse
 
 window.initJingleStudio = initJingleStudio;
 window.sendJingleToPixo = sendJingleToPixo;
