@@ -786,7 +786,168 @@ const TRANSLATIONS = {
 
 
 
-    feedStopped: "Modalità automatica fermata"
+    feedStopped: "Modalità automatica fermata",
+    eraserBtn: "Gomma",
+    strokeFine: "Fine (2px)",
+    strokeMedium: "Medio (4px)",
+    strokeThick: "Spesso (8px)",
+    strokeMarker: "Pennarello (16px)",
+    smartTextSub: "Scrivi a schermo",
+    smartGallerySub: "I tuoi disegni",
+    smartStickerSub: "Emoji & Simboli",
+    smartWeatherSub: "Previsioni live",
+    smartClockSub: "Modalità sveglia",
+    smartLightSub: "Illumina stanza",
+    smartBeepTitle: "Fai un Bip",
+    smartBeepSub: "Suona buzzer",
+    smartFollowerSub: "Contatore Live",
+    photoSection: "Carica Foto su Pixò",
+    photoSectionDesc: "Acquisisci o seleziona un'immagine: verrà ottimizzata per il display (240×240 px) e potrai posizionarla sulla lavagna prima di inviarla.",
+    btnTakePhoto: "📸 Scatta con Fotocamera",
+    btnChooseGallery: "🖼️ Scegli dalla Galleria / File",
+    slideshowTitle: "🎬 Cornice Digitale",
+    slideshowBadge: "Autonomo",
+    slideshowDesc: "Carica fino a 5 foto nella memoria interna di Pixò. Il carosello continua a ruotare anche a smartphone spento!",
+    slideshowIntervalLabel: "Intervallo cambio:",
+    interval10s: "10 secondi",
+    interval15s: "15 secondi",
+    interval20s: "20 secondi",
+    interval30s: "30 secondi",
+    interval1m: "1 minuto",
+    interval5m: "5 minuti",
+    btnSelectSlideshowPhotos: "➕ Seleziona Foto dal Telefono",
+    btnUploadSlideshow: "🚀 Carica su Pixò",
+    btnStartSlideshow: "▶️ Avvia",
+    btnClearSlideshow: "🗑️ Svuota memoria foto Pixò",
+    jingleStudioTitle: "🎹 Jingle Studio 8-Bit",
+    jingleStudioSub: "Componi melodie o caricale su Pixò",
+    jingleEmptyHint: "Tocca i tasti del pianoforte per comporre o scegli un preset in basso...",
+    jingleDurLabel: "Durata Nota:",
+    jingleDurShort: "Corta (0.15s)",
+    jingleDurMed: "Media (0.25s)",
+    jingleDurLong: "Lunga (0.45s)",
+    btnPauseNote: "⏸️ Pausa",
+    btnUndoNote: "⌫ Annulla",
+    btnClearJingle: "🗑️ Svuota",
+    octLowTitle: "🔉 Bassi",
+    octLowSub: "Ottava 3 (C3-B3)",
+    octMidTitle: "🎹 Medi",
+    octMidSub: "Ottava 4 (C4-B4)",
+    octHighTitle: "🔔 Acuti",
+    octHighSub: "Ottava 5 (C5-B5)",
+    btnPreviewJingle: "🎧 Ascolta sul Telefono",
+    btnSendJingle: "🚀 Suona su Pixò",
+    jinglePresetsTitle: "⭐ Jingle Iconici (Fino a 10s)",
+    jinglePresetsSub: "Tocca per caricare nella sequenza",
+    cardHardwareTitle: "Schermo, Audio & Hardware",
+    cardHardwareSub: "Luminosità, Volume, LED, Suoni e Standby",
+    volumeLabel: "🔊 Volume Sonoro",
+    buzzerSound: "Suoni & Beep Buzzer",
+    buzzerToggleSub: "Riproduci jingle e suoni alla ricezione disegni",
+    notifToneTitle: "Tono Notifica Messaggio",
+    notifToneSub: "Effetto sonoro all'arrivo di un disegno (max 1s)",
+    btnTestTone: "Prova",
+    tone1Title: "🔔 Bip Singolo",
+    tone1Sub: "Classico pulito (0.10s)",
+    tone2Title: "⚡ Doppio Bip",
+    tone2Sub: "Chirp rapido (0.18s)",
+    tone3Title: "🎶 Arpeggio Dolce",
+    tone3Sub: "Do-Mi-Sol (0.30s)",
+    tone4Title: "🛎️ Ding-Dong",
+    tone4Sub: "Due toni (0.43s)",
+    tone5Title: "⭐ Moneta 8-Bit",
+    tone5Sub: "Coin Arcade (0.38s)",
+    cardSecurityTitle: "Sicurezza & Accessi",
+    cardSecuritySub: "PIN, Filtro Bambini e Protezione",
+    pinChangeHint: "4-6 caratteri. Dopo 5 tentativi errati scatta il blocco anti-bruteforce.",
+    guestShareBoxTitle: "Link Amici Privati",
+    guestShareBoxSub: "Link sicuri senza esporre l'ID di Pixò",
+    friendsCardDesc: "I link amici usano un token segreto anonimo (senza mostrare l'ID del tuo Pixò) e mantengono la sincronizzazione in tempo reale per 1 persona alla volta.",
+    accessKeysLabel: "Chiavi d'Accesso",
+    accessKeysSub: "Crea o cancella i link per i tuoi amici",
+    btnManageLinks: "Gestisci Link",
+    cardLiveTitle: "Live Streaming & TikTok",
+    cardLiveSub: "Fai disegnare i follower in diretta streaming",
+    enableLiveTitle: "Abilita Modalità Live",
+    enableLiveSub: "Genera il link speciale per la tua bio o chat",
+    liveRoomCodeLabel: "🔒 Codice Stanza Live (Zero ID Hardware)",
+    btnRegenRoom: "🔄 Rigenera",
+    liveLinkFollowersLabel: "Link Live per i Follower",
+    liveFastConnBadge: "Connessione Lampo 0.5s",
+    liveCooldownLabel: "Cooldown tra invii (Anti-Spam)",
+    cdNone: "Nessuno (Subito)",
+    liveHintText: "💡 I follower disegnano offline e si collegano solo 0.5s per inviare. Ogni 3 disegni inviati apparirà un gentile invito a supportarti con una Rosa 🌹 su TikTok!",
+    cardNetworkTitle: "Rete & Sistema",
+    cardNetworkSub: "Wi-Fi, Firmware, Lingua e Notifiche",
+    phoneNotifTitle: "Notifiche sul Cellulare",
+    phoneNotifSub: "Ricevi un avviso quando arriva un nuovo disegno",
+    wifiSectionTitle: "Rete Wi-Fi di Pixò",
+    wifiWaitingSignal: "In attesa di segnale da Pixò...",
+    wifiConnectedBadge: "Collegato",
+    btnToggleNewWifi: "Imposta Nuova Wi-Fi",
+    btnOpenWifiPortal: "Scansiona Rete",
+    newWifiSsidLabel: "Nome Nuova Rete (SSID)",
+    newWifiPassLabel: "Password Wi-Fi",
+    btnCancelNewWifi: "Annulla",
+    btnApplyNewWifi: "Invia a Pixò",
+    otaSectionTitle: "Aggiornamento Firmware",
+    otaInstalledVer: "Versione installata:",
+    btnCheckFwUpdate: "Verifica",
+    factoryResetTitle: "Ripristino di Fabbrica",
+    factoryResetSub: "Cancella Wi-Fi salvata e riporta il PIN a 1234",
+    factoryResetBtn: "Ripristina",
+    liveRosePromptTitle: "💖 Ti piace disegnare su Pixò?",
+    liveRosePromptBody: "Hai già inviato {count} disegni in diretta! Spero tanto che questo dispositivo ti piaccia ❤️ Se ti fa piacere supportare la live, puoi donare una Rosa 🌹 su TikTok!",
+    liveRosePromptBtn: "🌹 Continua a disegnare!",
+    stopFeedBtn: "Interrompi",
+    liveSentDrawsLabel: "Disegni inviati:",
+    liveFetchScreenBtn: "📥 Schermata Pixò",
+    liveFetchScreenTitle: "Scarica o visualizza cosa c'è attualmente su Pixò",
+    liveSupportBtn: "Supporta 🌹",
+    standbyFaceLabel: "Pixò in Standby",
+    overlayHintText: "🖐️ Trascina e ridimensiona",
+    confirmOverlayBtn: "Applica",
+    cancelOverlayBtn: "Annulla",
+    writeMessageLabel: "Scrivi il tuo messaggio:",
+    customTextPlaceholder: "es. Ciao amore!",
+    platformLabel: "Piattaforma:",
+    followerUsernameLabel: "Nome Utente TikTok:",
+    followerFreqLabel: "Frequenza Aggiornamento Live:",
+    freq15s: "Ogni 15 secondi (Live Rapido)",
+    freq30s: "Ogni 30 secondi (Consigliato)",
+    freq1m: "Ogni 1 minuto",
+    freq5m: "Ogni 5 minuti",
+    startFollowerBtn: "🚀 Avvia Contatore su Pixò",
+    shareModalTitle: "Condivisione & Ospiti",
+    newGuestNamePlaceholder: "Nome per il link (es. Marco)",
+    createGuestKeyBtn: "+ Crea Link",
+    guestKeysEmpty: "Nessun link ospite attivo. Creane uno per farlo usare ai tuoi amici!",
+    onboardingTitle: "Connetti il tuo Pixò",
+    tabOnboardLogin: "🔑 Accedi con PIN",
+    tabOnboardActivate: "✨ Prima Attivazione",
+    onboardLoginPinPlaceholder: "Il tuo PIN personale",
+    submitLoginBtn: "Entra in Pixò",
+    onboardDeviceIdLabel: "ID Dispositivo (visibile sullo schermo)",
+    onboardFactoryPinLabel: "PIN di Fabbrica (1234)",
+    onboardNewPinLabel: "Crea Nuovo PIN Personale",
+    onboardNewPinPlaceholder: "4-6 cifre",
+    onboardConfirmPinLabel: "Conferma Nuovo PIN",
+    onboardConfirmPinPlaceholder: "Ripeti il nuovo PIN",
+    submitOnboardingBtn: "Attiva Pixò",
+    loadFromDisplayBtn: "🔄 Da Pixò",
+    galleryEmptyMessage: "Nessun disegno salvato. Usa il tasto 💾 Salva per conservare le tue creazioni!",
+    revokedTitle: "Accesso Non Disponibile",
+    revokedHint: "Il proprietario ha revocato questo link di invito oppure ha disattivato l'accesso per gli ospiti. Contattalo per richiedere un nuovo link.",
+    retryGuestAuthBtn: "🔄 Riprova a Verificare",
+    busyTitle: "Link Amico Già in Uso",
+    busyReason: "Questo link di invito è attualmente occupato da un'altra persona.",
+    busyHint: "Per garantire la privacy e non interrompere il disegno, ogni link amico può essere usato da una sola persona alla volta. Non appena l'altro utente chiuderà l'app, il link tornerà disponibile.",
+    retryGuestSessionBtn: "🔄 Controlla se si è liberato",
+    photoSourceAsk: "Come desideri inserire la foto sul display di Pixò?",
+    btnChangeDevice: "Cambia",
+    deviceNamePlaceholder: "es. Pixò Salotto",
+    weatherCityPlaceholder: "es. Roma, Milano...",
+    saveSettings: "💾 Salva Impostazioni"
 
 
 
@@ -1138,7 +1299,168 @@ const TRANSLATIONS = {
 
 
 
-    feedStopped: "Mode stopped"
+    feedStopped: "Mode stopped",
+    eraserBtn: "Eraser",
+    strokeFine: "Fine (2px)",
+    strokeMedium: "Medium (4px)",
+    strokeThick: "Thick (8px)",
+    strokeMarker: "Marker (16px)",
+    smartTextSub: "Write on screen",
+    smartGallerySub: "Your drawings",
+    smartStickerSub: "Emojis & Symbols",
+    smartWeatherSub: "Live forecast",
+    smartClockSub: "Desk clock mode",
+    smartLightSub: "Room light",
+    smartBeepTitle: "Make a Beep",
+    smartBeepSub: "Ring buzzer",
+    smartFollowerSub: "Live counter",
+    photoSection: "Upload Photo to Pixò",
+    photoSectionDesc: "Capture or select an image: it will be optimized for the display (240×240 px) and you can position it on the canvas before sending.",
+    btnTakePhoto: "📸 Take Photo with Camera",
+    btnChooseGallery: "🖼️ Choose from Gallery / Files",
+    slideshowTitle: "🎬 Digital Frame",
+    slideshowBadge: "Standalone",
+    slideshowDesc: "Upload up to 5 photos to Pixò's internal memory. The carousel keeps rotating even when your phone is off!",
+    slideshowIntervalLabel: "Switch interval:",
+    interval10s: "10 seconds",
+    interval15s: "15 seconds",
+    interval20s: "20 seconds",
+    interval30s: "30 seconds",
+    interval1m: "1 minute",
+    interval5m: "5 minutes",
+    btnSelectSlideshowPhotos: "➕ Select Photos from Phone",
+    btnUploadSlideshow: "🚀 Upload to Pixò",
+    btnStartSlideshow: "▶️ Start",
+    btnClearSlideshow: "🗑️ Clear Pixò Photo Memory",
+    jingleStudioTitle: "🎹 8-Bit Jingle Studio",
+    jingleStudioSub: "Compose melodies or upload them to Pixò",
+    jingleEmptyHint: "Tap the piano keys to compose or choose a preset below...",
+    jingleDurLabel: "Note Duration:",
+    jingleDurShort: "Short (0.15s)",
+    jingleDurMed: "Medium (0.25s)",
+    jingleDurLong: "Long (0.45s)",
+    btnPauseNote: "⏸️ Pause",
+    btnUndoNote: "⌫ Undo",
+    btnClearJingle: "🗑️ Clear",
+    octLowTitle: "🔉 Low",
+    octLowSub: "Octave 3 (C3-B3)",
+    octMidTitle: "🎹 Mid",
+    octMidSub: "Octave 4 (C4-B4)",
+    octHighTitle: "🔔 High",
+    octHighSub: "Octave 5 (C5-B5)",
+    btnPreviewJingle: "🎧 Preview on Phone",
+    btnSendJingle: "🚀 Play on Pixò",
+    jinglePresetsTitle: "⭐ Iconic Jingles (Up to 10s)",
+    jinglePresetsSub: "Tap to load into sequence",
+    cardHardwareTitle: "Display, Audio & Hardware",
+    cardHardwareSub: "Brightness, Volume, LEDs, Sounds, and Standby",
+    volumeLabel: "🔊 Sound Volume",
+    buzzerSound: "Buzzer Sounds & Beeps",
+    buzzerToggleSub: "Play jingles and sounds when drawings arrive",
+    notifToneTitle: "Message Notification Tone",
+    notifToneSub: "Sound effect when a new drawing arrives (max 1s)",
+    btnTestTone: "Test",
+    tone1Title: "🔔 Single Beep",
+    tone1Sub: "Clean classic (0.10s)",
+    tone2Title: "⚡ Double Beep",
+    tone2Sub: "Fast chirp (0.18s)",
+    tone3Title: "🎶 Sweet Arpeggio",
+    tone3Sub: "C-E-G chime (0.30s)",
+    tone4Title: "🛎️ Ding-Dong",
+    tone4Sub: "Two-tone bell (0.43s)",
+    tone5Title: "⭐ 8-Bit Coin",
+    tone5Sub: "Arcade Coin (0.38s)",
+    cardSecurityTitle: "Security & Access",
+    cardSecuritySub: "PIN, Kids Filter, and Protection",
+    pinChangeHint: "4-6 characters. Anti-bruteforce lockout triggers after 5 failed attempts.",
+    guestShareBoxTitle: "Private Friend Links",
+    guestShareBoxSub: "Secure links without exposing your Pixò ID",
+    friendsCardDesc: "Friend links use an anonymous secret token (without exposing your Pixò ID) and maintain real-time display sync for 1 person at a time.",
+    accessKeysLabel: "Access Keys",
+    accessKeysSub: "Create or revoke links for your friends",
+    btnManageLinks: "Manage Links",
+    cardLiveTitle: "Live Streaming & TikTok",
+    cardLiveSub: "Let your followers draw live on stream",
+    enableLiveTitle: "Enable Live Mode",
+    enableLiveSub: "Generate the special link for your bio or chat",
+    liveRoomCodeLabel: "🔒 Live Room Code (Zero Hardware ID)",
+    btnRegenRoom: "🔄 Regenerate",
+    liveLinkFollowersLabel: "Live Link for Followers",
+    liveFastConnBadge: "0.5s Lightning Connect",
+    liveCooldownLabel: "Cooldown between sends (Anti-Spam)",
+    cdNone: "None (Instant)",
+    liveHintText: "💡 Followers draw offline and connect for just 0.5s to send. Every 3 drawings sent, a friendly prompt will invite them to support you with a Rose 🌹 on TikTok!",
+    cardNetworkTitle: "Network & System",
+    cardNetworkSub: "Wi-Fi, Firmware, Language, and Notifications",
+    phoneNotifTitle: "Phone Notifications",
+    phoneNotifSub: "Get notified when a new drawing arrives",
+    wifiSectionTitle: "Pixò Wi-Fi Network",
+    wifiWaitingSignal: "Waiting for signal from Pixò...",
+    wifiConnectedBadge: "Connected",
+    btnToggleNewWifi: "Set New Wi-Fi",
+    btnOpenWifiPortal: "Scan Network",
+    newWifiSsidLabel: "New Network Name (SSID)",
+    newWifiPassLabel: "Wi-Fi Password",
+    btnCancelNewWifi: "Cancel",
+    btnApplyNewWifi: "Send to Pixò",
+    otaSectionTitle: "Firmware Update",
+    otaInstalledVer: "Installed version:",
+    btnCheckFwUpdate: "Check",
+    factoryResetTitle: "Factory Reset",
+    factoryResetSub: "Erases saved Wi-Fi and resets PIN to 1234",
+    factoryResetBtn: "Reset",
+    liveRosePromptTitle: "💖 Enjoy drawing on Pixò?",
+    liveRosePromptBody: "You've sent {count} live drawings! I really hope you like this device ❤️ If you'd like to support the stream, feel free to donate a Rose 🌹 on TikTok!",
+    liveRosePromptBtn: "🌹 Keep drawing!",
+    stopFeedBtn: "Stop",
+    liveSentDrawsLabel: "Drawings sent:",
+    liveFetchScreenBtn: "📥 Pixò Screen",
+    liveFetchScreenTitle: "Download or view what is currently on Pixò",
+    liveSupportBtn: "Support 🌹",
+    standbyFaceLabel: "Pixò in Standby",
+    overlayHintText: "🖐️ Drag and resize",
+    confirmOverlayBtn: "Apply",
+    cancelOverlayBtn: "Cancel",
+    writeMessageLabel: "Write your message:",
+    customTextPlaceholder: "e.g. Hello love!",
+    platformLabel: "Platform:",
+    followerUsernameLabel: "TikTok Username:",
+    followerFreqLabel: "Live Refresh Frequency:",
+    freq15s: "Every 15 seconds (Fast Live)",
+    freq30s: "Every 30 seconds (Recommended)",
+    freq1m: "Every 1 minute",
+    freq5m: "Every 5 minutes",
+    startFollowerBtn: "🚀 Start Counter on Pixò",
+    shareModalTitle: "Sharing & Guests",
+    newGuestNamePlaceholder: "Link name (e.g. Mark)",
+    createGuestKeyBtn: "+ Create Link",
+    guestKeysEmpty: "No active guest links. Create one to share with your friends!",
+    onboardingTitle: "Connect your Pixò",
+    tabOnboardLogin: "🔑 Login with PIN",
+    tabOnboardActivate: "✨ First Activation",
+    onboardLoginPinPlaceholder: "Your personal PIN",
+    submitLoginBtn: "Enter Pixò",
+    onboardDeviceIdLabel: "Device ID (shown on screen)",
+    onboardFactoryPinLabel: "Factory PIN (1234)",
+    onboardNewPinLabel: "Create New Personal PIN",
+    onboardNewPinPlaceholder: "4-6 digits",
+    onboardConfirmPinLabel: "Confirm New PIN",
+    onboardConfirmPinPlaceholder: "Repeat new PIN",
+    submitOnboardingBtn: "Activate Pixò",
+    loadFromDisplayBtn: "🔄 From Pixò",
+    galleryEmptyMessage: "No saved drawings yet. Use the 💾 Save button to keep your creations!",
+    revokedTitle: "Access Unavailable",
+    revokedHint: "The owner has revoked this invitation link or disabled guest access. Contact them for a new link.",
+    retryGuestAuthBtn: "🔄 Retry Verification",
+    busyTitle: "Friend Link Busy",
+    busyReason: "This invitation link is currently being used by someone else.",
+    busyHint: "To protect privacy and prevent drawing interruptions, each friend link can be used by one person at a time. As soon as the other user closes the app, the link will be free.",
+    retryGuestSessionBtn: "🔄 Check if available",
+    photoSourceAsk: "How would you like to add the photo to Pixò's display?",
+    btnChangeDevice: "Switch",
+    deviceNamePlaceholder: "e.g. Living Room Pixò",
+    weatherCityPlaceholder: "e.g. London, Rome...",
+    saveSettings: "💾 Save Settings"
 
 
 
@@ -1363,6 +1685,8 @@ const state = {
 
 
   buzzerEnabled: localStorage.getItem('pixo_buzzer_enabled') !== 'false',
+  buzzerVolume: parseInt(localStorage.getItem('pixo_buzzer_volume') ?? '100', 10),
+  liveSentCount: parseInt(localStorage.getItem('pixo_live_sent_count') || '0', 10),
 
 
 
@@ -2420,7 +2744,44 @@ function setLanguage(lang) {
 
   const langEl = document.getElementById('langSelect');
   if (langEl) langEl.value = lang;
+
+  // 5. Traduzione dinamica Categorie Sticker
+  const catNames = {
+    it: { all: 'Tutti', faces: 'Faccine', love: 'Amore', food: 'Cibo & Party', animals: 'Animali', symbols: 'Simboli', gaming: 'Rétro & Geek' },
+    en: { all: 'All', faces: 'Faces', love: 'Love', food: 'Food & Party', animals: 'Animals', symbols: 'Symbols', gaming: 'Retro & Geek' }
+  };
+  const curCats = catNames[lang] || catNames.it;
+  STICKER_CATEGORIES.forEach(c => { if (curCats[c.id]) c.label = curCats[c.id]; });
+  document.querySelectorAll('#stickerCategoriesBar .sticker-cat-pill').forEach(btn => {
+    const cid = btn.dataset.cat;
+    const catObj = STICKER_CATEGORIES.find(c => c.id === cid);
+    if (catObj) btn.textContent = `${catObj.icon} ${catObj.label}`;
+  });
+
+  // 6. Aggiorna lista chiavi ospiti (pulsanti Copia/Revoca e contatore attivi)
+  if (typeof renderGuestKeysList === 'function') {
+    try { renderGuestKeysList(); } catch(e) {}
+  }
 }
+
+// ==========================================================================
+//  SEZIONI IMPOSTAZIONI ESPANDIBILI (ACCORDION) & SALVATAGGIO RAPIDO
+// ==========================================================================
+function toggleSettingsSection(cardId) {
+  const card = document.getElementById(cardId);
+  if (!card) return;
+  if (typeof playAudioClick === 'function') playAudioClick();
+  card.classList.toggle('open');
+}
+window.toggleSettingsSection = toggleSettingsSection;
+
+function triggerSaveSettings() {
+  const btn = document.getElementById('saveSettingsBtn');
+  if (btn) {
+    btn.click();
+  }
+}
+window.triggerSaveSettings = triggerSaveSettings;
 
 
 
@@ -2552,7 +2913,9 @@ function playAudioClick() {
 
 
 
-    gain.gain.setValueAtTime(0.28, now);
+    if (!state.buzzerEnabled || state.buzzerVolume === 0) return;
+    const volScale = Math.max(0, Math.min(100, state.buzzerVolume ?? 100)) / 100;
+    gain.gain.setValueAtTime(0.28 * volScale, now);
 
 
 
@@ -2701,13 +3064,8 @@ function publishToDrawTopics(payload) {
 
 
     if (state.isGuestMode) {
-
-
-
       const key = state.guestKey || 'pixo123';
-
-
-
+      state.mqttClient.publish(`pixo/friend/${key}/draw`, payload, { qos: 0, retain: false });
       state.mqttClient.publish(`pixo/device/${devId}/guest/${key}/draw`, payload, { qos: 0, retain: false });
 
 
@@ -2757,17 +3115,8 @@ function getDrawTopic() {
 
 
   if (state.isGuestMode) {
-
-
-
     const key = state.guestKey || 'pixo123';
-
-
-
-    return `pixo/device/${state.deviceId}/guest/${key}/draw`;
-
-
-
+    return `pixo/friend/${key}/draw`;
   }
 
 
@@ -2952,22 +3301,10 @@ function initDeviceAndSettings() {
 
 
 
-  } else if (urlParams.get('guest') === '1') {
-
-
-
+  } else if (urlParams.get('friend') || urlParams.get('guest') === '1') {
     state.isLiveMode = false;
-
-
-
     state.isGuestMode = true;
-
-
-
-    state.guestKey = urlParams.get('key') || 'pixo123';
-
-
-
+    state.guestKey = (urlParams.get('friend') || urlParams.get('key') || 'pixo123').trim();
     state.devicePin = ""; // L'ospite NON ha e NON vede il PIN proprietario
 
 
@@ -3553,10 +3890,18 @@ function updateSettingsUI() {
 
 
   brightnessSlider.value = state.brightness;
-
-
-
   brightnessVal.textContent = `${state.brightness}%`;
+
+  const buzzerVolSlider = document.getElementById('buzzerVolumeSlider');
+  const buzzerVolVal = document.getElementById('buzzerVolumeVal');
+  if (buzzerVolSlider) buzzerVolSlider.value = state.buzzerVolume ?? 100;
+  if (buzzerVolVal) buzzerVolVal.textContent = `${state.buzzerVolume ?? 100}%`;
+
+  // Per gli ospiti, apri automaticamente la card Sistema/Opzioni così vedono subito Lingua, Tema e Notifiche
+  if (state.isGuestMode && !state.isLiveMode) {
+    const accSys = document.getElementById('accSystem');
+    if (accSys) accSys.classList.add('open');
+  }
 
 
 
@@ -3685,13 +4030,7 @@ function updateSettingsUI() {
 
 
     if (liveCreditsCount) {
-
-
-
-      liveCreditsCount.textContent = state.liveCredits;
-
-
-
+      liveCreditsCount.textContent = state.liveSentCount || 0;
     }
 
 
@@ -3881,360 +4220,118 @@ function updateLiveShareLink() {
 
 
 async function sendLiveDrawingMqtt() {
-
-
-
-  if (state.liveCredits <= 0) {
-
-
-
-    if (liveUnlockModal) liveUnlockModal.classList.remove('hidden');
-
-
-
-    showToast("Disegni gratis esauriti! Dona una 🌹 su TikTok per sbloccare altri disegni", "warning");
-
-
-
-    return;
-
-
-
-  }
-
-
-
-
-
-
-
   const now = Date.now();
-
-
-
   if (now < state.liveCooldownUntil) {
-
-
-
     const remainingSec = Math.ceil((state.liveCooldownUntil - now) / 1000);
-
-
-
-    showToast(`Attendi ancora ${remainingSec}s prima di inviare! (Anti-spam diretta)`, "warning");
-
-
-
+    showToast(
+      state.lang === 'it'
+        ? `Attendi ancora ${remainingSec}s prima di inviare! (Anti-spam diretta)`
+        : `Please wait ${remainingSec}s before sending again! (Live anti-spam)`,
+      "warning"
+    );
     return;
-
-
-
   }
-
-
-
-
-
-
 
   if (state.kidsModeEnabled) {
-
-
-
     const safety = checkImageSafety(canvas);
-
-
-
     if (!safety.safe) {
-
-
-
       showToast(t("toastKidsModeImgBlocked"), "error");
-
-
-
       return;
-
-
-
     }
-
-
-
   }
-
-
-
-
-
-
 
   state.isSending = true;
-
-
-
   sendBtn.disabled = true;
-
-
-
   const lbl = sendBtn.querySelector('.send-label');
-
-
-
-  const origText = lbl ? lbl.textContent : "Invia a Pixò";
-
-
-
-  if (lbl) lbl.textContent = "Connessione lampo 0.5s...";
-
-
-
-
-
-
+  const origText = lbl ? lbl.textContent : t("sendToDisplay");
+  if (lbl) lbl.textContent = state.lang === 'it' ? "Connessione lampo 0.5s..." : "0.5s Flash Connect...";
 
   try {
-
-
-
     const blob = await getCanvasJpegBlob();
-
-
-
     const arrayBuffer = await blob.arrayBuffer();
-
-
-
     const uint8Array = new Uint8Array(arrayBuffer);
 
-
-
-
-
-
-
     const tempId = "PixoLive_" + Math.random().toString(36).substr(2, 7);
-
-
-
     const liveClient = mqtt.connect(state.brokerUrl, {
-
-
-
       clientId: tempId,
-
-
-
       clean: true,
-
-
-
       connectTimeout: 5000,
-
-
-
       username: state.brokerUser,
-
-
-
       password: state.brokerPass
-
-
-
     });
-
-
-
-
-
-
 
     let sent = false;
-
-
-
     await new Promise((resolve) => {
-
-
-
       const timer = setTimeout(() => {
-
-
-
         try { liveClient.end(true); } catch(e){}
-
-
-
         resolve();
-
-
-
       }, 5000);
 
-
-
-
-
-
-
       liveClient.on('connect', () => {
-
-
-
-        // Invia su topic diretto di visualizzazione con PIN 1234 garantito dal firmware
-
-
-
-        liveClient.publish(`pixo/device/${state.deviceId}/1234/draw`, uint8Array, { qos: 0 });
-
-
-
-        // Salva retained current per consentire lo scaricamento immediato agli altri spettatori
-
-
-
-        liveClient.publish(`pixo/device/${state.deviceId}/current`, uint8Array, { qos: 0, retain: true });
-
-
-
+        const roomCode = state.liveRoom || state.liveRoomCode || localStorage.getItem('pixo_live_room_code');
+        if (roomCode) {
+          liveClient.publish(`pixo/live/${roomCode}/draw`, uint8Array, { qos: 0 });
+        }
+        if (state.deviceId) {
+          liveClient.publish(`pixo/device/${state.deviceId}/1234/draw`, uint8Array, { qos: 0 });
+          liveClient.publish(`pixo/device/${state.deviceId}/current`, uint8Array, { qos: 0, retain: true });
+        }
         sent = true;
-
-
-
         setTimeout(() => {
-
-
-
           clearTimeout(timer);
-
-
-
           try { liveClient.end(true); } catch(e){}
-
-
-
           resolve();
-
-
-
-        }, 400); // 400ms per flush TCP
-
-
-
+        }, 400);
       });
-
-
-
-
-
-
 
       liveClient.on('error', (err) => {
-
-
-
         console.error('[Live MQTT error]', err);
-
-
-
         clearTimeout(timer);
-
-
-
         try { liveClient.end(true); } catch(e){}
-
-
-
         resolve();
-
-
-
       });
-
-
-
     });
 
-
-
-
-
-
-
     if (sent) {
-
-
-
-      state.liveCredits--;
-
-
-
-      localStorage.setItem(`pixo_live_credits_${state.deviceId}`, state.liveCredits);
-
-
-
-      if (liveCreditsCount) liveCreditsCount.textContent = state.liveCredits;
-
-
+      state.liveSentCount = (state.liveSentCount || 0) + 1;
+      localStorage.setItem('pixo_live_sent_count', state.liveSentCount);
+      if (liveCreditsCount) liveCreditsCount.textContent = state.liveSentCount;
 
       state.liveCooldownUntil = Date.now() + (state.liveCooldownSec * 1000);
+      showToast(
+        state.lang === 'it'
+          ? `Disegno inviato in diretta! 🚀 (#${state.liveSentCount})`
+          : `Drawing sent live! 🚀 (#${state.liveSentCount})`,
+        "success"
+      );
 
-
-
-      showToast(`Disegno inviato in diretta! 🚀 (${state.liveCredits} rimasti)`, "success");
-
-
-
+      // Ogni 3 disegni inviati (3, 6, 9, 12...), mostra il gentile invito a donare una Rosa su TikTok!
+      if (state.liveSentCount > 0 && state.liveSentCount % 3 === 0) {
+        const bodyEl = document.getElementById('liveRosePromptBodyText');
+        if (bodyEl) {
+          bodyEl.textContent = t("liveRosePromptBody", { count: state.liveSentCount });
+        }
+        if (liveUnlockModal) {
+          liveUnlockModal.classList.remove('hidden');
+        }
+      }
     } else {
-
-
-
-      showToast("Invio non riuscito. Controlla la connessione e riprova!", "error");
-
-
-
+      showToast(
+        state.lang === 'it'
+          ? "Invio non riuscito. Controlla la connessione e riprova!"
+          : "Send failed. Check your connection and try again!",
+        "error"
+      );
     }
-
-
-
   } catch(e) {
-
-
-
     console.error("Errore durante invio live:", e);
-
-
-
-    showToast("Errore durante l'invio in diretta.", "error");
-
-
-
+    showToast(state.lang === 'it' ? "Errore durante l'invio in diretta." : "Error sending live drawing.", "error");
   } finally {
-
-
-
     state.isSending = false;
-
-
-
     sendBtn.disabled = false;
-
-
-
     if (lbl) lbl.textContent = origText;
-
-
-
   }
-
-
-
 }
-
-
-
-
-
-
 
 async function fetchLiveScreen() {
 
@@ -4465,33 +4562,11 @@ async function fetchLiveScreen() {
 
 
 function buildGuestUrl(key) {
-
-
-
   const baseUrl = window.location.origin + window.location.pathname;
-
-
-
   const url = new URL(baseUrl);
-
-
-
-  url.searchParams.set('id', state.deviceId);
-
-
-
-  url.searchParams.set('key', key);
-
-
-
-  url.searchParams.set('guest', '1');
-
-
-
+  // NESSUN ID HARDWARE ESPOSTO: Solo token amico segreto!
+  url.searchParams.set('friend', key);
   return url.toString();
-
-
-
 }
 
 
@@ -11780,7 +11855,9 @@ function renderGuestKeysList() {
 
 
 
-    guestKeysCountBadge.textContent = `${count} ${count === 1 ? 'attivo' : 'attivi'}`;
+    guestKeysCountBadge.textContent = state.lang === 'it'
+      ? `${count} ${count === 1 ? 'attivo' : 'attivi'}`
+      : `${count} active`;
 
 
 
@@ -11916,7 +11993,7 @@ function renderGuestKeysList() {
 
 
 
-    delBtn.innerHTML = '🗑️ Revoca';
+    delBtn.innerHTML = state.lang === 'it' ? '🗑️ Revoca' : '🗑️ Revoke';
 
 
 
@@ -11996,7 +12073,7 @@ function renderGuestKeysList() {
 
 
 
-    copyBtn.innerHTML = '📋 Copia';
+    copyBtn.innerHTML = state.lang === 'it' ? '📋 Copia' : '📋 Copy';
 
 
 
@@ -12164,7 +12241,14 @@ function addNewGuestKey(name) {
 
 
 
-  if (!state.guestKeys) state.guestKeys = [];
+  if (!state.guestKeys) if (state.guestKeys && state.mqttConnected && state.mqttClient) {
+    state.guestKeys.forEach(item => {
+      if (item && item.key) {
+        state.mqttClient.publish(`pixo/friend/${item.key}/meta`, JSON.stringify({ status: "REVOKED" }), { qos: 1, retain: true });
+      }
+    });
+  }
+  state.guestKeys = [];
 
 
 
@@ -12232,6 +12316,10 @@ function deleteGuestKey(id, name) {
 
 
 
+  const revokedItem = (state.guestKeys || []).find(k => k.id === id);
+  if (revokedItem && revokedItem.key && state.mqttConnected && state.mqttClient) {
+    state.mqttClient.publish(`pixo/friend/${revokedItem.key}/meta`, JSON.stringify({ status: "REVOKED" }), { qos: 1, retain: true });
+  }
   state.guestKeys = state.guestKeys.filter(k => k.id !== id);
 
 
@@ -12445,21 +12533,19 @@ function syncGuestKeysToDevice(forcePublishData = true) {
 
 
     // 4. Sincronizzazione stato Filtro Bambini (Retained) per gli ospiti
-
-
-
     const kidsVal = state.kidsModeEnabled !== false ? "ON" : "OFF";
-
-
-
     state.mqttClient.publish(`pixo/device/${state.deviceId}/kids_mode`, kidsVal, { qos: 1, retain: true });
 
-
-
+    // 5. Pubblica stato autorizzazione anonimo per ogni chiave amico su pixo/friend/<key>/meta
+    keysArray.forEach(k => {
+      const metaPayload = JSON.stringify({
+        status: state.allowGuests !== false ? "ACTIVE" : "DISABLED",
+        kidsMode: state.kidsModeEnabled !== false,
+        name: state.deviceName || "Pixò"
+      });
+      state.mqttClient.publish(`pixo/friend/${k}/meta`, metaPayload, { qos: 1, retain: true });
+    });
   }
-
-
-
 }
 
 
@@ -13921,17 +14007,21 @@ function sendBrightness(percent) {
 
 
   const topic = `pixo/device/${state.deviceId}/brightness`;
-
-
-
   const payload = new TextEncoder().encode(percent.toString());
-
-
-
   state.mqttClient.publish(topic, payload, { qos: 0, retain: false });
+}
 
+function sendBuzzerVolume(percent, publishToMqtt = true) {
+  const vol = Math.max(0, Math.min(100, parseInt(percent, 10) || 0));
+  state.buzzerVolume = vol;
+  localStorage.setItem('pixo_buzzer_volume', vol);
+  const buzzerVolVal = document.getElementById('buzzerVolumeVal');
+  if (buzzerVolVal) buzzerVolVal.textContent = `${vol}%`;
 
-
+  if (publishToMqtt && state.mqttConnected && state.mqttClient && state.deviceId) {
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/volume`, vol.toString(), { qos: 0, retain: true });
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, `VOLUME:${vol}`, { qos: 0, retain: false });
+  }
 }
 
 
@@ -14044,7 +14134,7 @@ function subscribeDeviceTopics() {
 
 
 
-    const guestAckTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`;
+    const guestAckTopic = `pixo/friend/${state.guestKey}/ack`;
 
 
 
@@ -14053,17 +14143,10 @@ function subscribeDeviceTopics() {
 
 
     state.mqttClient.subscribe(accessKeysTopic, { qos: 1 });
-
-
-
     state.mqttClient.subscribe(accessStatusTopic, { qos: 1 });
-
-
-
     state.mqttClient.subscribe(guestAckTopic, { qos: 0 });
-
-
-
+    state.mqttClient.subscribe(`pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`, { qos: 0 });
+    state.mqttClient.subscribe(`pixo/friend/${state.guestKey}/meta`, { qos: 1 });
     state.mqttClient.subscribe(kidsModeTopic, { qos: 1 });
 
 
@@ -14080,7 +14163,7 @@ function subscribeDeviceTopics() {
 
 
 
-      const guestLockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+      const guestLockTopic = `pixo/friend/${state.guestKey}/lock`;
 
 
 
@@ -14213,6 +14296,7 @@ function subscribeDeviceTopics() {
 
 
     sendBrightness(state.brightness);
+    sendBuzzerVolume(state.buzzerVolume ?? 100, true);
 
 
 
@@ -14328,7 +14412,7 @@ function connectMQTT() {
 
 
 
-      topic: `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`,
+      topic: `pixo/friend/${state.guestKey}/lock`,
 
 
 
@@ -14508,11 +14592,11 @@ function connectMQTT() {
 
 
 
-          const guestAckTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`;
+          const guestAckTopic = `pixo/friend/${state.guestKey}/ack`;
 
 
 
-          const guestLockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+          const guestLockTopic = `pixo/friend/${state.guestKey}/lock`;
 
 
 
@@ -14536,7 +14620,20 @@ function connectMQTT() {
 
 
 
-          if (topic === guestLockTopic && state.isGuestMode && !state.isLiveMode) {
+          if (topic === `pixo/friend/${state.guestKey}/meta` && state.isGuestMode) {
+            try {
+              const metaStr = new TextDecoder().decode(payload).trim();
+              const meta = JSON.parse(metaStr);
+              if (meta.status === "REVOKED") {
+                setGuestAccessAuthorized(false, state.lang === 'it' ? "Questo link di invito è stato revocato dal proprietario." : "This invite link has been revoked by the owner.");
+              } else if (meta.status === "DISABLED") {
+                setGuestAccessAuthorized(false, state.lang === 'it' ? "Il proprietario ha temporaneamente disattivato l'accesso ospiti." : "The owner has temporarily disabled guest access.");
+              } else if (meta.status === "ACTIVE") {
+                if (typeof meta.kidsMode === 'boolean') state.kidsModeEnabled = meta.kidsMode;
+                setGuestAccessAuthorized(true);
+              }
+            } catch (e) {}
+          } else if (topic === guestLockTopic && state.isGuestMode && !state.isLiveMode) {
 
 
 
@@ -14568,7 +14665,7 @@ function connectMQTT() {
 
 
 
-          } else if (topic === guestAckTopic && state.isGuestMode) {
+          } else if ((topic === guestAckTopic || topic === `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`) && state.isGuestMode) {
 
 
 
@@ -15676,7 +15773,7 @@ function startGuestLockHeartbeat() {
 
 
 
-      const lockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+      const lockTopic = `pixo/friend/${state.guestKey}/lock`;
 
 
 
@@ -15720,7 +15817,7 @@ function claimGuestSessionLock() {
 
 
 
-  const lockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+  const lockTopic = `pixo/friend/${state.guestKey}/lock`;
 
 
 
@@ -15912,7 +16009,7 @@ function releaseGuestSessionLock() {
 
 
 
-    const lockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+    const lockTopic = `pixo/friend/${state.guestKey}/lock`;
 
 
 
@@ -15975,18 +16072,15 @@ function sendSystemNotification(title, body) {
   const options = {
     body: body,
     icon: notifIcon,
+    badge: notifIcon,
     vibrate: [200, 100, 200],
-    tag: 'pixo-drawing-alert', // tag unico per raggruppare/aggiornare senza duplicati
-    renotify: false // non ripete l'allarme se ce n'è già una attiva nel cassetto notifiche
+    tag: 'pixo-drawing-alert',
+    renotify: true,
+    timestamp: Date.now(),
+    data: { url: window.location.href }
   };
 
-
-
-
-
-
-
-  if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+  if ('serviceWorker' in navigator) {
 
 
 
@@ -17332,7 +17426,9 @@ function playWebAudioTone(frequency, durationMs) {
     osc.type = 'square'; // tono 8-bit classico da buzzer
     osc.frequency.setValueAtTime(frequency, ctx.currentTime);
 
-    gain.gain.setValueAtTime(0.2, ctx.currentTime);
+    const volScale = Math.max(0, Math.min(100, state.buzzerVolume ?? 100)) / 100;
+    if (volScale <= 0) return;
+    gain.gain.setValueAtTime(0.2 * volScale, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (durationMs / 1000) * 0.95);
 
     osc.connect(gain);
@@ -17442,8 +17538,8 @@ function selectJinglePreset(presetKey) {
   state.jingleNotes = JSON.parse(JSON.stringify(preset));
   renderJingleSequence();
 
-  // Riproduce subito l'anteprima sul telefono
-  playWebAudioJingle(state.jingleNotes);
+  // Ferma eventuale riproduzione in corso (NON avvia in automatico: decide l'utente con il tasto Ascolta)
+  stopWebAudioPlayback();
     const presetLabels = {
     pixo_chime: "Jingle Ufficiale Pixò",
     tetris: "Puzzle 8-Bit (Korobeiniki)",
@@ -17838,7 +17934,7 @@ function setupEventListeners() {
 
 
 
-      const guestLockTopic = `pixo/device/${state.deviceId}/guest/${state.guestKey}/lock`;
+      const guestLockTopic = `pixo/friend/${state.guestKey}/lock`;
 
 
 
@@ -20463,18 +20559,20 @@ function setupEventListeners() {
 
 
   brightnessSlider.addEventListener('input', (e) => {
-
-
-
     const val = parseInt(e.target.value, 10);
-
-
-
     sendBrightness(val);
-
-
-
   });
+
+  const buzzerVolumeSlider = document.getElementById('buzzerVolumeSlider');
+  if (buzzerVolumeSlider) {
+    buzzerVolumeSlider.value = state.buzzerVolume ?? 100;
+    const buzzerVolVal = document.getElementById('buzzerVolumeVal');
+    if (buzzerVolVal) buzzerVolVal.textContent = `${state.buzzerVolume ?? 100}%`;
+    buzzerVolumeSlider.addEventListener('input', (e) => {
+      const val = parseInt(e.target.value, 10);
+      sendBuzzerVolume(val, true);
+    });
+  }
 
 
 
@@ -20995,41 +21093,10 @@ function setupEventListeners() {
 
 
   if (liveClaimDonationBtn) {
-
-
-
     liveClaimDonationBtn.addEventListener('click', () => {
-
-
-
-      const added = state.liveDrawsPerRose || 3;
-
-
-
-      state.liveCredits += added;
-
-
-
-      localStorage.setItem(`pixo_live_credits_${state.deviceId}`, state.liveCredits);
-
-
-
-      if (liveCreditsCount) liveCreditsCount.textContent = state.liveCredits;
-
-
-
       closeLiveUnlock();
-
-
-
-      showToast(`Grazie per il regalo! 🌹 Sbloccati +${added} disegni!`, "success");
-
-
-
+      showToast(state.lang === 'it' ? "Grazie di cuore per il tuo supporto! 🌹❤️" : "Thank you so much for your support! 🌹❤️", "success");
     });
-
-
-
   }
 
 
@@ -23134,3 +23201,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
+
+
+// ==========================================================================
+//  RICONNESSIONE ISTANTANEA MQTT AL RISVEGLIO DALLO STANDBY / BACKGROUND
+// ==========================================================================
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !state.isLiveMode) {
+    if (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected) {
+      console.log('[WAKE] App tornata visibile: riconnessione immediata a Pixò Cloud...');
+      connectMQTT();
+    }
+  }
+});
+
+window.addEventListener('pageshow', () => {
+  if (!state.isLiveMode && (!state.mqttConnected || !state.mqttClient || !state.mqttClient.connected)) {
+    connectMQTT();
+  }
+});
