@@ -3066,10 +3066,8 @@ function publishToDrawTopics(payload) {
     if (state.isGuestMode) {
       const key = state.guestKey || 'pixo123';
       state.mqttClient.publish(`pixo/friend/${key}/draw`, payload, { qos: 0, retain: false });
-      state.mqttClient.publish(`pixo/device/${devId}/guest/${key}/draw`, payload, { qos: 0, retain: false });
-
-
-
+      state.mqttClient.publish(`pixo/friend/${key}/current`, payload, { qos: 0, retain: true });
+      state.mqttClient.publish(`pixo/live/current`, payload, { qos: 0, retain: true });
     } else {
 
 
@@ -4341,7 +4339,9 @@ async function sendLiveDrawingMqtt() {
 
       liveClient.on('connect', () => {
         const roomCode = state.liveRoom || state.liveRoomCode || localStorage.getItem('pixo_live_room_code') || 'PIX-LIVE';
-        liveClient.publish(`pixo/live/${roomCode}/draw`, uint8Array, { qos: 0 });
+        liveClient.publish(`pixo/live/${roomCode}/draw`, uint8Array, { qos: 0, retain: false });
+        liveClient.publish(`pixo/live/${roomCode}/current`, uint8Array, { qos: 0, retain: true });
+        liveClient.publish(`pixo/live/current`, uint8Array, { qos: 0, retain: true });
         sent = true;
         setTimeout(() => {
           clearTimeout(timer);
@@ -14061,6 +14061,7 @@ function subscribeDeviceTopics() {
     state.mqttClient.subscribe(guestAckTopic, { qos: 0 });
     state.mqttClient.subscribe(`pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`, { qos: 0 });
     state.mqttClient.subscribe(`pixo/friend/${state.guestKey}/meta`, { qos: 1 });
+    state.mqttClient.subscribe(`pixo/live/current`, { qos: 0 });
     state.mqttClient.subscribe(kidsModeTopic, { qos: 1 });
 
 
@@ -14146,10 +14147,9 @@ function subscribeDeviceTopics() {
 
 
     const currentTopic = `pixo/device/${state.deviceId}/current`;
-
-
-
     state.mqttClient.subscribe(currentTopic, { qos: 0 });
+    state.mqttClient.subscribe(`pixo/live/current`, { qos: 0 });
+    state.mqttClient.subscribe(`pixo/friend/+/current`, { qos: 0 });
 
 
 
@@ -14616,10 +14616,7 @@ function connectMQTT() {
 
 
 
-          } else if (topic === currentTopic && (!state.isGuestMode || state.guestAuthorized === true)) {
-
-
-
+          } else if ((topic === currentTopic || topic === 'pixo/live/current' || (topic.startsWith('pixo/friend/') && topic.endsWith('/current'))) && (!state.isGuestMode || state.guestAuthorized === true)) {
             handleCurrentDisplaySync(payload);
 
 
