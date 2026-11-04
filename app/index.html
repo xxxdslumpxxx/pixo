@@ -66,7 +66,7 @@
 
 
 
-  <link rel="stylesheet" href="style.css?v=67">
+  <link rel="stylesheet" href="style.css?v=68">
 
 
 
@@ -480,6 +480,63 @@
   color: rgba(255, 255, 255, 0.5);
   margin-top: 1px;
 }
+
+/* ==============================================================
+   SETTINGS ACCORDION (ESPANDIBILE / COLLASSABILE)
+   ============================================================== */
+.settings-accordion-card {
+  padding: 0 !important;
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.settings-accordion-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
+}
+.settings-accordion-header:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+.settings-accordion-header:active {
+  background: rgba(255, 255, 255, 0.06);
+}
+.settings-accordion-chevron {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s ease;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.settings-accordion-card.open .settings-accordion-chevron {
+  transform: rotate(180deg);
+  color: #fff;
+  background: rgba(10, 132, 255, 0.25);
+}
+.settings-accordion-body {
+  display: none;
+  padding: 4px 16px 16px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.settings-accordion-card.open .settings-accordion-body {
+  display: block;
+}
+.save-section-btn {
+  margin-top: 14px;
+  padding: 12px !important;
+  font-size: 0.9rem !important;
+  font-weight: 700 !important;
+}
 </style>
 
 </head>
@@ -618,7 +675,7 @@
 
 
 
-          <button class="banner-stop-btn" id="stopFeedBtn">Interrompi</button>
+          <button class="banner-stop-btn" id="stopFeedBtn" data-i18n="stopFeedBtn">Interrompi</button>
 
 
 
@@ -670,7 +727,7 @@
 
 
 
-            <small style="color:var(--text-secondary); font-size:0.75rem;">Disegni disponibili: <b id="liveCreditsCount" style="color:#fff; font-size:0.9rem;">3</b></small>
+            <small style="color:var(--text-secondary); font-size:0.75rem;"><span data-i18n="liveSentDrawsLabel">Disegni inviati:</span> <b id="liveCreditsCount" style="color:#fff; font-size:0.9rem;">0</b></small>
 
 
 
@@ -686,11 +743,11 @@
 
 
 
-          <button type="button" class="pill-btn secondary mini" id="liveFetchScreenBtn" title="Scarica o visualizza cosa c'è attualmente su Pixò">📥 Schermata Pixò</button>
+          <button type="button" class="pill-btn secondary mini" id="liveFetchScreenBtn" data-i18n="liveFetchScreenBtn" data-i18n-title="liveFetchScreenTitle" title="Scarica o visualizza cosa c'è attualmente su Pixò">📥 Schermata Pixò</button>
 
 
 
-          <button type="button" class="pill-btn primary mini" id="liveUnlockModalBtn" style="background:#ff375f; border-color:#ff375f;">Sblocca 🌹</button>
+          <button type="button" class="pill-btn primary mini" id="liveUnlockModalBtn" data-i18n="liveSupportBtn" style="background:#ff375f; border-color:#ff375f;">Supporta 🌹</button>
 
 
 
@@ -830,7 +887,7 @@
 
 
 
-              <span class="standby-face-label">Pixò in Standby</span>
+              <span class="standby-face-label" data-i18n="standbyFaceLabel">Pixò in Standby</span>
 
 
 
@@ -902,7 +959,7 @@
 
 
 
-          <span class="overlay-hint" id="overlayHintText">🖐️ Trascina e ridimensiona</span>
+          <span class="overlay-hint" id="overlayHintText" data-i18n="overlayHintText">🖐️ Trascina e ridimensiona</span>
 
 
 
@@ -910,11 +967,11 @@
 
 
 
-            <button id="confirmOverlayBtn" class="pill-btn primary mini">Applica</button>
+            <button id="confirmOverlayBtn" class="pill-btn primary mini" data-i18n="confirmOverlayBtn">Applica</button>
 
 
 
-            <button id="cancelOverlayBtn" class="pill-btn danger mini">Annulla</button>
+            <button id="cancelOverlayBtn" class="pill-btn danger mini" data-i18n="cancelOverlayBtn">Annulla</button>
 
 
 
@@ -1122,7 +1179,7 @@
 
 
 
-                <span class="tool-lbl">Gomma</span>
+                <span class="tool-lbl" data-i18n="eraserBtn">Gomma</span>
 
 
 
@@ -1174,7 +1231,7 @@
 
 
 
-                <small>Scrivi a schermo</small>
+                <small data-i18n="smartTextSub">Scrivi a schermo</small>
 
 
 
@@ -1202,7 +1259,7 @@
 
 
 
-                <small>I tuoi disegni</small>
+                <small data-i18n="smartGallerySub">I tuoi disegni</small>
 
 
 
@@ -1230,7 +1287,7 @@
 
 
 
-                <small>Emoji & Simboli</small>
+                <small data-i18n="smartStickerSub">Emoji & Simboli</small>
 
 
 
@@ -1258,7 +1315,7 @@
 
 
 
-                <small>Previsioni live</small>
+                <small data-i18n="smartWeatherSub">Previsioni live</small>
 
 
 
@@ -1286,7 +1343,7 @@
 
 
 
-                <small>Modalità sveglia</small>
+                <small data-i18n="smartClockSub">Modalità sveglia</small>
 
 
 
@@ -1314,7 +1371,7 @@
 
 
 
-                <small>Illumina stanza</small>
+                <small data-i18n="smartLightSub">Illumina stanza</small>
 
 
 
@@ -1338,11 +1395,11 @@
 
 
 
-                <strong>Fai un Bip</strong>
+                <strong data-i18n="smartBeepTitle">Fai un Bip</strong>
 
 
 
-                <small>Suona buzzer</small>
+                <small data-i18n="smartBeepSub">Suona buzzer</small>
 
 
 
@@ -1370,7 +1427,7 @@
 
 
 
-                <small>Contatore Live</small>
+                <small data-i18n="smartFollowerSub">Contatore Live</small>
 
 
 
@@ -1434,7 +1491,7 @@
 
 
 
-              Acquisisci o seleziona un'immagine: verrà ottimizzata per il display (240×240 px) e potrai posizionarla sulla lavagna prima di inviarla.
+              <span data-i18n="photoSectionDesc">Acquisisci o seleziona un'immagine: verrà ottimizzata per il display (240×240 px) e potrai posizionarla sulla lavagna prima di inviarla.</span>
 
 
 
@@ -1446,11 +1503,7 @@
 
 
 
-              <button type="button" class="pill-btn primary" id="tabPhotoCameraBtn" style="padding:14px; font-size:0.95rem; justify-content:center; gap:10px;">
-
-
-
-                📸 Scatta con Fotocamera
+              <button type="button" class="pill-btn primary" id="tabPhotoCameraBtn" data-i18n="btnTakePhoto" style="padding:14px; font-size:0.95rem; justify-content:center; gap:10px;">📸 Scatta con Fotocamera
 
 
 
@@ -1458,11 +1511,7 @@
 
 
 
-              <button type="button" class="pill-btn secondary" id="tabPhotoGalleryBtn" style="padding:14px; font-size:0.95rem; justify-content:center; gap:10px;">
-
-
-
-                🖼️ Scegli dalla Galleria / File
+              <button type="button" class="pill-btn secondary" id="tabPhotoGalleryBtn" data-i18n="btnChooseGallery" style="padding:14px; font-size:0.95rem; justify-content:center; gap:10px;">🖼️ Scegli dalla Galleria / File
 
 
 
@@ -1498,11 +1547,11 @@
 
 
 
-              <h4 class="card-title">🎬 Cornice Digitale</h4>
+              <h4 class="card-title" data-i18n="slideshowTitle">🎬 Cornice Digitale</h4>
 
 
 
-              <span id="slideshowBadge" style="font-size:0.75rem; padding:3px 8px; border-radius:12px; background:rgba(52,199,89,0.15); color:#34c759; border:1px solid rgba(52,199,89,0.3); font-weight:600;">Autonomo</span>
+              <span id="slideshowBadge" data-i18n="slideshowBadge" style="font-size:0.75rem; padding:3px 8px; border-radius:12px; background:rgba(52,199,89,0.15); color:#34c759; border:1px solid rgba(52,199,89,0.3); font-weight:600;">Autonomo</span>
 
 
 
@@ -1514,7 +1563,7 @@
 
 
 
-              Carica fino a 5 foto nella memoria interna di Pixò. Il carosello continua a ruotare anche a smartphone spento!
+              <span data-i18n="slideshowDesc">Carica fino a 5 foto nella memoria interna di Pixò. Il carosello continua a ruotare anche a smartphone spento!</span>
 
 
 
@@ -1546,7 +1595,7 @@
 
 
 
-              <label style="font-size:0.82rem; color:var(--text-secondary);">Intervallo cambio:</label>
+              <label style="font-size:0.82rem; color:var(--text-secondary);" data-i18n="slideshowIntervalLabel">Intervallo cambio:</label>
 
 
 
@@ -1554,23 +1603,23 @@
 
 
 
-                <option value="10">10 secondi</option>
+                <option value="10" data-i18n="interval10s">10 secondi</option>
 
 
 
-                <option value="15" selected>15 secondi</option>
+                <option value="15" selected data-i18n="interval15s">15 secondi</option>
 
 
 
-                <option value="30">30 secondi</option>
+                <option value="30" data-i18n="interval30s">30 secondi</option>
 
 
 
-                <option value="60">1 minuto</option>
+                <option value="60" data-i18n="interval1m">1 minuto</option>
 
 
 
-                <option value="300">5 minuti</option>
+                <option value="300" data-i18n="interval5m">5 minuti</option>
 
 
 
@@ -1598,11 +1647,7 @@
 
 
 
-              <button type="button" class="pill-btn secondary" id="btnSelectSlideshowPhotos" style="padding:10px; font-size:0.88rem; justify-content:center; gap:6px;">
-
-
-
-                ➕ Seleziona Foto dal Telefono
+              <button type="button" class="pill-btn secondary" id="btnSelectSlideshowPhotos" data-i18n="btnSelectSlideshowPhotos" style="padding:10px; font-size:0.88rem; justify-content:center; gap:6px;">➕ Seleziona Foto dal Telefono
 
 
 
@@ -1614,11 +1659,7 @@
 
 
 
-                <button type="button" class="pill-btn primary" id="btnUploadSlideshow" style="flex:1; padding:10px; font-size:0.88rem; justify-content:center;">
-
-
-
-                  🚀 Carica su Pixò
+                <button type="button" class="pill-btn primary" id="btnUploadSlideshow" data-i18n="btnUploadSlideshow" style="flex:1; padding:10px; font-size:0.88rem; justify-content:center;">🚀 Carica su Pixò
 
 
 
@@ -1626,11 +1667,7 @@
 
 
 
-                <button type="button" class="pill-btn success" id="btnStartSlideshow" style="flex:1; padding:10px; font-size:0.88rem; justify-content:center; background:#34c759; color:#fff;">
-
-
-
-                  ▶️ Avvia
+                <button type="button" class="pill-btn success" id="btnStartSlideshow" data-i18n="btnStartSlideshow" style="flex:1; padding:10px; font-size:0.88rem; justify-content:center; background:#34c759; color:#fff;">▶️ Avvia
 
 
 
@@ -1654,11 +1691,7 @@
 
 
 
-              <button type="button" class="pill-btn danger mini" id="btnClearSlideshow" style="margin-top:4px; font-size:0.78rem; align-self:center; background:transparent; border:none; color:var(--accent-red); opacity:0.8;">
-
-
-
-                🗑️ Svuota memoria foto Pixò
+              <button type="button" class="pill-btn danger mini" id="btnClearSlideshow" data-i18n="btnClearSlideshow" style="margin-top:4px; font-size:0.78rem; align-self:center; background:transparent; border:none; color:var(--accent-red); opacity:0.8;">🗑️ Svuota memoria foto Pixò
 
 
 
@@ -1704,9 +1737,9 @@
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:10px;">
               <div style="flex:1; min-width:0;">
                 <h3 style="font-size:1.15rem; margin:0; display:flex; align-items:center; gap:8px;">
-                  🎹 Jingle Studio 8-Bit
+                  <span data-i18n="jingleStudioTitle">🎹 Jingle Studio 8-Bit</span>
                 </h3>
-                <small style="color:var(--text-secondary); font-size:0.73rem; display:block; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Componi melodie o caricale su Pixò</small>
+                <small style="color:var(--text-secondary); font-size:0.73rem; display:block; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" data-i18n="jingleStudioSub">Componi melodie o caricale su Pixò</small>
               </div>
               <div style="flex-shrink:0; text-align:right;">
                 <span id="jingleDurationBadge" class="jingle-dur-badge">0.0s / 10.0s</span>
@@ -1720,39 +1753,39 @@
 
             <!-- Sequenza Note Composte -->
             <div id="jingleSequenceContainer" class="jingle-seq-box">
-              <span id="jingleEmptyHint" class="jingle-empty-hint">Tocca i tasti del pianoforte per comporre o scegli un preset in basso...</span>
+              <span id="jingleEmptyHint" class="jingle-empty-hint" data-i18n="jingleEmptyHint">Tocca i tasti del pianoforte per comporre o scegli un preset in basso...</span>
             </div>
 
             <!-- Toolbar Controllo Note & Durata -->
             <div class="jingle-toolbar">
               <div style="display:flex; align-items:center; gap:6px;">
-                <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;">Durata Nota:</span>
+                <span style="font-size:0.75rem; color:var(--text-secondary); font-weight:600;" data-i18n="jingleDurLabel">Durata Nota:</span>
                 <div class="jingle-dur-selector">
-                  <button type="button" class="jingle-dur-btn" data-dur="150">Corta (0.15s)</button>
-                  <button type="button" class="jingle-dur-btn active" data-dur="250">Media (0.25s)</button>
-                  <button type="button" class="jingle-dur-btn" data-dur="450">Lunga (0.45s)</button>
+                  <button type="button" class="jingle-dur-btn" data-dur="150" data-i18n="jingleDurShort">Corta (0.15s)</button>
+                  <button type="button" class="jingle-dur-btn active" data-dur="250" data-i18n="jingleDurMed">Media (0.25s)</button>
+                  <button type="button" class="jingle-dur-btn" data-dur="450" data-i18n="jingleDurLong">Lunga (0.45s)</button>
                 </div>
               </div>
               <div style="display:flex; gap:6px;">
-                <button type="button" class="jingle-tool-btn" id="btnPauseNote" title="Inserisci Pausa di silenzio">⏸️ Pausa</button>
-                <button type="button" class="jingle-tool-btn" id="btnUndoNote" title="Cancella ultima nota">⌫ Annulla</button>
-                <button type="button" class="jingle-tool-btn danger" id="btnClearJingle" title="Svuota tutto">🗑️ Svuota</button>
+                <button type="button" class="jingle-tool-btn" id="btnPauseNote" data-i18n="btnPauseNote" title="Inserisci Pausa di silenzio">⏸️ Pausa</button>
+                <button type="button" class="jingle-tool-btn" id="btnUndoNote" data-i18n="btnUndoNote" title="Cancella ultima nota">⌫ Annulla</button>
+                <button type="button" class="jingle-tool-btn danger" id="btnClearJingle" data-i18n="btnClearJingle" title="Svuota tutto">🗑️ Svuota</button>
               </div>
             </div>
 
             <!-- SELETTORE OTTAVA PIANOFORTE (BASSI - MEDI - ACUTI) -->
             <div class="piano-octave-bar">
               <button type="button" class="piano-oct-btn" data-oct="3" onclick="setPianoOctave(3)">
-                <span class="oct-title">🔉 Bassi</span>
-                <span class="oct-sub">Ottava 3 (C3-B3)</span>
+                <span class="oct-title" data-i18n="octLowTitle">🔉 Bassi</span>
+                <span class="oct-sub" data-i18n="octLowSub">Ottava 3 (C3-B3)</span>
               </button>
               <button type="button" class="piano-oct-btn active" data-oct="4" onclick="setPianoOctave(4)">
-                <span class="oct-title">🎹 Medi</span>
-                <span class="oct-sub">Ottava 4 (C4-B4)</span>
+                <span class="oct-title" data-i18n="octMidTitle">🎹 Medi</span>
+                <span class="oct-sub" data-i18n="octMidSub">Ottava 4 (C4-B4)</span>
               </button>
               <button type="button" class="piano-oct-btn" data-oct="5" onclick="setPianoOctave(5)">
-                <span class="oct-title">🔔 Acuti</span>
-                <span class="oct-sub">Ottava 5 (C5-B5)</span>
+                <span class="oct-title" data-i18n="octHighTitle">🔔 Acuti</span>
+                <span class="oct-sub" data-i18n="octHighSub">Ottava 5 (C5-B5)</span>
               </button>
             </div>
 
@@ -1805,21 +1838,17 @@
 
             <!-- Pulsanti Ascolto & Invio Principali -->
             <div style="display:flex; gap:10px; margin-top:14px; margin-bottom:20px;">
-              <button type="button" class="jingle-action-btn secondary" id="btnPreviewJingle">
-                <span>🎧</span> Ascolta sul Telefono
-              </button>
-              <button type="button" class="jingle-action-btn primary" id="btnSendJingle">
-                <span>🚀</span> Suona su Pixò
-              </button>
+              <button type="button" class="jingle-action-btn secondary" id="btnPreviewJingle" data-i18n="btnPreviewJingle">🎧 Ascolta sul Telefono</button>
+              <button type="button" class="jingle-action-btn primary" id="btnSendJingle" data-i18n="btnSendJingle">🚀 Suona su Pixò</button>
             </div>
 
                         <!-- 8 JINGLE PREIMPOSTATI ICONICI (FINO A 10 SECONDI) -->
             <div>
               <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:4px;">
                 <label style="font-size:0.75rem; text-transform:uppercase; letter-spacing:0.8px; color:var(--text-secondary); font-weight:800; margin:0;">
-                  ⭐ Jingle Iconici (Fino a 10s)
+                  <span data-i18n="jinglePresetsTitle">⭐ Jingle Iconici (Fino a 10s)</span>
                 </label>
-                <small style="font-size:0.7rem; color:var(--text-secondary);">Tocca per ascoltare e caricare</small>
+                <small style="font-size:0.7rem; color:var(--text-secondary);" data-i18n="jinglePresetsSub">Tocca per caricare nella sequenza</small>
               </div>
 
               <div class="jingle-preset-grid">
@@ -1903,1413 +1932,445 @@
 
 
 
-        <div class="tab-panel" id="panelSettings">
-
-
-
-          
-
-
+                <div class="tab-panel" id="panelSettings">
 
           <!-- CARD 0: HERO PROFILO PIXÒ -->
-
-
-
-          <div class="panel-card glass" style="margin-bottom:14px; padding:12px 14px;">
-
-
-
+          <div class="panel-card glass" style="margin-bottom:12px; padding:12px 14px;">
             <div style="display:flex; align-items:center; gap:12px;">
-
-
-
               <img src="./pixo_face.png" alt="Pixò" style="width:44px; height:44px; border-radius:50%; box-shadow:0 0 15px rgba(255,215,0,0.3); border:2px solid rgba(255,255,255,0.15); flex-shrink:0;">
-
-
-
               <div style="flex:1; min-width:0;">
-
-
-
                 <div style="display:flex; align-items:center; gap:8px;">
-
-
-
                   <strong id="displayDeviceNameTitle" style="font-size:1.05rem; color:#fff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Pixò Cloud</strong>
-
-
-
                   <span id="settingsStatusBadge" style="font-size:0.7rem; padding:2px 8px; border-radius:10px; background:rgba(52,199,89,0.15); color:var(--accent-green); font-weight:600;">Online</span>
-
-
-
                 </div>
-
-
-
                 <div style="display:flex; align-items:center; gap:6px; margin-top:2px;">
-
-
-
                   <small style="color:var(--text-secondary); font-size:0.78rem;">ID:</small>
-
-
-
                   <strong id="hardwareIdDisplay" style="color:var(--accent-blue); font-family:monospace; font-size:0.85rem;">-</strong>
-
-
-
                 </div>
-
-
-
               </div>
-
-
-
-              <button type="button" id="changeDeviceBtn" class="pill-btn secondary mini" style="padding:6px 12px; font-size:0.8rem; flex-shrink:0;">Cambia</button>
-
-
-
+              <button type="button" id="changeDeviceBtn" class="pill-btn secondary mini" data-i18n="btnChangeDevice" style="padding:6px 12px; font-size:0.8rem; flex-shrink:0;">Cambia</button>
             </div>
-
-
-
           </div>
 
-
-
-
-
-
-
-          <!-- CARD 1: 🎨 SCHERMO & HARDWARE -->
-
-
-
-          <div class="panel-card glass" style="margin-bottom:14px;">
-
-
-
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.06);">
-
-
-
-              <span style="font-size:1.2rem;">🎨</span>
-
-
-
-              <div>
-
-
-
-                <h4 class="card-title" style="margin:0; font-size:0.95rem;">Schermo & Hardware</h4>
-
-
-
-                <small style="color:var(--text-secondary); font-size:0.75rem;">Luminosità, LED e display</small>
-
-
-
-              </div>
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <div class="settings-list">
-
-
-
-              <!-- Nome Dispositivo -->
-
-
-
-              <div class="ios-input-group owner-only-setting" style="margin-bottom:12px;">
-
-
-
-                <label data-i18n="deviceNameLabel">Nome del tuo Pixò</label>
-
-
-
-                <input type="text" id="deviceNameInput" placeholder="es. Pixò Salotto">
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <!-- Slider Luminosità Display (Hardware PWM) -->
-
-
-
-              <div class="setting-item owner-only-setting" style="margin-bottom:12px;">
-
-
-
-                <div class="setting-info">
-
-
-
-                  <strong data-i18n="brightnessLabel">Luminosità Schermo</strong>
-
-
-
-                  <small id="brightnessVal">100%</small>
-
-
-
-                </div>
-
-
-
-                <input type="range" id="brightnessSlider" min="10" max="100" value="100" class="ios-slider">
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <!-- Screensaver Standby 30 Minuti -->
-
-
-
-              <div class="setting-item owner-only-setting" style="margin-bottom:12px;">
-
-
-
-                <div class="setting-info">
-
-
-
-                  <strong data-i18n="screensaverLabel">Screensaver Standby (30 min)</strong>
-
-
-
-                  <small data-i18n="screensaverSub">Torna alla faccina animata dopo inattività</small>
-
-
-
-                </div>
-
-
-
-                <label class="ios-toggle">
-
-
-
-                  <input type="checkbox" id="screensaverToggle" checked>
-
-
-
-                  <span class="toggle-slider"></span>
-
-
-
-                </label>
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <!-- LED Notifica Ausiliario (GPIO 5) -->
-
-
-
-              <div class="setting-item owner-only-setting" style="margin-bottom:12px;">
-
-
-
-                <div class="setting-info">
-
-
-
-                  <strong data-i18n="ledLabel">Lampeggio LED alla ricezione</strong>
-
-
-
-                  <small data-i18n="ledSub">Doppio flash luminoso quando ricevi un disegno</small>
-
-
-
-                </div>
-
-
-
-                <label class="ios-toggle">
-
-
-
-                  <input type="checkbox" id="ledToggle" checked>
-
-
-
-                  <span class="toggle-slider"></span>
-
-
-
-                </label>
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <!-- Suoni Buzzer (GPIO 9) -->
-
-
-
-              <div class="setting-item owner-only-setting" style="margin-bottom:12px;">
-
-
-
-                <div class="setting-info">
-
-
-
-                  <strong>Suoni & Beep Buzzer</strong>
-
-
-
-                  <small>Effetti sonori all'avvio, alle notifiche e jingle</small>
-
-
-
-                </div>
-
-
-
-                <label class="ios-toggle">
-
-
-
-                  <input type="checkbox" id="buzzerSoundToggle" checked>
-
-
-
-                  <span class="toggle-slider"></span>
-
-
-
-                </label>
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <!-- Città per Meteo -->
-
-
-
-              <div class="ios-input-group owner-only-setting">
-
-
-
-                <label data-i18n="cityLabel">Città Predefinita per il Meteo</label>
-
-
-
-                <input type="text" id="weatherCityInput" placeholder="es. Roma, Milano...">
-
-
-
-              </div>
-
-              <!-- Selezione Tono Notifica Buzzer (5 Tipologie) -->
-              <div class="setting-item owner-only-setting" id="notifSoundSettingWrap" style="flex-direction:column; align-items:flex-start; gap:10px; margin-bottom:14px; border-top:1px solid rgba(255,255,255,0.06); padding-top:12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                  <div class="setting-info">
-                    <strong>Tono Notifica Messaggio</strong>
-                    <small>Effetto sonoro all'arrivo di un disegno (max 1s)</small>
-                  </div>
-                  <button type="button" class="pill-btn mini secondary" id="btnTestNotifSound" onclick="testCurrentNotifSound()" title="Ascolta tono selezionato" style="gap:4px; font-weight:700; padding:5px 10px;">
-                    <span>🔔</span> Prova
-                  </button>
-                </div>
-
-                <div class="notif-sound-grid">
-                  <button type="button" class="notif-sound-card active" data-sound="1" onclick="setNotifSoundType(1)">
-                    <span class="ns-badge">1</span>
-                    <div class="ns-content">
-                      <span class="ns-title">🔔 Bip Singolo</span>
-                      <span class="ns-sub">Classico pulito (0.10s)</span>
-                    </div>
-                  </button>
-                  <button type="button" class="notif-sound-card" data-sound="2" onclick="setNotifSoundType(2)">
-                    <span class="ns-badge">2</span>
-                    <div class="ns-content">
-                      <span class="ns-title">⚡ Doppio Bip</span>
-                      <span class="ns-sub">Chirp rapido (0.18s)</span>
-                    </div>
-                  </button>
-                  <button type="button" class="notif-sound-card" data-sound="3" onclick="setNotifSoundType(3)">
-                    <span class="ns-badge">3</span>
-                    <div class="ns-content">
-                      <span class="ns-title">🎶 Arpeggio Dolce</span>
-                      <span class="ns-sub">Do-Mi-Sol (0.30s)</span>
-                    </div>
-                  </button>
-                  <button type="button" class="notif-sound-card" data-sound="4" onclick="setNotifSoundType(4)">
-                    <span class="ns-badge">4</span>
-                    <div class="ns-content">
-                      <span class="ns-title">🛎️ Ding-Dong</span>
-                      <span class="ns-sub">Due toni (0.43s)</span>
-                    </div>
-                  </button>
-                  <button type="button" class="notif-sound-card" data-sound="5" onclick="setNotifSoundType(5)">
-                    <span class="ns-badge">5</span>
-                    <div class="ns-content">
-                      <span class="ns-title">⭐ Moneta 8-Bit</span>
-                      <span class="ns-sub">Coin Arcade (0.38s)</span>
-                    </div>
-                  </button>
-                </div>
-              </div>
-
-
-
-            </div>
-
-
-
-          </div>
-
-
-
-
-
-
-
-          <!-- CARD 2: 🔒 SICUREZZA & PROTEZIONE -->
-
-
-
-          <div class="panel-card glass" style="margin-bottom:14px;">
-
-
-
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.06);">
-
-
-
-              <span style="font-size:1.2rem;">🔒</span>
-
-
-
-              <div>
-
-
-
-                <h4 class="card-title" style="margin:0; font-size:0.95rem;">Sicurezza & Accessi</h4>
-
-
-
-                <small style="color:var(--text-secondary); font-size:0.75rem;">Protezione PIN e filtri</small>
-
-
-
-              </div>
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <div class="settings-list">
-
-
-
-              <!-- PIN di Sicurezza -->
-
-
-
-              <div class="ios-input-group owner-only-setting" style="margin-bottom:12px;">
-
-
-
-                <label>PIN di Sicurezza Personale</label>
-
-
-
-                <input type="password" id="devicePinInput" maxlength="8" placeholder="••••" style="letter-spacing: 4px; font-weight: bold; font-family: monospace;">
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <!-- Filtro Bambini & Sicurezza Contenuti -->
-
-
-
-              <div class="setting-item owner-only-setting" id="kidsModeRow">
-
-
-
-                <div class="setting-info">
-
-
-
-                  <strong data-i18n="kidsModeLabel">🛡️ Filtro Bambini & Protezione</strong>
-
-
-
-                  <small data-i18n="kidsModeSub">Blocca bestemmie, volgarità e foto non adatte</small>
-
-
-
-                </div>
-
-
-
-                <label class="ios-toggle">
-
-
-
-                  <input type="checkbox" id="kidsModeToggle" checked>
-
-
-
-                  <span class="toggle-slider"></span>
-
-
-
-                </label>
-
-
-
-              </div>
-
-
-
-            </div>
-
-
-
-          </div>
-
-
-
-
-
-
-
-          <!-- CARD 3: 👥 LINK AMICI PRIVATI (1 per volta) -->
-
-
-
-          <div class="panel-card glass" style="margin-bottom:14px;">
-
-
-
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
-
-
-
-              <span style="font-size:1.2rem;">👥</span>
-
-
-
-              <div>
-
-
-
-                <h4 class="card-title" style="margin:0; font-size:0.95rem;">Link Amici Privati</h4>
-
-
-
-                <small style="color:var(--text-secondary); font-size:0.75rem;">Per fidanzati e amici stretti</small>
-
-
-
-              </div>
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <p style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4; margin-bottom:12px;">
-
-
-
-              I link amici mantengono la sincronizzazione schermo in tempo reale. Per proteggere la tua banda, ogni link ammette <strong>1 sola persona alla volta</strong>.
-
-
-
-            </p>
-
-
-
-
-
-
-
-            <div class="setting-item owner-only-setting" id="guestShareRow" style="padding:0;">
-
-
-
-              <div class="setting-info">
-
-
-
-                <strong>Chiavi d'Accesso</strong>
-
-
-
-                <small>Crea o cancella i link per i tuoi amici</small>
-
-
-
-              </div>
-
-
-
-              <button class="pill-btn secondary" id="shareBtn">Gestisci Link</button>
-
-
-
-            </div>
-
-
-
-          </div>
-
-
-
-
-
-
-
-          <!-- CARD 4: 🔴 MODALITÀ LIVE STREAMING (Configurabile SOLO dal Proprietario) -->
-
-
-
-          <div class="panel-card glass owner-only-setting" id="liveOwnerSettingsCard" style="margin-bottom:14px; border:1px solid rgba(255,59,48,0.3); background:rgba(255,59,48,0.03);">
-
-
-
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-
-
-
-              <div style="display:flex; align-items:center; gap:8px;">
-
-
-
-                <span style="font-size:1.2rem;">🔴</span>
-
-
-
+          <!-- CARD 1: 🎨 SCHERMO, AUDIO & HARDWARE (Espandibile) -->
+          <div class="panel-card glass settings-accordion-card owner-only-setting" id="accHardware" style="margin-bottom:10px;">
+            <div class="settings-accordion-header" onclick="toggleSettingsSection('accHardware')">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.25rem;">🎨</span>
                 <div>
-
-
-
-                  <h4 class="card-title" style="margin:0; font-size:0.95rem; color:#fff;">Live Streaming & TikTok</h4>
-
-
-
-                  <small style="color:var(--text-secondary); font-size:0.75rem;">Fai disegnare i follower in diretta streaming</small>
-
-
-
+                  <h4 class="card-title" data-i18n="cardHardwareTitle" style="margin:0; font-size:0.95rem;">Schermo, Audio & Hardware</h4>
+                  <small data-i18n="cardHardwareSub" style="color:var(--text-secondary); font-size:0.75rem;">Luminosità, Volume, LED, Suoni e Standby</small>
                 </div>
-
-
-
               </div>
-
-
-
-              <label class="ios-toggle">
-
-
-
-                <input type="checkbox" id="liveModeToggle">
-
-
-
-                <span class="toggle-slider"></span>
-
-
-
-              </label>
-
-
-
+              <span class="settings-accordion-chevron">▼</span>
             </div>
 
-
-
-
-
-
-
-            <div id="liveSettingsBox" style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08);">
-
-
-
-              <!-- Link da condividere -->
-
-
-
-              <div class="ios-input-group" style="margin-bottom:12px;">
-
-
-
-                <label style="font-size:0.8rem; display:flex; justify-content:space-between;">
-
-
-
-                  <span>Link Live per i Follower</span>
-
-
-
-                  <span style="color:var(--accent-green); font-size:0.75rem;">Connessione Lampo 0.5s</span>
-
-
-
-                </label>
-
-
-
-                <div style="display:flex; gap:6px;">
-
-
-
-                  <input type="text" id="liveLinkInput" readonly style="font-size:0.78rem; font-family:monospace; background:rgba(0,0,0,0.3); color:#fff; flex:1;" value="https://pixo.dslumpstudio.com/?id=-&live=1">
-
-
-
-                  <button type="button" class="pill-btn primary mini" id="copyLiveLinkBtn" style="white-space:nowrap;">Copia</button>
-
-
-
+            <div class="settings-accordion-body">
+              <div class="settings-list">
+                <!-- Nome Dispositivo -->
+                <div class="ios-input-group owner-only-setting" style="margin-bottom:12px;">
+                  <label data-i18n="deviceNameLabel">Nome del tuo Pixò</label>
+                  <input type="text" id="deviceNameInput" data-i18n-placeholder="deviceNamePlaceholder" placeholder="es. Pixò Salotto">
                 </div>
 
-
-
-              </div>
-
-
-
-
-
-
-
-              <!-- Configurazione Regole & Donazioni -->
-
-
-
-              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
-
-
-
-                <div class="ios-input-group">
-
-
-
-                  <label style="font-size:0.75rem;">Disegni Gratis Iniziali</label>
-
-
-
-                  <select id="liveFreeDrawsSelect" style="height:38px; font-size:0.85rem; border-radius:var(--radius-sm); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; width:100%; padding:0 8px;">
-
-
-
-                    <option value="0">0 (Solo con Donazione)</option>
-
-
-
-                    <option value="1">1 Disegno</option>
-
-
-
-                    <option value="2">2 Disegni</option>
-
-
-
-                    <option value="3" selected>3 Disegni</option>
-
-
-
-                    <option value="5">5 Disegni</option>
-
-
-
-                    <option value="10">10 Disegni</option>
-
-
-
-                  </select>
-
-
-
+                <!-- Slider Luminosità Display (Hardware PWM) -->
+                <div class="setting-item owner-only-setting" style="margin-bottom:12px;">
+                  <div class="setting-info">
+                    <strong data-i18n="brightnessLabel">☀️ Luminosità Schermo</strong>
+                    <small id="brightnessVal">100%</small>
+                  </div>
+                  <input type="range" id="brightnessSlider" min="10" max="100" value="100" class="ios-slider">
                 </div>
 
-
-
-                <div class="ios-input-group">
-
-
-
-                  <label style="font-size:0.75rem;">Sblocco per 1 Rosa</label>
-
-
-
-                  <select id="liveDrawsPerRoseSelect" style="height:38px; font-size:0.85rem; border-radius:var(--radius-sm); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; width:100%; padding:0 8px;">
-
-
-
-                    <option value="1">1 Rosa = 1 Disegno</option>
-
-
-
-                    <option value="2">1 Rosa = 2 Disegni</option>
-
-
-
-                    <option value="3" selected>1 Rosa = 3 Disegni</option>
-
-
-
-                    <option value="5">1 Rosa = 5 Disegni</option>
-
-
-
-                    <option value="10">1 Rosa = 10 Disegni</option>
-
-
-
-                  </select>
-
-
-
+                <!-- Slider Volume Sonoro (0% - 100%) -->
+                <div class="setting-item owner-only-setting" style="margin-bottom:12px;">
+                  <div class="setting-info">
+                    <strong data-i18n="volumeLabel">🔊 Volume Sonoro</strong>
+                    <small id="buzzerVolumeVal">100%</small>
+                  </div>
+                  <input type="range" id="buzzerVolumeSlider" min="0" max="100" value="100" class="ios-slider">
                 </div>
 
+                <!-- Suoni Buzzer (GPIO 9) -->
+                <div class="setting-item owner-only-setting" style="margin-bottom:12px;">
+                  <div class="setting-info">
+                    <strong data-i18n="buzzerSound">Suoni & Beep Buzzer</strong>
+                    <small data-i18n="buzzerToggleSub">Riproduci jingle e suoni alla ricezione disegni</small>
+                  </div>
+                  <label class="ios-toggle">
+                    <input type="checkbox" id="buzzerSoundToggle" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
 
+                <!-- Selezione Tono Notifica Buzzer (5 Tipologie) -->
+                <div class="setting-item owner-only-setting" id="notifSoundSettingWrap" style="flex-direction:column; align-items:flex-start; gap:10px; margin-bottom:14px; border-top:1px solid rgba(255,255,255,0.06); padding-top:12px;">
+                  <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <div class="setting-info">
+                      <strong data-i18n="notifToneTitle">Tono Notifica Messaggio</strong>
+                      <small data-i18n="notifToneSub">Effetto sonoro all'arrivo di un disegno (max 1s)</small>
+                    </div>
+                    <button type="button" class="pill-btn mini secondary" id="btnTestNotifSound" onclick="testCurrentNotifSound()" title="Ascolta tono selezionato" style="gap:4px; font-weight:700; padding:5px 10px;">
+                      <span>🔔</span> <span data-i18n="btnTestTone">Prova</span>
+                    </button>
+                  </div>
 
+                  <div class="notif-sound-grid">
+                    <button type="button" class="notif-sound-card active" data-sound="1" onclick="setNotifSoundType(1)">
+                      <span class="ns-badge">1</span>
+                      <div class="ns-content">
+                        <span class="ns-title" data-i18n="tone1Title">🔔 Bip Singolo</span>
+                        <span class="ns-sub" data-i18n="tone1Sub">Classico pulito (0.10s)</span>
+                      </div>
+                    </button>
+                    <button type="button" class="notif-sound-card" data-sound="2" onclick="setNotifSoundType(2)">
+                      <span class="ns-badge">2</span>
+                      <div class="ns-content">
+                        <span class="ns-title" data-i18n="tone2Title">⚡ Doppio Bip</span>
+                        <span class="ns-sub" data-i18n="tone2Sub">Chirp rapido (0.18s)</span>
+                      </div>
+                    </button>
+                    <button type="button" class="notif-sound-card" data-sound="3" onclick="setNotifSoundType(3)">
+                      <span class="ns-badge">3</span>
+                      <div class="ns-content">
+                        <span class="ns-title" data-i18n="tone3Title">🎶 Arpeggio Dolce</span>
+                        <span class="ns-sub" data-i18n="tone3Sub">Do-Mi-Sol (0.30s)</span>
+                      </div>
+                    </button>
+                    <button type="button" class="notif-sound-card" data-sound="4" onclick="setNotifSoundType(4)">
+                      <span class="ns-badge">4</span>
+                      <div class="ns-content">
+                        <span class="ns-title" data-i18n="tone4Title">🛎️ Ding-Dong</span>
+                        <span class="ns-sub" data-i18n="tone4Sub">Due toni (0.43s)</span>
+                      </div>
+                    </button>
+                    <button type="button" class="notif-sound-card" data-sound="5" onclick="setNotifSoundType(5)">
+                      <span class="ns-badge">5</span>
+                      <div class="ns-content">
+                        <span class="ns-title" data-i18n="tone5Title">⭐ Moneta 8-Bit</span>
+                        <span class="ns-sub" data-i18n="tone5Sub">Coin Arcade (0.38s)</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Screensaver Standby 30 Minuti -->
+                <div class="setting-item owner-only-setting" style="margin-bottom:12px;">
+                  <div class="setting-info">
+                    <strong data-i18n="screensaverLabel">Screensaver Standby (30 min)</strong>
+                    <small data-i18n="screensaverSub">Torna alla faccina animata dopo inattività</small>
+                  </div>
+                  <label class="ios-toggle">
+                    <input type="checkbox" id="screensaverToggle" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <!-- LED Notifica Ausiliario (GPIO 5) -->
+                <div class="setting-item owner-only-setting" style="margin-bottom:12px;">
+                  <div class="setting-info">
+                    <strong data-i18n="ledLabel">Lampeggio LED alla ricezione</strong>
+                    <small data-i18n="ledSub">Doppio flash luminoso quando ricevi un disegno</small>
+                  </div>
+                  <label class="ios-toggle">
+                    <input type="checkbox" id="ledToggle" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
+
+                <!-- Città per Meteo -->
+                <div class="ios-input-group owner-only-setting">
+                  <label data-i18n="cityLabel">Città Predefinita per il Meteo</label>
+                  <input type="text" id="weatherCityInput" data-i18n-placeholder="weatherCityPlaceholder" placeholder="es. Roma, Milano...">
+                </div>
+
+                <button type="button" class="pill-btn primary full save-section-btn" onclick="triggerSaveSettings()" data-i18n="saveSettings">💾 Salva Impostazioni</button>
               </div>
-
-
-
-
-
-
-
-              <div class="ios-input-group" style="margin-bottom:10px;">
-
-
-
-                <label style="font-size:0.75rem;">Cooldown tra invii (Anti-Spam)</label>
-
-
-
-                <select id="liveCooldownSelect" style="height:38px; font-size:0.85rem; border-radius:var(--radius-sm); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; width:100%; padding:0 8px;">
-
-
-
-                  <option value="0">Nessuno (Subito)</option>
-
-
-
-                  <option value="15">15 Secondi</option>
-
-
-
-                  <option value="20" selected>20 Secondi</option>
-
-
-
-                  <option value="30">30 Secondi</option>
-
-
-
-                  <option value="60">1 Minuto</option>
-
-
-
-                </select>
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <small style="color:var(--text-secondary); font-size:0.75rem; display:block; line-height:1.35;">
-
-
-
-                💡 <em>I follower disegnano offline e si collegano solo 0.5s per inviare. Possono anche copiare o scaricare il disegno presente su Pixò con il pulsante dedicato.</em>
-
-
-
-              </small>
-
-
-
             </div>
-
-
-
           </div>
 
-
-
-
-
-
-
-          <!-- Pulsante Salva Impostazioni Sempre Visibile -->
-
-
-
-          <button class="pill-btn primary full owner-only-setting" id="saveSettingsBtn" style="margin-bottom:14px; padding:14px; font-size:0.95rem; font-weight:700;">💾 Salva Impostazioni</button>
-
-
-
-
-
-
-
-          <!-- CARD 5: ⚙️ RETE, SISTEMA & FIRMWARE -->
-
-
-
-          <div class="panel-card glass" style="margin-bottom:14px;">
-
-
-
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.06);">
-
-
-
-              <span style="font-size:1.2rem;">⚙️</span>
-
-
-
-              <div>
-
-
-
-                <h4 class="card-title" style="margin:0; font-size:0.95rem;">Rete & Sistema</h4>
-
-
-
-                <small style="color:var(--text-secondary); font-size:0.75rem;">Wi-Fi, Firmware e Preferenze app</small>
-
-
-
+          <!-- CARD 2: 🔒 SICUREZZA & PROTEZIONE (Espandibile) -->
+          <div class="panel-card glass settings-accordion-card owner-only-setting" id="accSecurity" style="margin-bottom:10px;">
+            <div class="settings-accordion-header" onclick="toggleSettingsSection('accSecurity')">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.25rem;">🔒</span>
+                <div>
+                  <h4 class="card-title" data-i18n="cardSecurityTitle" style="margin:0; font-size:0.95rem;">Sicurezza & Accessi</h4>
+                  <small data-i18n="cardSecuritySub" style="color:var(--text-secondary); font-size:0.75rem;">PIN, Filtro Bambini e Protezione</small>
+                </div>
               </div>
-
-
-
+              <span class="settings-accordion-chevron">▼</span>
             </div>
 
+            <div class="settings-accordion-body">
+              <div class="settings-list">
+                <!-- PIN di Sicurezza -->
+                <div class="ios-input-group owner-only-setting" style="margin-bottom:12px;">
+                  <label data-i18n="devicePinLabel">PIN di Sicurezza Personale (4-6 cifre)</label>
+                  <input type="password" id="devicePinInput" maxlength="6" placeholder="••••" style="letter-spacing: 4px; font-weight: bold; font-family: monospace;">
+                  <small data-i18n="pinChangeHint" style="color:var(--text-secondary); font-size:0.72rem; margin-top:4px; display:block;">4-6 caratteri. Dopo 5 tentativi errati scatta il blocco anti-bruteforce.</small>
+                </div>
 
+                <!-- Filtro Bambini & Sicurezza Contenuti -->
+                <div class="setting-item owner-only-setting" id="kidsModeRow">
+                  <div class="setting-info">
+                    <strong data-i18n="kidsModeLabel">🛡️ Filtro Bambini & Protezione</strong>
+                    <small data-i18n="kidsModeSub">Blocca bestemmie, volgarità e foto non adatte</small>
+                  </div>
+                  <label class="ios-toggle">
+                    <input type="checkbox" id="kidsModeToggle" checked>
+                    <span class="toggle-slider"></span>
+                  </label>
+                </div>
 
-
-
-
-
-            <!-- Lingua e Tema -->
-
-
-
-            <div style="display:flex; gap:10px; margin-bottom:12px;">
-
-
-
-              <div class="ios-input-group" style="flex:1;">
-
-
-
-                <label data-i18n="langLabel">Lingua</label>
-
-
-
-                <select id="langSelect" style="height:40px; padding:0 10px; border-radius:var(--radius-sm); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; font-size:0.85rem; width:100%;">
-
-
-
-                  <option value="it">Italiano 🇮🇹</option>
-
-
-
-                  <option value="en">English 🇬🇧</option>
-
-
-
-                </select>
-
-
-
+                <button type="button" class="pill-btn primary full save-section-btn" onclick="triggerSaveSettings()" data-i18n="saveSettings">💾 Salva Impostazioni</button>
               </div>
+            </div>
+          </div>
 
-
-
-              <div class="ios-input-group" style="flex:1;">
-
-
-
-                <label data-i18n="canvasThemeLabel">Tema Lavagna</label>
-
-
-
-                <select id="themeSelect" style="height:40px; padding:0 10px; border-radius:var(--radius-sm); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; font-size:0.85rem; width:100%;">
-
-
-
-                  <option value="dark">Nero</option>
-
-
-
-                  <option value="light">Bianco</option>
-
-
-
-                </select>
-
-
-
+          <!-- CARD 3: 👥 LINK AMICI PRIVATI (Espandibile) -->
+          <div class="panel-card glass settings-accordion-card owner-only-setting" id="accFriends" style="margin-bottom:10px;">
+            <div class="settings-accordion-header" onclick="toggleSettingsSection('accFriends')">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.25rem;">👥</span>
+                <div>
+                  <h4 class="card-title" data-i18n="guestShareBoxTitle" style="margin:0; font-size:0.95rem;">Link Amici Privati</h4>
+                  <small data-i18n="guestShareBoxSub" style="color:var(--text-secondary); font-size:0.75rem;">Link sicuri senza esporre l'ID di Pixò</small>
+                </div>
               </div>
-
-
-
+              <span class="settings-accordion-chevron">▼</span>
             </div>
 
+            <div class="settings-accordion-body">
+              <p data-i18n="friendsCardDesc" style="font-size:0.8rem; color:var(--text-secondary); line-height:1.4; margin-bottom:12px;">
+                I link amici usano un token segreto anonimo (senza mostrare l'ID del tuo Pixò) e mantengono la sincronizzazione in tempo reale per 1 persona alla volta.
+              </p>
 
-
-
-
-
-
-            <!-- Notifiche Push -->
-
-
-
-            <div class="setting-item" id="phoneNotificationsRow" style="margin-bottom:12px;">
-
-
-
-              <div class="setting-info">
-
-
-
-                <strong style="display:flex; align-items:center; gap:8px;">
-
-
-
-                  <img src="./pixo_face.png" alt="Pixò" style="width:22px; height:22px; border-radius:50%;">
-
-
-
-                  Notifiche sul Cellulare
-
-
-
-                </strong>
-
-
-
-                <small>Ricevi un avviso quando arriva un nuovo disegno</small>
-
-
-
-              </div>
-
-
-
-              <label class="ios-toggle">
-
-
-
-                <input type="checkbox" id="phoneNotificationsToggle">
-
-
-
-                <span class="toggle-slider"></span>
-
-
-
-              </label>
-
-
-
-            </div>
-
-
-
-
-
-
-
-            <!-- Gestione Wi-Fi Pixò -->
-
-
-
-            <div class="setting-item" id="wifiManagementSection" style="margin-top:10px; padding:12px; border:1px solid var(--glass-border); border-radius:var(--radius-md); background:rgba(255,255,255,0.03); flex-direction:column; align-items:stretch;">
-
-
-
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-
-
-
+              <div class="setting-item owner-only-setting" id="guestShareRow" style="padding:0;">
                 <div class="setting-info">
-
-
-
-                  <strong style="display:flex; align-items:center; gap:6px;">
-
-
-
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
-
-
-
-                    Rete Wi-Fi di Pixò
-
-
-
-                  </strong>
-
-
-
-                  <small id="currentWifiDesc" style="color:var(--text-secondary); margin-top:2px; display:block;">In attesa di segnale da Pixò...</small>
-
-
-
+                  <strong data-i18n="accessKeysLabel">Chiavi d'Accesso</strong>
+                  <small data-i18n="accessKeysSub">Crea o cancella i link per i tuoi amici</small>
                 </div>
-
-
-
-                <span id="currentWifiBadge" style="font-size:0.75rem; padding:3px 8px; border-radius:10px; background:rgba(52,199,89,0.15); color:var(--accent-green); font-weight:600; display:none;">Collegato</span>
-
-
-
+                <button type="button" class="pill-btn secondary" id="shareBtn" data-i18n="btnManageLinks">Gestisci Link</button>
               </div>
 
+              <button type="button" class="pill-btn primary full save-section-btn" onclick="triggerSaveSettings()" data-i18n="saveSettings">💾 Salva Impostazioni</button>
+            </div>
+          </div>
 
+          <!-- CARD 4: 🔴 MODALITÀ LIVE STREAMING (Espandibile) -->
+          <div class="panel-card glass settings-accordion-card owner-only-setting" id="liveOwnerSettingsCard" style="margin-bottom:10px; border:1px solid rgba(255,59,48,0.3); background:rgba(255,59,48,0.03);">
+            <div class="settings-accordion-header" onclick="toggleSettingsSection('liveOwnerSettingsCard')">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.25rem;">🔴</span>
+                <div>
+                  <h4 class="card-title" data-i18n="cardLiveTitle" style="margin:0; font-size:0.95rem; color:#fff;">Live Streaming & TikTok</h4>
+                  <small data-i18n="cardLiveSub" style="color:var(--text-secondary); font-size:0.75rem;">Fai disegnare i follower in diretta streaming</small>
+                </div>
+              </div>
+              <span class="settings-accordion-chevron">▼</span>
+            </div>
 
-
-
-
-
-              <div id="wifiActionButtons" style="display:flex; gap:8px; margin-top:10px;">
-
-
-
-                <button type="button" class="pill-btn secondary mini" id="btnToggleNewWifi" style="flex:1;">Imposta Nuova Wi-Fi</button>
-
-
-
-                <button type="button" class="pill-btn secondary mini" id="btnOpenWifiPortal" style="flex:1;" title="Avvia l'hotspot per scegliere la rete dallo smartphone">Scansiona Rete</button>
-
-
-
+            <div class="settings-accordion-body">
+              <div class="setting-item" style="margin-bottom:10px;">
+                <div class="setting-info">
+                  <strong data-i18n="enableLiveTitle">Abilita Modalità Live</strong>
+                  <small data-i18n="enableLiveSub">Genera il link speciale per la tua bio o chat</small>
+                </div>
+                <label class="ios-toggle">
+                  <input type="checkbox" id="liveModeToggle">
+                  <span class="toggle-slider"></span>
+                </label>
               </div>
 
-
-
-
-
-
-
-              <!-- Modulo a scomparsa per digitare nuova rete -->
-
-
-
-              <div id="newWifiFormBox" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--glass-border);">
-
-
-
-                <div class="ios-input-group" style="margin-bottom:8px;">
-
-
-
-                  <label style="font-size:0.8rem; margin-bottom:4px;">Nome Nuova Rete (SSID)</label>
-
-
-
-                  <input type="text" id="newWifiSsidInput" placeholder="es. NomeRete_2.4GHz" style="font-size:0.85rem; height:38px;">
-
-
-
+              <div id="liveSettingsBox" style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.08);">
+                <!-- Codice Stanza Anonimo -->
+                <div class="ios-input-group" style="margin-bottom:10px;">
+                  <label style="font-size:0.78rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span data-i18n="liveRoomCodeLabel">🔒 Codice Stanza Live (Zero ID Hardware)</span>
+                    <button type="button" class="pill-btn secondary mini" id="regenLiveRoomBtn" onclick="regenerateLiveRoomCode()" data-i18n="btnRegenRoom" style="padding:2px 8px; font-size:0.7rem;">🔄 Rigenera</button>
+                  </label>
                 </div>
 
+                <!-- Link da condividere -->
+                <div class="ios-input-group" style="margin-bottom:12px;">
+                  <label style="font-size:0.8rem; display:flex; justify-content:space-between;">
+                    <span data-i18n="liveLinkFollowersLabel">Link Live per i Follower</span>
+                    <span data-i18n="liveFastConnBadge" style="color:var(--accent-green); font-size:0.75rem;">Connessione Lampo 0.5s</span>
+                  </label>
+                  <div style="display:flex; gap:6px;">
+                    <input type="text" id="liveLinkInput" readonly style="font-size:0.78rem; font-family:monospace; background:rgba(0,0,0,0.3); color:#fff; flex:1;" value="https://pixo.dslumpstudio.com/?room=PIX-LIVE&live=1">
+                    <button type="button" class="pill-btn primary mini" id="copyLiveLinkBtn" data-i18n="copy" style="white-space:nowrap;">Copia</button>
+                  </div>
+                </div>
 
+                <!-- Select nascosti per compatibilità retroattiva -->
+                <div style="display:none;">
+                  <select id="liveFreeDrawsSelect"><option value="3" selected>3</option></select>
+                  <select id="liveDrawsPerRoseSelect"><option value="3" selected>3</option></select>
+                </div>
 
                 <div class="ios-input-group" style="margin-bottom:10px;">
-
-
-
-                  <label style="font-size:0.8rem; margin-bottom:4px;">Password Wi-Fi</label>
-
-
-
-                  <input type="password" id="newWifiPassInput" placeholder="Password della rete" style="font-size:0.85rem; height:38px;">
-
-
-
+                  <label data-i18n="liveCooldownLabel" style="font-size:0.75rem;">Cooldown tra invii (Anti-Spam)</label>
+                  <select id="liveCooldownSelect" style="height:38px; font-size:0.85rem; border-radius:var(--radius-sm); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; width:100%; padding:0 8px;">
+                    <option value="0" data-i18n="cdNone">Nessuno (Subito)</option>
+                    <option value="15" data-i18n="interval15s">15 secondi</option>
+                    <option value="20" selected data-i18n="interval20s">20 secondi</option>
+                    <option value="30" data-i18n="interval30s">30 secondi</option>
+                    <option value="60" data-i18n="interval1m">1 minuto</option>
+                  </select>
                 </div>
 
-
-
-                <div style="display:flex; gap:8px;">
-
-
-
-                  <button type="button" class="pill-btn secondary mini" id="btnCancelNewWifi" style="flex:1;">Annulla</button>
-
-
-
-                  <button type="button" class="pill-btn primary mini" id="btnApplyNewWifi" style="flex:2;">Invia a Pixò</button>
-
-
-
-                </div>
-
-
-
+                <small data-i18n="liveHintText" style="color:var(--text-secondary); font-size:0.75rem; display:block; line-height:1.35;">
+                  💡 I follower disegnano offline e si collegano solo 0.5s per inviare. Ogni 3 disegni inviati apparirà un gentile invito a supportarti con una Rosa 🌹 su TikTok!
+                </small>
               </div>
 
+              <button type="button" class="pill-btn primary full save-section-btn" onclick="triggerSaveSettings()" data-i18n="saveSettings">💾 Salva Impostazioni</button>
+            </div>
+          </div>
 
-
+          <!-- CARD 5: ⚙️ RETE, SISTEMA & PREFERENZE (Espandibile) -->
+          <div class="panel-card glass settings-accordion-card" id="accSystem" style="margin-bottom:10px;">
+            <div class="settings-accordion-header" onclick="toggleSettingsSection('accSystem')">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.25rem;">⚙️</span>
+                <div>
+                  <h4 class="card-title" data-i18n="cardNetworkTitle" style="margin:0; font-size:0.95rem;">Rete & Sistema</h4>
+                  <small data-i18n="cardNetworkSub" style="color:var(--text-secondary); font-size:0.75rem;">Wi-Fi, Firmware, Lingua e Notifiche</small>
+                </div>
+              </div>
+              <span class="settings-accordion-chevron">▼</span>
             </div>
 
+            <div class="settings-accordion-body">
+              <!-- Lingua e Tema -->
+              <div style="display:flex; gap:10px; margin-bottom:12px;">
+                <div class="ios-input-group" style="flex:1;">
+                  <label data-i18n="langLabel">Lingua</label>
+                  <select id="langSelect" style="height:40px; padding:0 10px; border-radius:var(--radius-sm); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; font-size:0.85rem; width:100%;">
+                    <option value="it">Italiano 🇮🇹</option>
+                    <option value="en">English 🇬🇧</option>
+                  </select>
+                </div>
+                <div class="ios-input-group" style="flex:1;">
+                  <label data-i18n="canvasThemeLabel">Tema Lavagna</label>
+                  <select id="themeSelect" style="height:40px; padding:0 10px; border-radius:var(--radius-sm); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; font-size:0.85rem; width:100%;">
+                    <option value="dark">Nero</option>
+                    <option value="light">Bianco</option>
+                  </select>
+                </div>
+              </div>
 
-
-
-
-
-
-            <!-- Aggiornamento Firmware Remoto (OTA) -->
-
-
-
-            <div class="setting-item" id="otaManagementSection" style="margin-top:10px; padding:12px; border:1px solid var(--glass-border); border-radius:var(--radius-md); background:rgba(255,255,255,0.03); flex-direction:column; align-items:stretch;">
-
-
-
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-
-
-
+              <!-- Notifiche Push -->
+              <div class="setting-item" id="phoneNotificationsRow" style="margin-bottom:12px;">
                 <div class="setting-info">
-
-
-
-                  <strong style="display:flex; align-items:center; gap:6px;">
-
-
-
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-
-
-
-                    Aggiornamento Firmware
-
-
-
+                  <strong style="display:flex; align-items:center; gap:8px;">
+                    <img src="./pixo_face.png" alt="Pixò" style="width:22px; height:22px; border-radius:50%;">
+                    <span data-i18n="phoneNotifTitle">Notifiche sul Cellulare</span>
                   </strong>
-
-
-
-                  <small id="currentFwDesc" style="color:var(--text-secondary); margin-top:2px; display:block;">Versione installata: <span id="currentFwBadge" style="color:var(--accent-blue); font-weight:600;">v1.1.8</span></small>
-
-
-
+                  <small data-i18n="phoneNotifSub">Ricevi un avviso quando arriva un nuovo disegno</small>
                 </div>
-
-
-
-                <button type="button" class="pill-btn secondary mini" id="btnCheckFwUpdate">Verifica</button>
-
-
-
+                <label class="ios-toggle">
+                  <input type="checkbox" id="phoneNotificationsToggle">
+                  <span class="toggle-slider"></span>
+                </label>
               </div>
 
-
-
-
-
-
-
-              <div id="otaStatusBox" style="display:none; margin-top:10px; padding:8px 12px; border-radius:var(--radius-sm); font-size:0.8rem; background:rgba(10,132,255,0.12); border:1px solid rgba(10,132,255,0.25); color:#fff;">
-
-
-
-                <span id="otaStatusText">In attesa...</span>
-
-
-
-              </div>
-
-
-
-
-
-
-
-              <!-- Modulo a comparsa per inserire URL firmware personalizzato o release -->
-
-
-
-              <div id="otaFormBox" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--glass-border);">
-
-
-
-                <div class="ios-input-group" style="margin-bottom:8px;">
-
-
-
-                  <label style="font-size:0.8rem; margin-bottom:4px;">URL Pacchetto Firmware (.bin)</label>
-
-
-
-                  <input type="text" id="otaUrlInput" placeholder="https://.../firmware.bin" style="font-size:0.82rem; height:38px;">
-
-
-
+              <!-- Gestione Wi-Fi Pixò -->
+              <div class="setting-item" id="wifiManagementSection" style="margin-top:10px; padding:12px; border:1px solid var(--glass-border); border-radius:var(--radius-md); background:rgba(255,255,255,0.03); flex-direction:column; align-items:stretch;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div class="setting-info">
+                    <strong style="display:flex; align-items:center; gap:6px;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg>
+                      <span data-i18n="wifiSectionTitle">Rete Wi-Fi di Pixò</span>
+                    </strong>
+                    <small id="currentWifiDesc" data-i18n="wifiWaitingSignal" style="color:var(--text-secondary); margin-top:2px; display:block;">In attesa di segnale da Pixò...</small>
+                  </div>
+                  <span id="currentWifiBadge" data-i18n="wifiConnectedBadge" style="font-size:0.75rem; padding:3px 8px; border-radius:10px; background:rgba(52,199,89,0.15); color:var(--accent-green); font-weight:600; display:none;">Collegato</span>
                 </div>
 
-
-
-                <div style="display:flex; gap:8px; margin-bottom:10px;">
-
-
-
-                  <button type="button" class="pill-btn secondary mini" id="btnCancelOta" style="flex:1;">Chiudi</button>
-
-
-
-                  <button type="button" class="pill-btn primary mini" id="btnStartOta" style="flex:1;">Aggiorna Firmware</button>
-
-
-
+                <div id="wifiActionButtons" style="display:flex; gap:8px; margin-top:10px;">
+                  <button type="button" class="pill-btn secondary mini" id="btnToggleNewWifi" data-i18n="btnToggleNewWifi" style="flex:1;">Imposta Nuova Wi-Fi</button>
+                  <button type="button" class="pill-btn secondary mini" id="btnOpenWifiPortal" data-i18n="btnOpenWifiPortal" style="flex:1;" title="Avvia l'hotspot per scegliere la rete dallo smartphone">Scansiona Rete</button>
                 </div>
 
-
-
+                <!-- Modulo a scomparsa per digitare nuova rete -->
+                <div id="newWifiFormBox" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--glass-border);">
+                  <div class="ios-input-group" style="margin-bottom:8px;">
+                    <label data-i18n="newWifiSsidLabel" style="font-size:0.8rem; margin-bottom:4px;">Nome Nuova Rete (SSID)</label>
+                    <input type="text" id="newWifiSsidInput" placeholder="es. NomeRete_2.4GHz" style="font-size:0.85rem; height:38px;">
+                  </div>
+                  <div class="ios-input-group" style="margin-bottom:10px;">
+                    <label data-i18n="newWifiPassLabel" style="font-size:0.8rem; margin-bottom:4px;">Password Wi-Fi</label>
+                    <input type="password" id="newWifiPassInput" placeholder="Password" style="font-size:0.85rem; height:38px;">
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    <button type="button" class="pill-btn secondary mini" id="btnCancelNewWifi" data-i18n="btnCancelNewWifi" style="flex:1;">Annulla</button>
+                    <button type="button" class="pill-btn primary mini" id="btnApplyNewWifi" data-i18n="btnApplyNewWifi" style="flex:2;">Invia a Pixò</button>
+                  </div>
+                </div>
               </div>
 
+              <!-- Aggiornamento Firmware Remoto (OTA) -->
+              <div class="setting-item owner-only-setting" id="otaManagementSection" style="margin-top:10px; padding:12px; border:1px solid var(--glass-border); border-radius:var(--radius-md); background:rgba(255,255,255,0.03); flex-direction:column; align-items:stretch;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div class="setting-info">
+                    <strong style="display:flex; align-items:center; gap:6px;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      <span data-i18n="otaSectionTitle">Aggiornamento Firmware</span>
+                    </strong>
+                    <small id="currentFwDesc" style="color:var(--text-secondary); margin-top:2px; display:block;"><span data-i18n="otaInstalledVer">Versione installata:</span> <span id="currentFwBadge" style="color:var(--accent-blue); font-weight:600;">v1.3.0</span></small>
+                  </div>
+                  <button type="button" class="pill-btn secondary mini" id="btnCheckFwUpdate" data-i18n="btnCheckFwUpdate">Verifica</button>
+                </div>
 
+                <div id="otaStatusBox" style="display:none; margin-top:10px; padding:8px 12px; border-radius:var(--radius-sm); font-size:0.8rem; background:rgba(10,132,255,0.12); border:1px solid rgba(10,132,255,0.25); color:#fff;">
+                  <span id="otaStatusText">In attesa...</span>
+                </div>
 
+                <div id="otaFormBox" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid var(--glass-border);">
+                  <div class="ios-input-group" style="margin-bottom:8px;">
+                    <label style="font-size:0.8rem; margin-bottom:4px;">URL Pacchetto Firmware (.bin)</label>
+                    <input type="text" id="otaUrlInput" placeholder="https://.../firmware.bin" style="font-size:0.82rem; height:38px;">
+                  </div>
+                  <div style="display:flex; gap:8px; margin-bottom:10px;">
+                    <button type="button" class="pill-btn secondary mini" id="btnCancelOta" data-i18n="btnCancelNewWifi" style="flex:1;">Chiudi</button>
+                    <button type="button" class="pill-btn primary mini" id="btnStartOta" data-i18n="otaSectionTitle" style="flex:1;">Aggiorna Firmware</button>
+                  </div>
+                </div>
+              </div>
+
+              <button type="button" class="pill-btn primary full save-section-btn" id="saveSettingsBtn" onclick="triggerSaveSettings()" data-i18n="saveSettings">💾 Salva Impostazioni</button>
             </div>
-
-
-
           </div>
 
-
-
-
-
-
-
-          <!-- CARD 6: ⚠️ RIPRISTINO DI FABBRICA (Zona Rossa) -->
-
-
-
-          <div class="panel-card glass" id="factoryResetSection" style="margin-bottom:20px; border:1px solid rgba(255,69,58,0.25); background:rgba(255,69,58,0.06);">
-
-
-
-            <div class="setting-item" style="padding:0;">
-
-
-
-              <div class="setting-info">
-
-
-
-                <strong class="text-danger" style="color:var(--accent-red);">Ripristino di Fabbrica</strong>
-
-
-
-                <small>Cancella Wi-Fi salvata e riporta il PIN a 1234</small>
-
-
-
+          <!-- CARD 6: ⚠️ RIPRISTINO DI FABBRICA (Espandibile) -->
+          <div class="panel-card glass settings-accordion-card owner-only-setting" id="factoryResetSection" style="margin-bottom:20px; border:1px solid rgba(255,69,58,0.25); background:rgba(255,69,58,0.06);">
+            <div class="settings-accordion-header" onclick="toggleSettingsSection('factoryResetSection')">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-size:1.25rem;">⚠️</span>
+                <div>
+                  <h4 class="card-title text-danger" data-i18n="factoryResetTitle" style="margin:0; font-size:0.95rem; color:var(--accent-red);">Ripristino di Fabbrica</h4>
+                  <small data-i18n="factoryResetSub" style="color:var(--text-secondary); font-size:0.75rem;">Cancella Wi-Fi salvata e riporta il PIN a 1234</small>
+                </div>
               </div>
-
-
-
-              <button class="pill-btn danger mini" id="factoryResetBtn">Ripristina</button>
-
-
-
+              <span class="settings-accordion-chevron">▼</span>
             </div>
 
-
-
+            <div class="settings-accordion-body">
+              <div class="setting-item" style="padding:0;">
+                <div class="setting-info">
+                  <strong class="text-danger" style="color:var(--accent-red);" data-i18n="factoryResetTitle">Ripristino di Fabbrica</strong>
+                  <small data-i18n="factoryResetSub">Cancella Wi-Fi salvata e riporta il PIN a 1234</small>
+                </div>
+                <button type="button" class="pill-btn danger mini" id="factoryResetBtn" data-i18n="factoryResetBtn">Ripristina</button>
+              </div>
+              <button type="button" class="pill-btn primary full save-section-btn" onclick="triggerSaveSettings()" data-i18n="saveSettings">💾 Salva Impostazioni</button>
+            </div>
           </div>
-
-
-
-
-
-
 
         </div>
-
-
-
       </section>
 
 
@@ -3546,11 +2607,11 @@
 
 
 
-            <label>Scrivi il tuo messaggio:</label>
+            <label data-i18n="writeMessageLabel">Scrivi il tuo messaggio:</label>
 
 
 
-            <input type="text" id="customTextInput" placeholder="es. Ciao amore!">
+            <input type="text" id="customTextInput" data-i18n-placeholder="customTextPlaceholder" placeholder="es. Ciao amore!">
 
 
 
@@ -3558,7 +2619,7 @@
 
 
 
-          <button class="pill-btn primary full" id="applyTextBtn" style="margin-top:10px;">Inserisci sulla Lavagna</button>
+          <button class="pill-btn primary full" id="applyTextBtn" data-i18n="insertOnCanvas" style="margin-top:10px;">Inserisci sulla Lavagna</button>
 
 
 
@@ -3622,7 +2683,7 @@
 
 
 
-          <label style="font-size:0.83rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px; display:block;">Piattaforma:</label>
+          <label style="font-size:0.83rem; font-weight:600; color:var(--text-secondary); margin-bottom:8px; display:block;" data-i18n="platformLabel">Piattaforma:</label>
 
 
 
@@ -3694,7 +2755,7 @@
 
 
 
-            <label id="followerUsernameLabel">Nome Utente TikTok:</label>
+            <label id="followerUsernameLabel" data-i18n="followerUsernameLabel">Nome Utente TikTok:</label>
 
 
 
@@ -3730,7 +2791,7 @@
 
 
 
-            <label>Frequenza Aggiornamento Live:</label>
+            <label data-i18n="followerFreqLabel">Frequenza Aggiornamento Live:</label>
 
 
 
@@ -3738,19 +2799,19 @@
 
 
 
-              <option value="15">Ogni 15 secondi (Live Rapido)</option>
+              <option value="15" data-i18n="freq15s">Ogni 15 secondi (Live Rapido)</option>
 
 
 
-              <option value="30" selected>Ogni 30 secondi (Consigliato)</option>
+              <option value="30" selected data-i18n="freq30s">Ogni 30 secondi (Consigliato)</option>
 
 
 
-              <option value="60">Ogni 1 minuto</option>
+              <option value="60" data-i18n="freq1m">Ogni 1 minuto</option>
 
 
 
-              <option value="300">Ogni 5 minuti</option>
+              <option value="300" data-i18n="freq5m">Ogni 5 minuti</option>
 
 
 
@@ -3778,7 +2839,7 @@
 
 
 
-              🚀 Avvia Contatore su Pixò
+              <span data-i18n="startFollowerBtn">🚀 Avvia Contatore su Pixò</span>
 
 
 
@@ -3830,7 +2891,7 @@
 
 
 
-          <h3>Condivisione & Ospiti</h3>
+          <h3 data-i18n="shareModalTitle">Condivisione & Ospiti</h3>
 
 
 
@@ -3854,11 +2915,11 @@
 
 
 
-              <strong>Consenti Disegni da Ospiti</strong>
+              <strong data-i18n="allowGuestsTitle">Consenti Disegni da Ospiti</strong>
 
 
 
-              <small id="guestStatusSub">Se disattivato, solo tu potrai inviare disegni</small>
+              <small id="guestStatusSub" data-i18n="guestStatusSub">Se disattivato, solo tu potrai inviare disegni</small>
 
 
 
@@ -3894,11 +2955,11 @@
 
 
 
-            <input type="text" id="newGuestNameInput" placeholder="Nome per il link (es. Marco)" style="flex:1; height:44px; padding:0 14px; border-radius:var(--radius-md); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; font-size:0.9rem; outline:none;">
+            <input type="text" id="newGuestNameInput" data-i18n-placeholder="newGuestNamePlaceholder" placeholder="Nome per il link (es. Marco)" style="flex:1; height:44px; padding:0 14px; border-radius:var(--radius-md); background:rgba(255,255,255,0.08); border:1px solid var(--glass-border); color:#fff; font-size:0.9rem; outline:none;">
 
 
 
-            <button class="pill-btn primary" id="createGuestKeyBtn">+ Crea Link</button>
+            <button class="pill-btn primary" id="createGuestKeyBtn" data-i18n="createGuestKeyBtn">+ Crea Link</button>
 
 
 
@@ -3938,7 +2999,7 @@
 
 
 
-            Nessun link ospite attivo. Creane uno per farlo usare ai tuoi amici!
+            <span data-i18n="guestKeysEmpty">Nessun link ospite attivo. Creane uno per farlo usare ai tuoi amici!</span>
 
 
 
@@ -3986,7 +3047,7 @@
 
 
 
-          <h3 id="onboardingTitle">Connetti il tuo Pixò</h3>
+          <h3 id="onboardingTitle" data-i18n="onboardingTitle">Connetti il tuo Pixò</h3>
 
 
 
@@ -4006,11 +3067,11 @@
 
 
 
-            <button class="ob-tab active" id="tabOnboardLogin">🔑 Accedi con PIN</button>
+            <button class="ob-tab active" id="tabOnboardLogin" data-i18n="tabOnboardLogin">🔑 Accedi con PIN</button>
 
 
 
-            <button class="ob-tab" id="tabOnboardActivate">✨ Prima Attivazione</button>
+            <button class="ob-tab" id="tabOnboardActivate" data-i18n="tabOnboardActivate">✨ Prima Attivazione</button>
 
 
 
@@ -4046,7 +3107,7 @@
 
 
 
-              <label>ID Dispositivo</label>
+              <label data-i18n="deviceIdLabel">ID Dispositivo</label>
 
 
 
@@ -4062,11 +3123,11 @@
 
 
 
-              <label>PIN di Sicurezza</label>
+              <label data-i18n="devicePinLabel">PIN di Sicurezza</label>
 
 
 
-              <input type="password" id="onboardLoginPin" placeholder="Il tuo PIN personale">
+              <input type="password" id="onboardLoginPin" data-i18n-placeholder="onboardLoginPinPlaceholder" placeholder="Il tuo PIN personale">
 
 
 
@@ -4074,7 +3135,7 @@
 
 
 
-            <button type="button" class="pill-btn primary full" id="submitLoginBtn">Entra in Pixò</button>
+            <button type="button" class="pill-btn primary full" id="submitLoginBtn" data-i18n="submitLoginBtn">Entra in Pixò</button>
 
 
 
@@ -4098,7 +3159,7 @@
 
 
 
-              <label>ID Dispositivo (visibile sullo schermo)</label>
+              <label data-i18n="onboardDeviceIdLabel">ID Dispositivo (visibile sullo schermo)</label>
 
 
 
@@ -4114,7 +3175,7 @@
 
 
 
-              <label>PIN di Fabbrica (1234)</label>
+              <label data-i18n="onboardFactoryPinLabel">PIN di Fabbrica (1234)</label>
 
 
 
@@ -4130,11 +3191,11 @@
 
 
 
-              <label>Crea Nuovo PIN Personale</label>
+              <label data-i18n="onboardNewPinLabel">Crea Nuovo PIN Personale</label>
 
 
 
-              <input type="password" id="onboardNewPin" placeholder="Almeno 4 cifre">
+              <input type="password" id="onboardNewPin" data-i18n-placeholder="onboardNewPinPlaceholder" placeholder="Almeno 4 cifre">
 
 
 
@@ -4146,11 +3207,11 @@
 
 
 
-              <label>Conferma Nuovo PIN</label>
+              <label data-i18n="onboardConfirmPinLabel">Conferma Nuovo PIN</label>
 
 
 
-              <input type="password" id="onboardConfirmPin" placeholder="Ripeti il nuovo PIN">
+              <input type="password" id="onboardConfirmPin" data-i18n-placeholder="onboardConfirmPinPlaceholder" placeholder="Ripeti il nuovo PIN">
 
 
 
@@ -4158,7 +3219,7 @@
 
 
 
-            <button type="button" class="pill-btn primary full" id="submitOnboardingBtn">Attiva Pixò</button>
+            <button type="button" class="pill-btn primary full" id="submitOnboardingBtn" data-i18n="submitOnboardingBtn">Attiva Pixò</button>
 
 
 
@@ -4238,11 +3299,7 @@
 
 
 
-            <button class="pill-btn secondary mini" id="loadFromDisplayBtn" title="Carica ciò che c'è attualmente a display">
-
-
-
-              🔄 Da Pixò
+            <button class="pill-btn secondary mini" id="loadFromDisplayBtn" data-i18n="loadFromDisplayBtn" title="Carica ciò che c'è attualmente a display">🔄 Da Pixò
 
 
 
@@ -4278,7 +3335,7 @@
 
 
 
-          Nessun disegno salvato. Usa il tasto 💾 Salva per conservare le tue creazioni!
+          <span data-i18n="galleryEmptyMessage">Nessun disegno salvato. Usa il tasto 💾 Salva per conservare le tue creazioni!</span>
 
 
 
@@ -4334,7 +3391,7 @@
 
 
 
-        <h2 class="revoked-title">Accesso Non Disponibile</h2>
+        <h2 class="revoked-title" data-i18n="revokedTitle">Accesso Non Disponibile</h2>
 
 
 
@@ -4354,7 +3411,7 @@
 
 
 
-          Il proprietario ha revocato questo link di invito oppure ha disattivato l'accesso per gli ospiti. Contattalo per richiedere un nuovo link.
+          <span data-i18n="revokedHint">Il proprietario ha revocato questo link di invito oppure ha disattivato l'accesso per gli ospiti. Contattalo per richiedere un nuovo link.</span>
 
 
 
@@ -4366,7 +3423,7 @@
 
 
 
-          🔄 Riprova a Verificare
+          <span data-i18n="retryGuestAuthBtn">🔄 Riprova a Verificare</span>
 
 
 
@@ -4422,7 +3479,7 @@
 
 
 
-        <h2 class="revoked-title" style="color: #ff9500;">Link Amico Già in Uso</h2>
+        <h2 class="revoked-title" style="color: #ff9500;" data-i18n="busyTitle">Link Amico Già in Uso</h2>
 
 
 
@@ -4430,7 +3487,7 @@
 
 
 
-          Questo link di invito è attualmente occupato da un'altra persona.
+          <span data-i18n="busyReason">Questo link di invito è attualmente occupato da un'altra persona.</span>
 
 
 
@@ -4442,7 +3499,7 @@
 
 
 
-          Per garantire la privacy e non interrompere il disegno, ogni link amico può essere usato da una sola persona alla volta. Non appena l'altro utente chiuderà l'app, il link tornerà disponibile.
+          <span data-i18n="busyHint">Per garantire la privacy e non interrompere il disegno, ogni link amico può essere usato da una sola persona alla volta. Non appena l'altro utente chiuderà l'app, il link tornerà disponibile.</span>
 
 
 
@@ -4454,7 +3511,7 @@
 
 
 
-          🔄 Controlla se si è liberato
+          <span data-i18n="retryGuestSessionBtn">🔄 Controlla se si è liberato</span>
 
 
 
@@ -4498,7 +3555,7 @@
 
 
 
-          <h3>Carica Immagine</h3>
+          <h3 data-i18n="uploadPhoto">Carica Immagine</h3>
 
 
 
@@ -4514,7 +3571,7 @@
 
 
 
-          Come desideri inserire la foto sul display di Pixò?
+          <span data-i18n="photoSourceAsk">Come desideri inserire la foto sul display di Pixò?</span>
 
 
 
@@ -4526,11 +3583,7 @@
 
 
 
-          <button type="button" class="pill-btn primary" id="btnSourceCamera" style="padding: 14px; font-size: 0.95rem; justify-content: center; gap: 10px;">
-
-
-
-            📸 Scatta con Fotocamera
+          <button type="button" class="pill-btn primary" id="btnSourceCamera" data-i18n="btnTakePhoto" style="padding: 14px; font-size: 0.95rem; justify-content: center; gap: 10px;">📸 Scatta con Fotocamera
 
 
 
@@ -4538,11 +3591,7 @@
 
 
 
-          <button type="button" class="pill-btn secondary" id="btnSourceGallery" style="padding: 14px; font-size: 0.95rem; justify-content: center; gap: 10px;">
-
-
-
-            🖼️ Scegli dalla Galleria / File
+          <button type="button" class="pill-btn secondary" id="btnSourceGallery" data-i18n="btnChooseGallery" style="padding: 14px; font-size: 0.95rem; justify-content: center; gap: 10px;">🖼️ Scegli dalla Galleria / File
 
 
 
@@ -4570,157 +3619,28 @@
 
 
 
+        <!-- Modale Gentile Invito Donazione Rosa per Live Streaming (Ogni 3 Disegni) -->
     <div class="ios-sheet hidden" id="liveUnlockModal">
-
-
-
       <div class="sheet-backdrop" id="closeLiveUnlockBackdrop"></div>
-
-
-
-      <div class="sheet-card" style="max-width: 420px; text-align:center;">
-
-
-
+      <div class="sheet-card" style="max-width: 400px; text-align:center;">
         <div class="sheet-grabber"></div>
-
-
-
         <div class="sheet-header" style="justify-content:center; position:relative;">
-
-
-
-          <h3 style="color:#ff375f; margin:0;">🎁 Sblocca Altri Disegni</h3>
-
-
-
+          <h3 data-i18n="liveRosePromptTitle" style="color:#ff375f; margin:0;">💖 Ti piace disegnare su Pixò?</h3>
           <button class="sheet-close-btn" id="closeLiveUnlockBtn" style="position:absolute; right:0;">&times;</button>
-
-
-
         </div>
-
-
-
-        <div style="font-size:2.4rem; margin:10px 0 6px 0;">🌹 💖 🦁</div>
-
-
-
-        <p style="color:var(--text-secondary); font-size:0.88rem; line-height:1.45; margin-bottom:16px;">
-
-
-
-          Supporta la diretta con un regalo su <strong>TikTok / Live</strong> per sbloccare subito nuovi crediti per disegnare su Pixò!
-
-
-
+        <div style="font-size:2.6rem; margin:12px 0 8px 0;">🌹 ✨ ❤️</div>
+        <p id="liveRosePromptBodyText" data-i18n="liveRosePromptBody" style="color:var(--text-primary); font-size:0.92rem; line-height:1.5; margin-bottom:18px; padding:0 6px;">
+          Spero tanto che questo dispositivo ti piaccia! ❤️ Se ti fa piacere supportare la live, puoi donare una Rosa 🌹 su TikTok!
         </p>
-
-
-
-
-
-
-
-        <div style="background:rgba(255,255,255,0.05); border:1px solid var(--glass-border); border-radius:var(--radius-md); padding:12px; margin-bottom:16px; text-align:left;">
-
-
-
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.06);">
-
-
-
-            <span>🌹 <b>1 Rosa</b> (1 moneta)</span>
-
-
-
-            <span style="color:var(--accent-green); font-weight:700;" id="liveModalRoseRewardText">+3 Disegni</span>
-
-
-
-          </div>
-
-
-
-          <div style="display:flex; justify-content:space-between; align-items:center;">
-
-
-
-            <span>🦁 <b>Top Gift / Leone</b></span>
-
-
-
-            <span style="color:var(--accent-blue); font-weight:700;">Disegni Illimitati ✨</span>
-
-
-
-          </div>
-
-
-
+        <div style="display:none;">
+          <span id="liveModalRoseRewardText"></span>
+          <input type="text" id="liveDonationNickInput">
         </div>
-
-
-
-
-
-
-
-        <div class="ios-input-group" style="margin-bottom:12px; text-align:left;">
-
-
-
-          <label style="font-size:0.8rem;">Hai appena donato? Inserisci il tuo nome TikTok o codice:</label>
-
-
-
-          <div style="display:flex; gap:6px; margin-top:4px;">
-
-
-
-            <input type="text" id="liveDonationNickInput" placeholder="@iltuonome_tiktok" style="font-size:0.85rem; height:40px; flex:1;">
-
-
-
-            <button type="button" class="pill-btn primary mini" id="liveClaimDonationBtn" style="background:#ff375f; border-color:#ff375f; white-space:nowrap; padding:0 14px;">Ho Donato!</button>
-
-
-
-          </div>
-
-
-
-        </div>
-
-
-
-        
-
-
-
-        <small style="color:var(--text-secondary); font-size:0.75rem; display:block;">
-
-
-
-          Lo streamer vedrà il tuo regalo apparire nella diretta!
-
-
-
-        </small>
-
-
-
+        <button type="button" class="pill-btn primary full" id="liveClaimDonationBtn" data-i18n="liveRosePromptBtn" style="background:linear-gradient(135deg, #ff2d55, #ff375f); border:none; padding:14px; font-size:0.95rem; font-weight:700;">
+          🌹 Continua a disegnare!
+        </button>
       </div>
-
-
-
     </div>
-
-
-
-
-
-
 
     <!-- Toast Notification in stile Dynamic Island di iOS -->
 
@@ -4742,7 +3662,7 @@
 
 
 
-  <script src="app.js?v=67"></script>
+  <script src="app.js?v=68"></script>
 
 
 
