@@ -4218,8 +4218,7 @@ function updateLiveShareLink() {
 
   // Sincronizza lo stato della Live su Pixò via MQTT se connessi
   if (state.mqttConnected && state.mqttClient && state.deviceId) {
-    const isEn = liveModeToggle ? liveModeToggle.checked : (state.isLiveMode || false);
-    const cfgPayload = JSON.stringify({ enabled: isEn, room: state.liveRoomCode });
+    const cfgPayload = JSON.stringify({ enabled: true, room: state.liveRoomCode });
     state.mqttClient.publish(`pixo/device/${state.deviceId}/live_config`, cfgPayload, { qos: 1, retain: true });
   }
 }
