@@ -3059,38 +3059,15 @@ function publishToDrawTopics(payload) {
 
 
 
+  if (state.isGuestMode) {
+    const key = state.guestKey || 'pixo123';
+    state.mqttClient.publish(`pixo/friend/${key}/draw`, payload, { qos: 0, retain: false });
+    return;
+  }
+
   devIds.forEach(devId => {
-
-
-
-    if (state.isGuestMode) {
-      const key = state.guestKey || 'pixo123';
-      state.mqttClient.publish(`pixo/friend/${key}/draw`, payload, { qos: 0, retain: false });
-      state.mqttClient.publish(`pixo/live/current`, payload, { qos: 1, retain: true });
-    } else {
-
-
-
-      // Invia rigorosamente a UN SOLO topic (con PIN oppure fallback master 1234)
-
-
-
-      // Il firmware ESP32 autorizza sempre sia il PIN impostato sia '1234' su pixo/device/<ID>/<PIN>/draw
-
-
-
-      const targetPin = (pin && pin !== "NONE") ? pin : "1234";
-
-
-
-      state.mqttClient.publish(`pixo/device/${devId}/${targetPin}/draw`, payload, { qos: 0, retain: false });
-
-
-
-    }
-
-
-
+    const targetPin = (pin && pin !== "NONE") ? pin : "1234";
+    state.mqttClient.publish(`pixo/device/${devId}/${targetPin}/draw`, payload, { qos: 0, retain: false });
   });
 
 
@@ -4149,19 +4126,65 @@ function updateSettingsUI() {
 
 
 
+function computeDefaultRoomCode(deviceId) {
+  const cleanId = (deviceId || "ESP32-9205D4").trim().toUpperCase();
+  const salted = cleanId + "_PIXO_SALT_2026";
+  let hash = 2166136261 >>> 0;
+  for (let i = 0; i < salted.length; i++) {
+    hash ^= salted.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  const charset = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let code = "PIX-";
+  for (let i = 0; i < 6; i++) {
+    let h = (hash ^ (Math.imul(i, 0x9E3779B9) >>> 0)) >>> 0;
+    h = (h ^ (h >>> 16)) >>> 0;
+    const idx = (h >>> ((i * 5) % 24)) & 31;
+    code += charset[idx];
+  }
+  return code;
+}
+
+function getActiveLiveRoomCode(devIdOverride) {
+  if (!devIdOverride) {
+    if (state.liveRoom) return state.liveRoom;
+    if (state.liveRoomCode) return state.liveRoomCode;
+  }
+  const devId = (devIdOverride || state.deviceId || "ESP32-9205D4").trim();
+  return localStorage.getItem('pixo_live_room_code_' + devId) || computeDefaultRoomCode(devId);
+}
+
 function generateLiveRoomCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code = "PIX-";
-  for (let i = 0; i < 4; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
+  for (let i = 0; i < 6; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
   return code;
 }
 
 function regenerateLiveRoomCode() {
+  const oldRoom = state.liveRoomCode || getActiveLiveRoomCode();
   state.liveRoomCode = generateLiveRoomCode();
+  if (state.deviceId) {
+    localStorage.setItem('pixo_live_room_code_' + state.deviceId, state.liveRoomCode);
+  }
   localStorage.setItem('pixo_live_room_code', state.liveRoomCode);
+  if (state.mqttConnected && state.mqttClient) {
+    if (oldRoom && oldRoom !== state.liveRoomCode) {
+      state.mqttClient.unsubscribe(`pixo/live/${oldRoom}/current`);
+    }
+    state.mqttClient.subscribe(`pixo/live/${state.liveRoomCode}/current`, { qos: 1 });
+  }
   updateLiveShareLink();
-  showToast(`Nuovo codice stanza generato: ${state.liveRoomCode}! 🔒`, "info");
+  syncGuestKeysToDevice(false);
+  showToast(
+    state.lang === 'it'
+      ? `Nuovo codice stanza generato: ${state.liveRoomCode}! 🔒`
+      : `New room code generated: ${state.liveRoomCode}! 🔒`,
+    "info"
+  );
 }
+window.computeDefaultRoomCode = computeDefaultRoomCode;
+window.getActiveLiveRoomCode = getActiveLiveRoomCode;
 window.generateLiveRoomCode = generateLiveRoomCode;
 window.regenerateLiveRoomCode = regenerateLiveRoomCode;
 
@@ -4169,7 +4192,10 @@ function updateLiveShareLink() {
   if (!liveLinkInput) return;
 
   if (!state.liveRoomCode) {
-    state.liveRoomCode = localStorage.getItem('pixo_live_room_code') || generateLiveRoomCode();
+    state.liveRoomCode = getActiveLiveRoomCode();
+    if (state.deviceId) {
+      localStorage.setItem('pixo_live_room_code_' + state.deviceId, state.liveRoomCode);
+    }
     localStorage.setItem('pixo_live_room_code', state.liveRoomCode);
   }
 
@@ -4259,7 +4285,7 @@ async function sendLiveBuzzerMqtt(buzzerPayload, msgIt, msgEn) {
     }, 5000);
 
     liveClient.on('connect', () => {
-      const roomCode = state.liveRoom || state.liveRoomCode || localStorage.getItem('pixo_live_room_code') || 'PIX-LIVE';
+      const roomCode = getActiveLiveRoomCode();
       liveClient.publish(`pixo/live/${roomCode}/buzzer`, buzzerPayload, { qos: 0 });
       sent = true;
       setTimeout(() => {
@@ -4337,9 +4363,9 @@ async function sendLiveDrawingMqtt() {
       }, 5000);
 
       liveClient.on('connect', () => {
-        const roomCode = state.liveRoom || state.liveRoomCode || localStorage.getItem('pixo_live_room_code') || 'PIX-LIVE';
+        const roomCode = getActiveLiveRoomCode();
         liveClient.publish(`pixo/live/${roomCode}/draw`, uint8Array, { qos: 0, retain: false });
-        liveClient.publish(`pixo/live/current`, uint8Array, { qos: 1, retain: true }, () => {
+        liveClient.publish(`pixo/live/${roomCode}/current`, uint8Array, { qos: 1, retain: true }, () => {
           sent = true;
           setTimeout(() => {
             clearTimeout(timer);
@@ -4385,7 +4411,7 @@ async function fetchLiveScreen() {
     "info"
   );
 
-  const roomCode = state.liveRoom || state.liveRoomCode || localStorage.getItem('pixo_live_room_code') || 'PIX-LIVE';
+  const roomCode = getActiveLiveRoomCode();
   const tempId = "PixoFetch_" + Math.random().toString(36).substr(2, 7);
   const fetchClient = mqtt.connect(state.brokerUrl, {
     clientId: tempId,
@@ -4409,7 +4435,7 @@ async function fetchLiveScreen() {
   }, 4000);
 
   fetchClient.on('connect', () => {
-    fetchClient.subscribe(`pixo/live/current`, { qos: 1 });
+    fetchClient.subscribe(`pixo/live/${roomCode}/current`, { qos: 1 });
   });
 
   fetchClient.on('message', (topic, payload) => {
@@ -8471,13 +8497,9 @@ async function sendClockCommand() {
 
 
     getTargetDeviceIds().forEach(id => {
-
-
-
       state.mqttClient.publish(`pixo/device/${id}/current`, cmd, { qos: 0, retain: true });
-
-
-
+      const rCode = getActiveLiveRoomCode(id);
+      state.mqttClient.publish(`pixo/live/${rCode}/current`, cmd, { qos: 1, retain: true });
     });
 
 
@@ -9746,18 +9768,6 @@ async function sendNativeFollowerCommand(platform, username, count, interval) {
 
 
 
-  getTargetDeviceIds().forEach(id => {
-
-
-
-    state.mqttClient.publish(`pixo/device/${id}/current`, payload, { qos: 0, retain: true });
-
-
-
-  });
-
-
-
 }
 
 
@@ -9803,18 +9813,6 @@ async function sendNativeFollowerCount(count) {
 
 
   publishToDrawTopics(payload);
-
-
-
-  getTargetDeviceIds().forEach(id => {
-
-
-
-    state.mqttClient.publish(`pixo/device/${id}/current`, payload, { qos: 0, retain: true });
-
-
-
-  });
 
 
 
@@ -11719,10 +11717,8 @@ function sendGuestAccessConfig(enabled) {
 
 
   state.mqttClient.publish(`pixo/device/${state.deviceId}/access/status`, status, { qos: 0, retain: true });
-
-
-
   state.mqttClient.publish(`pixo/device/${state.deviceId}/access`, `GUEST:${status}`, { qos: 0, retain: true });
+  syncGuestKeysToDevice(false);
 
 
 
@@ -12148,17 +12144,9 @@ function addNewGuestKey(name) {
 
 
 
-  if (!state.guestKeys) if (state.guestKeys && state.mqttConnected && state.mqttClient) {
-    state.guestKeys.forEach(item => {
-      if (item && item.key) {
-        state.mqttClient.publish(`pixo/friend/${item.key}/meta`, JSON.stringify({ status: "REVOKED" }), { qos: 1, retain: true });
-      }
-    });
+  if (!Array.isArray(state.guestKeys)) {
+    state.guestKeys = [];
   }
-  state.guestKeys = [];
-
-
-
   state.guestKeys.unshift(newEntry);
 
 
@@ -12277,12 +12265,13 @@ function revokeAllGuestKeys() {
 
   if (!confirm(confirmMsg)) return;
 
-
-
-
-
-
-
+  if (Array.isArray(state.guestKeys) && state.mqttConnected && state.mqttClient) {
+    state.guestKeys.forEach(item => {
+      if (item && item.key) {
+        state.mqttClient.publish(`pixo/friend/${item.key}/meta`, JSON.stringify({ status: "REVOKED" }), { qos: 1, retain: true });
+      }
+    });
+  }
   state.guestKeys = [];
 
 
@@ -12443,11 +12432,13 @@ function syncGuestKeysToDevice(forcePublishData = true) {
     const kidsVal = state.kidsModeEnabled !== false ? "ON" : "OFF";
     state.mqttClient.publish(`pixo/device/${state.deviceId}/kids_mode`, kidsVal, { qos: 1, retain: true });
 
-    // 5. Pubblica stato autorizzazione anonimo per ogni chiave amico su pixo/friend/<key>/meta
+    // 5. Pubblica stato autorizzazione e Stanza Live isolata per ogni chiave amico su pixo/friend/<key>/meta
+    const activeRoom = getActiveLiveRoomCode();
     keysArray.forEach(k => {
       const metaPayload = JSON.stringify({
         status: state.allowGuests !== false ? "ACTIVE" : "DISABLED",
         kidsMode: state.kidsModeEnabled !== false,
+        room: activeRoom,
         name: state.deviceName || "Pixò"
       });
       state.mqttClient.publish(`pixo/friend/${k}/meta`, metaPayload, { qos: 1, retain: true });
@@ -14018,142 +14009,43 @@ let hasShownConnectedToast = false;
 
 
 function subscribeDeviceTopics() {
-
-
-
-  if (!state.mqttClient || !state.mqttClient.connected || !state.deviceId) return;
-
-
-
-
-
-
+  if (!state.mqttClient || !state.mqttClient.connected) return;
 
   if (state.isGuestMode) {
-
-
-
-    const accessKeysTopic = `pixo/device/${state.deviceId}/access/keys`;
-
-
-
-    const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
-
-
-
-    const guestAckTopic = `pixo/friend/${state.guestKey}/ack`;
-
-
-
-    const kidsModeTopic = `pixo/device/${state.deviceId}/kids_mode`;
-
-
-
-    state.mqttClient.subscribe(accessKeysTopic, { qos: 1 });
-    state.mqttClient.subscribe(accessStatusTopic, { qos: 1 });
-    state.mqttClient.subscribe(guestAckTopic, { qos: 0 });
-    state.mqttClient.subscribe(`pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`, { qos: 0 });
-    state.mqttClient.subscribe(`pixo/friend/${state.guestKey}/meta`, { qos: 1 });
-    state.mqttClient.subscribe(`pixo/live/current`, { qos: 1 });
-    state.mqttClient.subscribe(kidsModeTopic, { qos: 1 });
-
-
-
-
-
-
-
-    // Sottoscrivi al Lock di Sessione Esclusivo per Link Amico
-
-
-
-    if (!state.isLiveMode && state.guestKey) {
-
-
-
-      const guestLockTopic = `pixo/friend/${state.guestKey}/lock`;
-
-
-
-      state.mqttClient.subscribe(guestLockTopic, { qos: 0 });
-
-
-
+    if (state.guestKey) {
+      state.mqttClient.subscribe(`pixo/friend/${state.guestKey}/meta`, { qos: 1 });
+      state.mqttClient.subscribe(`pixo/friend/${state.guestKey}/ack`, { qos: 0 });
+      if (!state.isLiveMode) {
+        state.mqttClient.subscribe(`pixo/friend/${state.guestKey}/lock`, { qos: 0 });
+      }
+    }
+    if (state.liveRoom) {
+      state.mqttClient.subscribe(`pixo/live/${state.liveRoom}/current`, { qos: 1 });
     }
 
-
-
-
-
-
-
     if (guestAuthTimeout) clearTimeout(guestAuthTimeout);
-
-
-
     guestAuthTimeout = setTimeout(() => {
-
-
-
       if (state.guestAuthorized === null) {
-
-
-
-        setGuestAccessAuthorized(false, state.lang === 'it' 
-
-
-
-          ? "Impossibile verificare l'autorizzazione di questo link di invito." 
-
-
-
+        setGuestAccessAuthorized(false, state.lang === 'it'
+          ? "Impossibile verificare l'autorizzazione di questo link di invito."
           : "Unable to verify this invitation link.");
-
-
-
       }
-
-
-
-    }, 4000);
-
-
+    }, 4500);
 
   } else {
-
-
+    if (!state.deviceId) return;
 
     // IN MODALITÀ PROPRIETARIO:
-
-
-
     const statusTopic = `pixo/device/${state.deviceId}/status`;
-
-
-
     state.mqttClient.subscribe(statusTopic, { qos: 1 });
 
-
-
-
-
-
-
-    state.mqttClient.subscribe(`pixo/live/current`, { qos: 1 });
-
-
-
-
-
-
+    // Stanza Live isolata per questo Pixò (singola fonte di verità per lo schermo)
+    state.liveRoomCode = getActiveLiveRoomCode();
+    state.mqttClient.subscribe(`pixo/device/${state.deviceId}/live_config`, { qos: 1 });
+    state.mqttClient.subscribe(`pixo/live/${state.liveRoomCode}/current`, { qos: 1 });
 
     const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
-
-
-
     state.mqttClient.subscribe(keysDataTopic, { qos: 1 });
-
-
 
     syncGuestKeysToDevice(false);
 
@@ -14529,84 +14421,71 @@ function connectMQTT() {
             try {
               const metaStr = new TextDecoder().decode(payload).trim();
               const meta = JSON.parse(metaStr);
+              if (meta.room && typeof meta.room === 'string') {
+                const newRoom = meta.room.trim();
+                if (newRoom) {
+                  if (state.liveRoom && state.liveRoom !== newRoom && state.mqttClient && state.mqttClient.connected) {
+                    state.mqttClient.unsubscribe(`pixo/live/${state.liveRoom}/current`);
+                  }
+                  state.liveRoom = newRoom;
+                  state.liveRoomCode = newRoom;
+                  if (state.mqttClient && state.mqttClient.connected) {
+                    state.mqttClient.subscribe(`pixo/live/${newRoom}/current`, { qos: 1 });
+                  }
+                }
+              }
               if (meta.status === "REVOKED") {
                 setGuestAccessAuthorized(false, state.lang === 'it' ? "Questo link di invito è stato revocato dal proprietario." : "This invite link has been revoked by the owner.");
               } else if (meta.status === "DISABLED") {
                 setGuestAccessAuthorized(false, state.lang === 'it' ? "Il proprietario ha temporaneamente disattivato l'accesso ospiti." : "The owner has temporarily disabled guest access.");
               } else if (meta.status === "ACTIVE") {
                 if (typeof meta.kidsMode === 'boolean') state.kidsModeEnabled = meta.kidsMode;
+                state.deviceStatus = 'online';
+                updateDeviceStatusUI(true);
                 setGuestAccessAuthorized(true);
               }
             } catch (e) {}
+          } else if (topic === `pixo/device/${state.deviceId}/live_config` && !state.isGuestMode) {
+            try {
+              const cfgStr = new TextDecoder().decode(payload).trim();
+              const cfg = JSON.parse(cfgStr);
+              if (cfg.room && typeof cfg.room === 'string') {
+                const incomingRoom = cfg.room.trim();
+                if (incomingRoom && incomingRoom !== state.liveRoomCode) {
+                  if (state.liveRoomCode && state.mqttClient && state.mqttClient.connected) {
+                    state.mqttClient.unsubscribe(`pixo/live/${state.liveRoomCode}/current`);
+                  }
+                  state.liveRoomCode = incomingRoom;
+                  localStorage.setItem('pixo_live_room_code_' + state.deviceId, incomingRoom);
+                  localStorage.setItem('pixo_live_room_code', incomingRoom);
+                  if (state.mqttClient && state.mqttClient.connected) {
+                    state.mqttClient.subscribe(`pixo/live/${incomingRoom}/current`, { qos: 1 });
+                  }
+                  if (liveLinkInput) {
+                    const baseUrl = window.location.origin + window.location.pathname;
+                    const url = new URL(baseUrl);
+                    url.searchParams.set('room', state.liveRoomCode);
+                    url.searchParams.set('live', '1');
+                    url.searchParams.set('free', liveFreeDrawsSelect ? liveFreeDrawsSelect.value : (state.liveFreeDraws || '3'));
+                    url.searchParams.set('rose', liveDrawsPerRoseSelect ? liveDrawsPerRoseSelect.value : (state.liveDrawsPerRose || '3'));
+                    url.searchParams.set('cd', liveCooldownSelect ? liveCooldownSelect.value : (state.liveCooldownSec || '20'));
+                    liveLinkInput.value = url.toString();
+                  }
+                }
+              }
+            } catch (e) {}
           } else if (topic === guestLockTopic && state.isGuestMode && !state.isLiveMode) {
-
-
-
             handleGuestSessionLockMessage(payload);
-
-
-
           } else if (topic === kidsModeTopic) {
-
-
-
             handleKidsModeSyncMessage(payload);
-
-
-
-          } else if (topic === accessKeysTopic && state.isGuestMode) {
-
-
-
-            handleGuestAccessKeysMessage(payload);
-
-
-
-          } else if (topic === accessStatusTopic && state.isGuestMode) {
-
-
-
-            handleGuestAccessStatusMessage(payload);
-
-
-
-          } else if ((topic === guestAckTopic || topic === `pixo/device/${state.deviceId}/guest/${state.guestKey}/ack`) && state.isGuestMode) {
-
-
-
+          } else if (topic === guestAckTopic && state.isGuestMode) {
             const ack = new TextDecoder().decode(payload).trim();
-
-
-
             if (ack.startsWith("REJECTED")) {
-
-
-
               setGuestAccessAuthorized(false, "Disegno rifiutato da Pixò: il link è stato revocato!");
-
-
-
             }
-
-
-
-          } else if (topic === statusTopic) {
-
-
-
-            if (!state.isGuestMode || state.guestAuthorized === true) {
-
-
-
-              handleDeviceStatusSync(payload);
-
-
-
-            }
-
-
-
-          } else if ((topic === 'pixo/live/current' || topic === currentTopic) && (!state.isGuestMode || state.guestAuthorized !== false)) {
+          } else if (topic === statusTopic && !state.isGuestMode) {
+            handleDeviceStatusSync(payload);
+          } else if (topic === `pixo/live/${getActiveLiveRoomCode()}/current` && (!state.isGuestMode || state.guestAuthorized !== false)) {
             handleCurrentDisplaySync(payload);
 
 
@@ -15212,41 +15091,16 @@ function setGuestAccessAuthorized(authorized, reason) {
 
 
   if (authorized) {
-
-
-
     guestRevokedOverlay?.classList.add('hidden');
-
-
-
-    // Quando autorizzato, può sottoscrivere e monitorare se Pixò è online
-
-
-
-    if (state.mqttClient && state.mqttClient.connected) {
-
-
-
-      const statusTopic = `pixo/device/${state.deviceId}/status`;
-
-
-
-      state.mqttClient.subscribe(statusTopic, { qos: 1 });
-
-
-
-      const currentTopic = `pixo/device/${state.deviceId}/current`;
-
-
-
-      state.mqttClient.subscribe(currentTopic, { qos: 0 });
-
-
-
+    state.deviceStatus = 'online';
+    updateDeviceStatusUI(true);
+    if (startupOfflineTimer) {
+      clearTimeout(startupOfflineTimer);
+      startupOfflineTimer = null;
     }
-
-
-
+    if (state.mqttClient && state.mqttClient.connected && state.liveRoom) {
+      state.mqttClient.subscribe(`pixo/live/${state.liveRoom}/current`, { qos: 1 });
+    }
   } else {
 
 
@@ -16632,9 +16486,13 @@ async function sendCanvasMqtt() {
       if (!state.isGuestMode) {
         getTargetDeviceIds().forEach(id => {
           state.mqttClient.publish(`pixo/device/${id}/current`, uint8Array, { qos: 0, retain: true });
+          const rCode = getActiveLiveRoomCode(id);
+          state.mqttClient.publish(`pixo/live/${rCode}/current`, uint8Array, { qos: 1, retain: true });
         });
+      } else {
+        const rCode = getActiveLiveRoomCode();
+        state.mqttClient.publish(`pixo/live/${rCode}/current`, uint8Array, { qos: 1, retain: true });
       }
-      state.mqttClient.publish(`pixo/live/current`, uint8Array, { qos: 1, retain: true });
 
 
 
@@ -16957,9 +16815,13 @@ async function sendStandbyCommand() {
     if (!state.isGuestMode) {
       getTargetDeviceIds().forEach(id => {
         state.mqttClient.publish(`pixo/device/${id}/current`, clearCmd, { qos: 0, retain: true });
+        const rCode = getActiveLiveRoomCode(id);
+        state.mqttClient.publish(`pixo/live/${rCode}/current`, clearCmd, { qos: 1, retain: true });
       });
+    } else {
+      const rCode = getActiveLiveRoomCode();
+      state.mqttClient.publish(`pixo/live/${rCode}/current`, clearCmd, { qos: 1, retain: true });
     }
-    state.mqttClient.publish(`pixo/live/current`, clearCmd, { qos: 1, retain: true });
 
 
 
@@ -17525,8 +17387,7 @@ function sendJingleToPixo() {
 
   if (state.isGuestMode && state.guestKey) {
     state.mqttClient.publish(`pixo/friend/${state.guestKey}/buzzer`, payload, { qos: 0 });
-  }
-  if (state.deviceId) {
+  } else if (state.deviceId) {
     state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, payload, { qos: 0 });
   }
   showToast(state.lang === 'it' ? "Jingle inviato a Pixò! 🚀🎵" : "Jingle sent to Pixò! 🚀🎵", "success");
@@ -17648,8 +17509,7 @@ function sendBeepToPixo() {
   playAudioClick();
   if (state.isGuestMode && state.guestKey) {
     state.mqttClient.publish(`pixo/friend/${state.guestKey}/buzzer`, "BEEP", { qos: 0 });
-  }
-  if (state.deviceId) {
+  } else if (state.deviceId) {
     state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, "BEEP", { qos: 0 });
   }
   showToast(state.lang === 'it' ? "Beep inviato a Pixò! 🔔" : "Beep sent to Pixò! 🔔", "success");
@@ -17765,30 +17625,10 @@ function setupEventListeners() {
 
 
 
-    if (state.mqttClient && state.mqttClient.connected) {
-
-
-
-      const accessKeysTopic = `pixo/device/${state.deviceId}/access/keys`;
-
-
-
-      const accessStatusTopic = `pixo/device/${state.deviceId}/access/status`;
-
-
-
-      state.mqttClient.unsubscribe([accessKeysTopic, accessStatusTopic]);
-
-
-
-      state.mqttClient.subscribe(accessKeysTopic, { qos: 1 });
-
-
-
-      state.mqttClient.subscribe(accessStatusTopic, { qos: 1 });
-
-
-
+    if (state.mqttClient && state.mqttClient.connected && state.guestKey) {
+      const metaTopic = `pixo/friend/${state.guestKey}/meta`;
+      state.mqttClient.unsubscribe(metaTopic);
+      state.mqttClient.subscribe(metaTopic, { qos: 1 });
     } else {
 
 
