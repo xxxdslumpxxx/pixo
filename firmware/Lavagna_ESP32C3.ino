@@ -152,7 +152,7 @@ PubSubClient mqttClient;
 
 
 
-const char* FIRMWARE_VERSION = "1.3.0";
+const char* FIRMWARE_VERSION = "1.3.1";
 
 
 
@@ -707,17 +707,21 @@ bool verifyDevicePin(const String& inputPin) {
 }
 
 void setLiveRoom(const String& roomCode) {
-  if (currentLiveRoom.length() > 0) {
-    String oldTopic = "pixo/live/" + currentLiveRoom + "/draw";
-    mqttClient.unsubscribe(oldTopic.c_str());
-    Serial.printf("[LIVE] Disiscritto da stanza live precedente: %s\n", oldTopic.c_str());
+  if (currentLiveRoom.length() > 0 && mqttClient.connected()) {
+    mqttClient.unsubscribe(("pixo/live/" + currentLiveRoom + "/draw").c_str());
+    mqttClient.unsubscribe(("pixo/live/" + currentLiveRoom + "/buzzer").c_str());
   }
   currentLiveRoom = roomCode;
   currentLiveRoom.trim();
-  if (currentLiveRoom.length() > 0) {
-    String newTopic = "pixo/live/" + currentLiveRoom + "/draw";
-    mqttClient.subscribe(newTopic.c_str(), 0);
-    Serial.printf("[LIVE] Sintonizzato con successo su Stanza Live anonima: %s\n", newTopic.c_str());
+  preferences.begin("pixo", false);
+  preferences.putString("live_room", currentLiveRoom);
+  preferences.end();
+  if (currentLiveRoom.length() > 0 && mqttClient.connected()) {
+    String newDrawTopic = "pixo/live/" + currentLiveRoom + "/draw";
+    String newBuzTopic  = "pixo/live/" + currentLiveRoom + "/buzzer";
+    mqttClient.subscribe(newDrawTopic.c_str(), 0);
+    mqttClient.subscribe(newBuzTopic.c_str(), 0);
+    Serial.printf("[LIVE] Sintonizzato su Stanza Live anonima: %s ( + buzzer)\n", newDrawTopic.c_str());
   }
 }
 
@@ -1705,269 +1709,178 @@ void fetchAutonomousFollowerCount() {
 
 
 void showBootScreen(const String& statusText, uint16_t color = ST77XX_WHITE) {
-
   tft.fillScreen(ST77XX_BLACK);
-
-  
 
   // Header Navy
-
   tft.fillRect(0, 0, 240, 36, 0x000F);
-
   tft.drawFastHLine(0, 36, 240, ST77XX_CYAN);
-
   tft.setTextSize(2);
-
   tft.setTextColor(ST77XX_WHITE);
-
   tft.setCursor(55, 10);
-
   tft.print("PIXO' CLOUD");
 
-
-
   // Device ID Box (riga 1)
-
   tft.setTextSize(1);
-
   tft.setTextColor(ST77XX_CYAN);
-
   tft.setCursor(20, 48);
-
-  tft.print("DEVICE ID:");
-
+  tft.print("ID DISPOSITIVO / DEVICE ID:");
   tft.setTextSize(2);
-
   tft.setTextColor(ST77XX_YELLOW);
-
   tft.setCursor(20, 60);
-
   tft.print(deviceId);
-
-
 
   // PIN Box (riga 2, separata)
-
   tft.setTextSize(1);
-
   tft.setTextColor(ST77XX_CYAN);
-
   tft.setCursor(20, 88);
-
-  tft.print("PIN SICUREZZA:");
-
+  tft.print("PIN SICUREZZA / SECURITY PIN:");
   tft.setTextSize(3);
-
   tft.setTextColor(0x07E0); // Verde chiaro
-
   tft.setCursor(20, 102);
-
   tft.print(devicePin);
 
-
-
-  // Stato Connessione
+  // Stato Connessione Bilingue (IT + EN)
+  String statusEn = "";
+  if (statusText == "Avvio Sistema...") statusEn = "Starting System...";
+  else if (statusText == "Verifica Update...") statusEn = "Checking Update...";
+  else if (statusText == "Connesso!") statusEn = "Connected!";
+  else if (statusText == "WiFi Connesso!") statusEn = "WiFi Connected!";
+  else if (statusText == "Connessione Cloud...") statusEn = "Connecting Cloud...";
+  else if (statusText == "Timeout WiFi!") statusEn = "WiFi Timeout!";
 
   tft.setTextSize(2);
-
   tft.setTextColor(color);
-
-  tft.setCursor(20, 142);
-
+  tft.setCursor(20, 140);
   tft.print(statusText);
-
-
-
-  // Footer pulito
-
-  tft.drawFastHLine(15, 204, 210, 0x2104);
-
-  tft.setTextSize(1);
-
-  tft.setTextColor(ST77XX_CYAN);
-
-  tft.setCursor(20, 214);
-
-  tft.print("pixo.dslumpstudio.com");
-
-}
-
-
-
-// Schermata di Emergenza / Recupero PIN & Info Dispositivo (Quick Power-Cycle)
-
-void showRecoveryInfoScreen(int durationSec) {
-
-  tft.fillScreen(ST77XX_BLACK);
-
-
-
-  // Header Navy pulito
-
-  tft.fillRect(0, 0, 240, 34, 0x000F);
-
-  tft.drawFastHLine(0, 34, 240, ST77XX_CYAN);
-
-  tft.setTextSize(2);
-
-  tft.setTextColor(ST77XX_WHITE);
-
-  tft.setCursor(30, 9);
-
-  tft.print("PIXO' - ACCESSO");
-
-
-
-  // ID Dispositivo
-
-  tft.setTextSize(1);
-
-  tft.setTextColor(ST77XX_CYAN);
-
-  tft.setCursor(16, 44);
-
-  tft.print("ID DISPOSITIVO:");
-
-  tft.setTextSize(2);
-
-  tft.setTextColor(ST77XX_YELLOW);
-
-  tft.setCursor(16, 56);
-
-  tft.print(deviceId);
-
-
-
-  // Box PIN gigante con bordo verde brillante
-
-  tft.fillRoundRect(14, 82, 212, 76, 8, 0x0842); // Card sfondo scuro
-
-  tft.drawRoundRect(14, 82, 212, 76, 8, 0x07E0); // Bordo verde brillante
-
-  
-
-  tft.setTextSize(1);
-
-  tft.setTextColor(ST77XX_WHITE);
-
-  tft.setCursor(24, 90);
-
-  tft.print("PIN DI SICUREZZA:");
-
-
-
-  // PIN a dimensione 4 (24x32 px per cifra) - Gigante e chiarissimo da lontano
-
-  tft.setTextSize(4);
-
-  tft.setTextColor(0x07E0); // Verde Neon
-
-  int pinLen = devicePin.length();
-
-  int pinX = (240 - (pinLen * 24)) / 2;
-
-  if (pinX < 24) pinX = 24;
-
-  tft.setCursor(pinX, 112);
-
-  tft.print(devicePin);
-
-
-
-  // Link WebApp
-
-  tft.setTextSize(1);
-
-  tft.setTextColor(0xAD55);
-
-  tft.setCursor(16, 172);
-
-  tft.print("Accedi: ");
-
-  tft.setTextColor(ST77XX_WHITE);
-
-  tft.print("pixo.dslumpstudio.com");
-
-
-
-  // Divisore countdown
-
-  tft.drawFastHLine(14, 192, 212, 0x2104);
-
-
-
-  // Loop del conto alla rovescia (30 secondi) con ricezione MQTT attiva
-
-  unsigned long endTime = millis() + (durationSec * 1000UL);
-
-  int lastSec = -1;
-
-
-
-  while (millis() < endTime) {
-
-    if (WiFi.status() == WL_CONNECTED) {
-
-      mqttClient.loop();
-
-      if (hasUserDrawing) {
-
-        Serial.println("[RECOVERY] Disegno ricevuto durante recovery, passaggio immediato al canvas!");
-
-        return;
-
-      }
-
-    }
-
-
-
-    int remainingSec = (int)((endTime - millis() + 999) / 1000);
-
-    if (remainingSec != lastSec) {
-
-      lastSec = remainingSec;
-
-
-
-      // Aggiornamento testo countdown
-
-      tft.fillRect(14, 200, 212, 12, ST77XX_BLACK);
-
-      tft.setTextSize(1);
-
-      tft.setTextColor(0x7BEF);
-
-      tft.setCursor(16, 202);
-
-      tft.printf("Standby tra: %2d secondi", remainingSec);
-
-
-
-      // Aggiornamento barra di avanzamento dinamica
-
-      int barW = map(remainingSec, 0, durationSec, 0, 212);
-
-      if (barW < 0) barW = 0;
-
-      tft.fillRect(14, 218, 212, 6, 0x2104);
-
-      if (barW > 0) {
-
-        tft.fillRect(14, 218, barW, 6, ST77XX_CYAN);
-
-      }
-
-    }
-
-    delay(50);
-
+  if (statusEn.length() > 0) {
+    tft.setTextSize(1);
+    tft.setTextColor(0xAD55);
+    tft.setCursor(20, 162);
+    tft.print(statusEn);
   }
 
+  // Footer pulito
+  tft.drawFastHLine(15, 204, 210, 0x2104);
+  tft.setTextSize(1);
+  tft.setTextColor(ST77XX_CYAN);
+  tft.setCursor(20, 214);
+  tft.print("pixo.dslumpstudio.com");
+}
 
+void updateRecoveryScreenLang(bool isEng) {
+  // Header Navy (Y: 0..34)
+  tft.fillRect(0, 0, 240, 34, 0x000F);
+  tft.drawFastHLine(0, 34, 240, ST77XX_CYAN);
+  tft.setTextSize(2);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setCursor(30, 9);
+  tft.print(isEng ? "PIXO' - ACCESS" : "PIXO' - ACCESSO");
+
+  // Device ID Label
+  tft.fillRect(16, 44, 180, 10, ST77XX_BLACK);
+  tft.setTextSize(1);
+  tft.setTextColor(ST77XX_CYAN);
+  tft.setCursor(16, 44);
+  tft.print(isEng ? "DEVICE ID:" : "ID DISPOSITIVO:");
+
+  // Security PIN Label inside box
+  tft.fillRect(22, 88, 180, 12, 0x0842);
+  tft.setTextSize(1);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setCursor(24, 90);
+  tft.print(isEng ? "SECURITY PIN:" : "PIN DI SICUREZZA:");
+
+  // WebApp Access Label
+  tft.fillRect(16, 170, 54, 12, ST77XX_BLACK);
+  tft.setTextSize(1);
+  tft.setTextColor(0xAD55);
+  tft.setCursor(16, 172);
+  tft.print(isEng ? "Visit:  " : "Accedi: ");
+}
+
+// Schermata di Emergenza / Recupero PIN & Info Dispositivo (Quick Power-Cycle) con ciclo IT/EN 5s
+void showRecoveryInfoScreen(int durationSec) {
+  tft.fillScreen(ST77XX_BLACK);
+
+  // Valore ID Dispositivo (Fisso)
+  tft.setTextSize(2);
+  tft.setTextColor(ST77XX_YELLOW);
+  tft.setCursor(16, 56);
+  tft.print(deviceId);
+
+  // Box PIN gigante con bordo verde brillante (Fisso)
+  tft.fillRoundRect(14, 82, 212, 76, 8, 0x0842);
+  tft.drawRoundRect(14, 82, 212, 76, 8, 0x07E0);
+
+  // PIN a dimensione 4 (Fisso)
+  tft.setTextSize(4);
+  tft.setTextColor(0x07E0);
+  int pinLen = devicePin.length();
+  int pinX = (240 - (pinLen * 24)) / 2;
+  if (pinX < 24) pinX = 24;
+  tft.setCursor(pinX, 112);
+  tft.print(devicePin);
+
+  // URL WebApp (Fisso nella stessa posizione dopo "Accedi: " / "Visit:  ")
+  tft.setTextSize(1);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setCursor(64, 172);
+  tft.print("pixo.dslumpstudio.com");
+
+  // Divisore countdown
+  tft.drawFastHLine(14, 192, 212, 0x2104);
+
+  // Disegna prima lingua (Italiano)
+  bool currentLang = false;
+  updateRecoveryScreenLang(false);
+
+  unsigned long startTime = millis();
+  unsigned long endTime = startTime + (durationSec * 1000UL);
+  int lastSec = -1;
+
+  while (millis() < endTime) {
+    if (WiFi.status() == WL_CONNECTED) {
+      mqttClient.loop();
+      if (hasUserDrawing) {
+        Serial.println("[RECOVERY] Disegno ricevuto durante recovery, passaggio immediato al canvas!");
+        return;
+      }
+    }
+
+    bool wantEng = (((millis() - startTime) / 5000UL) % 2) == 1;
+    if (wantEng != currentLang) {
+      currentLang = wantEng;
+      updateRecoveryScreenLang(currentLang);
+      lastSec = -1; // Forza ridisegno riga countdown nella nuova lingua
+    }
+
+    int remainingSec = (int)((endTime - millis() + 999) / 1000);
+    if (remainingSec != lastSec) {
+      lastSec = remainingSec;
+
+      // Aggiornamento testo countdown bilingue
+      tft.fillRect(14, 200, 212, 12, ST77XX_BLACK);
+      tft.setTextSize(1);
+      tft.setTextColor(0x7BEF);
+      tft.setCursor(16, 202);
+      if (!currentLang) {
+        tft.printf("Standby tra: %2d secondi", remainingSec);
+      } else {
+        tft.printf("Standby in:  %2d seconds", remainingSec);
+      }
+
+      // Aggiornamento barra di avanzamento dinamica
+      int barW = map(remainingSec, 0, durationSec, 0, 212);
+      if (barW < 0) barW = 0;
+      tft.fillRect(14, 218, 212, 6, 0x2104);
+      if (barW > 0) {
+        tft.fillRect(14, 218, barW, 6, ST77XX_CYAN);
+      }
+    }
+    delay(50);
+  }
 
   Serial.println("[RECOVERY] Timer scaduto: passaggio a standby.");
-
 }
 
 
@@ -2343,7 +2256,11 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String topStrBuzzer = String(topic);
 
   bool isVolumeTopic = (topStrBuzzer == (String(TOPIC_PREFIX) + deviceId + "/volume"));
+  bool isLiveBuzzer = (topStrBuzzer.startsWith("pixo/live/") && topStrBuzzer.endsWith("/buzzer"));
+  bool isFriendBuzzer = (topStrBuzzer.startsWith("pixo/friend/") && topStrBuzzer.endsWith("/buzzer"));
   bool isBuzzerCmd = isVolumeTopic ||
+                     isLiveBuzzer ||
+                     isFriendBuzzer ||
                      (topStrBuzzer == topicBuzzer) ||
                      (topStrBuzzer.startsWith(String(TOPIC_PREFIX) + deviceId + "/") && topStrBuzzer.endsWith("/buzzer")) ||
                      (length >= 4 && memcmp(payload, "BEEP", 4) == 0) ||
@@ -3256,8 +3173,16 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     }
     Serial.printf("[SICUREZZA] Disegno OSPITE autorizzato con successo! (Chiave: %s)\n", sentKey.c_str());
   } else if (topStr.endsWith("/draw")) {
-    if (currentLiveRoom.length() > 0 && topStr == ("pixo/live/" + currentLiveRoom + "/draw")) {
+    if (topStr.startsWith("pixo/live/")) {
+      if (currentLiveRoom.length() > 0 && topStr != ("pixo/live/" + currentLiveRoom + "/draw")) {
+        Serial.printf("[LIVE] Disegno ignorato: stanza '%s' diversa da stanza attiva '%s'\n", topStr.c_str(), currentLiveRoom.c_str());
+        return;
+      }
       Serial.println("[LIVE] Disegno RICEVUTO da Stanza Live anonima autorizzata!");
+      mqttClient.publish(topicCurrent.c_str(), payload, length, true);
+      String liveCurTopic = topStr.substring(0, topStr.length() - 5) + "/current";
+      mqttClient.publish(liveCurTopic.c_str(), payload, length, true);
+      mqttClient.publish("pixo/live/current", payload, length, true);
     } else {
       String prefix = String(TOPIC_PREFIX) + deviceId + "/";
 
@@ -3302,13 +3227,14 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   // 6. Comando CLEAR: ripristina la simpatica animazione di standby
 
   if (length == 5 && memcmp(payload, "CLEAR", 5) == 0) {
-
     Serial.println("[MQTT] Ricevuto comando CLEAR autorizzato: ritorno ad animazione di standby.");
-
     enterStandbyGif();
-
+    mqttClient.publish(topicCurrent.c_str(), "CLEAR", true);
+    mqttClient.publish("pixo/live/current", "CLEAR", true);
+    if (currentLiveRoom.length() > 0) {
+      mqttClient.publish(("pixo/live/" + currentLiveRoom + "/current").c_str(), "CLEAR", true);
+    }
     return;
-
   }
 
 
@@ -4427,218 +4353,137 @@ void performOTAUpdate(const String& otaUrl, const String& targetVersion) {
 
 
 
-  // UI Grafica su ST7789 (240x240)
-
-  tft.fillScreen(ST77XX_BLACK);
-
-  tft.fillRect(0, 0, 240, 38, 0x000F); // Navy Header
-
-  tft.setTextSize(2);
-
-  tft.setTextColor(ST77XX_WHITE);
-
-  tft.setCursor(20, 11);
-
-  tft.print("PIXO' AGGIORNA");
-
-
-
-  tft.setTextSize(1);
-
-  tft.setTextColor(ST77XX_CYAN);
-
-  tft.setCursor(15, 52);
-
-  tft.print("Firmware Attuale: v");
-
-  tft.print(FIRMWARE_VERSION);
-
-
-
-  if (targetVersion.length() > 0) {
-
-    tft.setCursor(15, 68);
-
-    tft.setTextColor(ST77XX_GREEN);
-
-    tft.print("Nuova Versione:   v");
-
-    tft.print(targetVersion);
-
-  }
-
-
-
-  tft.setTextSize(2);
-
-  tft.setTextColor(ST77XX_YELLOW);
-
-  tft.setCursor(15, 96);
-
-  tft.println("Download...");
-
-
-
-  tft.setTextSize(1);
-
-  tft.setTextColor(ST77XX_WHITE);
-
-  tft.setCursor(15, 126);
-
-  tft.println("Non spegnere il dispositivo!");
-
-
-
-  // Barra di avanzamento grafica (sfondo e cornice)
-
-  tft.drawRoundRect(18, 160, 204, 18, 5, ST77XX_CYAN);
-
-  tft.fillRect(20, 162, 200, 14, 0x0842); // Sfondo barra grigio
-
-
-
-  // Chiudi client MQTT per liberare buffer di memoria (36KB) e socket prima dell'OTA
-
-  if (mqttClient.connected()) {
-
-    mqttClient.disconnect();
-
-  }
-
-  delay(200);
-
-
-
-  // Setup callbacks HTTPUpdate
-
-  httpUpdate.rebootOnUpdate(false); // Gestiamo noi il reboot dopo aver disegnato lo schermo di successo
-
-
-
-  httpUpdate.onStart([]() {
-
-    Serial.println("[OTA] Download ed installazione avviati...");
-
-  });
-
-
-
-  httpUpdate.onEnd([]() {
-
-    Serial.println("[OTA] Installazione completata con successo!");
-
-  });
-
-
-
-  static int lastReportedProgress = -1;
-
-  httpUpdate.onProgress([](int cur, int total) {
-
-    if (total <= 0) return;
-
-    int pct = (cur * 100) / total;
-
-    if (pct != lastReportedProgress && (pct % 5 == 0 || pct == 100)) {
-
-      lastReportedProgress = pct;
-
-      Serial.printf("[OTA] Progresso: %d%% (%d / %d bytes)\n", pct, cur, total);
-
-      int fillW = map(pct, 0, 100, 0, 200);
-
-      tft.fillRect(20, 162, fillW, 14, ST77XX_GREEN);
-
-
-
-      tft.fillRect(70, 192, 100, 22, ST77XX_BLACK);
-
-      tft.setTextSize(2);
-
-      tft.setTextColor(ST77XX_WHITE);
-
-      tft.setCursor(95, 194);
-
-      tft.printf("%d%%", pct);
-
+  // UI Grafica Bilingue (IT <-> EN 5s) su ST7789 (240x240)
+  static String sOtaTargetVer = "";
+  static unsigned long sOtaStartMs = 0;
+  static bool sOtaLangEng = false;
+  sOtaTargetVer = targetVersion;
+  sOtaStartMs = millis();
+  sOtaLangEng = false;
+
+  auto drawOtaLangLabels = [](bool isEng) {
+    tft.fillRect(0, 0, 240, 38, 0x000F); // Navy Header
+    tft.setTextSize(2);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(20, 11);
+    tft.print(isEng ? "PIXO' UPDATE" : "PIXO' AGGIORNA");
+
+    tft.fillRect(15, 50, 215, 12, ST77XX_BLACK);
+    tft.setTextSize(1);
+    tft.setTextColor(ST77XX_CYAN);
+    tft.setCursor(15, 52);
+    tft.print(isEng ? "Current Firmware: v" : "Firmware Attuale: v");
+    tft.print(FIRMWARE_VERSION);
+
+    if (sOtaTargetVer.length() > 0) {
+      tft.fillRect(15, 66, 215, 12, ST77XX_BLACK);
+      tft.setCursor(15, 68);
+      tft.setTextColor(ST77XX_GREEN);
+      tft.print(isEng ? "New Version:      v" : "Nuova Versione:   v");
+      tft.print(sOtaTargetVer);
     }
 
+    tft.fillRect(15, 94, 215, 22, ST77XX_BLACK);
+    tft.setTextSize(2);
+    tft.setTextColor(ST77XX_YELLOW);
+    tft.setCursor(15, 96);
+    tft.print(isEng ? "Downloading..." : "Download...");
+
+    tft.fillRect(15, 124, 215, 14, ST77XX_BLACK);
+    tft.setTextSize(1);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(15, 126);
+    tft.print(isEng ? "Do not turn off the device!" : "Non spegnere il dispositivo!");
+  };
+
+  tft.fillScreen(ST77XX_BLACK);
+  drawOtaLangLabels(false);
+
+  // Barra di avanzamento grafica (sfondo e cornice)
+  tft.drawRoundRect(18, 160, 204, 18, 5, ST77XX_CYAN);
+  tft.fillRect(20, 162, 200, 14, 0x0842); // Sfondo barra grigio
+
+  // Chiudi client MQTT per liberare buffer di memoria (36KB) e socket prima dell'OTA
+  if (mqttClient.connected()) {
+    mqttClient.disconnect();
+  }
+  delay(200);
+
+  // Setup callbacks HTTPUpdate
+  httpUpdate.rebootOnUpdate(false);
+
+  httpUpdate.onStart([]() {
+    Serial.println("[OTA] Download ed installazione avviati...");
   });
 
+  httpUpdate.onEnd([]() {
+    Serial.println("[OTA] Installazione completata con successo!");
+  });
 
+  static int lastReportedProgress = -1;
+  lastReportedProgress = -1;
+  httpUpdate.onProgress([drawOtaLangLabels](int cur, int total) {
+    if (total <= 0) return;
+    bool wantEng = (((millis() - sOtaStartMs) / 5000UL) % 2) == 1;
+    if (wantEng != sOtaLangEng) {
+      sOtaLangEng = wantEng;
+      drawOtaLangLabels(sOtaLangEng);
+    }
+    int pct = (cur * 100) / total;
+    if (pct != lastReportedProgress && (pct % 5 == 0 || pct == 100)) {
+      lastReportedProgress = pct;
+      Serial.printf("[OTA] Progresso: %d%% (%d / %d bytes)\n", pct, cur, total);
+      int fillW = map(pct, 0, 100, 0, 200);
+      tft.fillRect(20, 162, fillW, 14, ST77XX_GREEN);
+
+      tft.fillRect(70, 192, 100, 22, ST77XX_BLACK);
+      tft.setTextSize(2);
+      tft.setTextColor(ST77XX_WHITE);
+      tft.setCursor(95, 194);
+      tft.printf("%d%%", pct);
+    }
+  });
 
   httpUpdate.onError([](int err) {
-
     Serial.printf("[OTA] Errore HTTPUpdate: codice %d\n", err);
-
   });
 
-
-
-  // Supporto sia HTTP che HTTPS con setInsecure per release GitHub/Cloud
-
   t_httpUpdate_return ret;
-
   if (otaUrl.startsWith("https://")) {
-
     WiFiClientSecure otaSecureClient;
-
     otaSecureClient.setInsecure();
-
     otaSecureClient.setHandshakeTimeout(15);
-
     httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-
     ret = httpUpdate.update(otaSecureClient, otaUrl);
-
   } else {
-
     WiFiClient otaNetClient;
-
     httpUpdate.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-
     ret = httpUpdate.update(otaNetClient, otaUrl);
-
   }
 
-
-
   if (ret == HTTP_UPDATE_OK) {
-
     Serial.println("[OTA] SUCCESSO! Firmware aggiornato. Riavvio in corso...");
+    // Azzera pwr_flag prima del riavvio software per non attivare erroneamente la schermata Recovery 30s!
+    preferences.begin("pixo_pwr", false);
+    preferences.putInt("pwr_flag", 0);
+    preferences.end();
 
     tft.fillRect(0, 90, 240, 150, ST77XX_BLACK);
-
     tft.setTextColor(ST77XX_GREEN);
-
     tft.setTextSize(2);
-
-    tft.setCursor(20, 110);
-
-    tft.println("AGGIORNATO!");
-
-
+    tft.setCursor(15, 105);
+    tft.println("AGGIORNATO! / UPDATED!");
 
     tft.setTextSize(1);
-
     tft.setTextColor(ST77XX_WHITE);
-
-    tft.setCursor(20, 145);
-
-    tft.println("Nuovo firmware installato.");
-
-    tft.setCursor(20, 165);
-
+    tft.setCursor(15, 140);
+    tft.println("Nuovo FW installato / Installed.");
+    tft.setCursor(15, 160);
     tft.setTextColor(ST77XX_YELLOW);
-
-    tft.println("Riavvio in 3 secondi...");
-
-
+    tft.println("Riavvio / Reboot in 3s...");
 
     delay(3000);
-
     ESP.restart();
-
   } else {
 
     int errCode = httpUpdate.getLastError();
@@ -4984,6 +4829,11 @@ boolean connectMQTT() {
     String topicVolume = String(TOPIC_PREFIX) + deviceId + "/volume";
     mqttClient.subscribe(topicVolume.c_str(), 0);
     mqttClient.subscribe("pixo/friend/+/draw", 0);
+    mqttClient.subscribe("pixo/friend/+/buzzer", 0);
+    String topicLiveCfg = String(TOPIC_PREFIX) + deviceId + "/live_config";
+    mqttClient.subscribe(topicLiveCfg.c_str(), 0);
+    mqttClient.subscribe("pixo/live/+/draw", 0);
+    mqttClient.subscribe("pixo/live/+/buzzer", 0);
     publishFriendKeysMeta();
     String topicVoice = String(TOPIC_PREFIX) + deviceId + "/voice";
     mqttClient.subscribe(topicVoice.c_str(), 0);
@@ -5039,8 +4889,11 @@ boolean connectMQTT() {
     // All'avvio iniziale o a runtime se non c'è un disegno attivo, pulisce lo stato retained sul cloud
 
     if (isInitialBoot && !hasUserDrawing) {
-
       mqttClient.publish(topicCurrent.c_str(), "CLEAR", true);
+      mqttClient.publish("pixo/live/current", "CLEAR", true);
+      if (currentLiveRoom.length() > 0) {
+        mqttClient.publish(("pixo/live/" + currentLiveRoom + "/current").c_str(), "CLEAR", true);
+      }
 
     } else if (!isInitialBoot && !hasUserDrawing) {
 
@@ -5137,25 +4990,15 @@ void setup() {
   // Rilevamento Quick Power-Cycle (stacco e riattacco corrente entro 10s per schermata Info & PIN Recovery)
 
   preferences.begin("pixo_pwr", false);
-
   int pwrFlag = preferences.getInt("pwr_flag", 0);
-
-  if (pwrFlag == 1) {
-
+  if (pwrFlag == 1 && r == ESP_RST_POWERON) {
     isQuickRecoveryBoot = true;
-
     preferences.putInt("pwr_flag", 0); // Resetta subito il flag per evitare loop
-
     Serial.println("[PWR] *** QUICK POWER-CYCLE RILEVATO! Avvio Modalita' Info & PIN Recovery (30s) ***");
-
   } else {
-
-    preferences.putInt("pwr_flag", 1);
-
-    Serial.println("[PWR] Avvio normale. Flag recovery impostato a 1 (si resettera' dopo 10s).");
-
+    preferences.putInt("pwr_flag", (r == ESP_RST_POWERON) ? 1 : 0);
+    Serial.println("[PWR] Avvio normale. Flag recovery impostato (solo su POWERON fisico).");
   }
-
   preferences.end();
 
 
@@ -5196,6 +5039,7 @@ void setup() {
   authorizedGuestKeys = preferences.getString("gst_keys", "pixo123");
 
   devicePin = preferences.getString("dev_pin", "1234");
+  currentLiveRoom = preferences.getString("live_room", "");
 
   isDeviceActivated = (devicePin != "1234");
 
