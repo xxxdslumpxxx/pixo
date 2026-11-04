@@ -152,7 +152,7 @@ PubSubClient mqttClient;
 
 
 
-const char* FIRMWARE_VERSION = "1.3.1";
+const char* FIRMWARE_VERSION = "1.3.2";
 
 
 
@@ -574,10 +574,8 @@ void playJingleSequence(const String& payload) {
 
 
 void triggerLedNotification() {
-
-  if (!ledNotifEnabled) return;
-
   buzzerNotificationSound();
+  if (!ledNotifEnabled) return;
 
   blinkStep = 1;
 
@@ -3151,8 +3149,6 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       return;
     }
     Serial.printf("[SICUREZZA] Disegno AMICO ANONIMO autorizzato con successo! (Token: %s)\n", sentKey.c_str());
-    // Pubblica anche su topicCurrent del dispositivo per aggiornare e notificare il proprietario!
-    mqttClient.publish(topicCurrent.c_str(), payload, length, true);
   } else if (topStr.indexOf("/guest/") != -1) {
     int keyStart = topStr.indexOf("/guest/") + 7;
     int keyEnd = topStr.indexOf("/draw", keyStart);
@@ -3174,15 +3170,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.printf("[SICUREZZA] Disegno OSPITE autorizzato con successo! (Chiave: %s)\n", sentKey.c_str());
   } else if (topStr.endsWith("/draw")) {
     if (topStr.startsWith("pixo/live/")) {
-      if (currentLiveRoom.length() > 0 && topStr != ("pixo/live/" + currentLiveRoom + "/draw")) {
-        Serial.printf("[LIVE] Disegno ignorato: stanza '%s' diversa da stanza attiva '%s'\n", topStr.c_str(), currentLiveRoom.c_str());
-        return;
-      }
-      Serial.println("[LIVE] Disegno RICEVUTO da Stanza Live anonima autorizzata!");
-      mqttClient.publish(topicCurrent.c_str(), payload, length, true);
-      String liveCurTopic = topStr.substring(0, topStr.length() - 5) + "/current";
-      mqttClient.publish(liveCurTopic.c_str(), payload, length, true);
-      mqttClient.publish("pixo/live/current", payload, length, true);
+      Serial.printf("[LIVE] Disegno RICEVUTO da Stanza Live anonima (%s)!\n", topStr.c_str());
     } else {
       String prefix = String(TOPIC_PREFIX) + deviceId + "/";
 
@@ -3705,20 +3693,20 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
 
       // Notifica ACK confermata per disegni inviati da ospiti
 
-      if (topStr.indexOf("/guest/") != -1) {
-
-        int keyStart = topStr.indexOf("/guest/") + 7;
-
+      if (topStr.startsWith("pixo/friend/")) {
+        int keyStart = 12;
         int keyEnd = topStr.indexOf("/draw", keyStart);
-
         String sKey = (keyEnd != -1) ? topStr.substring(keyStart, keyEnd) : topStr.substring(keyStart);
-
         sKey.trim();
-
-        String ackTopic = String(TOPIC_PREFIX) + deviceId + "/guest/" + sKey + "/ack";
-
+        String ackTopic = "pixo/friend/" + sKey + "/ack";
         mqttClient.publish(ackTopic.c_str(), "OK", false);
-
+      } else if (topStr.indexOf("/guest/") != -1) {
+        int keyStart = topStr.indexOf("/guest/") + 7;
+        int keyEnd = topStr.indexOf("/draw", keyStart);
+        String sKey = (keyEnd != -1) ? topStr.substring(keyStart, keyEnd) : topStr.substring(keyStart);
+        sKey.trim();
+        String ackTopic = String(TOPIC_PREFIX) + deviceId + "/guest/" + sKey + "/ack";
+        mqttClient.publish(ackTopic.c_str(), "OK", false);
       }
 
     } else {
