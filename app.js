@@ -4173,6 +4173,9 @@ function regenerateLiveRoomCode() {
       state.mqttClient.unsubscribe(`pixo/live/${oldRoom}/current`);
     }
     state.mqttClient.subscribe(`pixo/live/${state.liveRoomCode}/current`, { qos: 1 });
+    if (state.lastDisplayPayload && state.lastDisplayPayload.length > 0) {
+      state.mqttClient.publish(`pixo/live/${state.liveRoomCode}/current`, state.lastDisplayPayload, { qos: 1, retain: true });
+    }
   }
   updateLiveShareLink();
   syncGuestKeysToDevice(false);
@@ -4254,6 +4257,23 @@ function recordLiveSendAndPromptRose(msgIt, msgEn) {
   }
 }
 
+function calculateJingleDurationMs(jinglePayload) {
+  if (!jinglePayload || typeof jinglePayload !== 'string') return 250;
+  if (jinglePayload === 'BEEP' || jinglePayload.startsWith('BEEP')) return 250;
+  let data = jinglePayload;
+  if (data.startsWith('JINGLE:')) data = data.substring(7);
+  let totalMs = 0;
+  const pairs = data.split(',');
+  for (let i = 0; i < pairs.length; i++) {
+    const parts = pairs[i].split(':');
+    if (parts.length === 2) {
+      const dur = parseInt(parts[1], 10) || 0;
+      totalMs += dur + 15;
+    }
+  }
+  return Math.min(Math.max(totalMs, 250), 10500);
+}
+
 async function sendLiveBuzzerMqtt(buzzerPayload, msgIt, msgEn) {
   const now = Date.now();
   if (now < state.liveCooldownUntil) {
@@ -4277,21 +4297,58 @@ async function sendLiveBuzzerMqtt(buzzerPayload, msgIt, msgEn) {
   });
 
   let sent = false;
+  let blockedWaitSec = 0;
   await new Promise((resolve) => {
     const timer = setTimeout(() => {
       try { liveClient.end(true); } catch(e){}
       resolve();
     }, 5000);
 
-    liveClient.on('connect', () => {
-      const roomCode = getActiveLiveRoomCode();
+    const roomCode = getActiveLiveRoomCode();
+    const busyTopic = `pixo/live/${roomCode}/busy`;
+    let handled = false;
+
+    const proceedWithBusy = (busyObj) => {
+      if (handled) return;
+      handled = true;
+      const curNow = Date.now();
+      const jingleUntil = (busyObj && busyObj.jingleUntil) ? Number(busyObj.jingleUntil) : 0;
+      if (curNow < jingleUntil) {
+        blockedWaitSec = Math.max(1, Math.ceil((jingleUntil - curNow) / 1000));
+        clearTimeout(timer);
+        try { liveClient.end(true); } catch(e){}
+        resolve();
+        return;
+      }
+      const durMs = calculateJingleDurationMs(buzzerPayload);
+      const nextBusy = {
+        drawUntil: (busyObj && busyObj.drawUntil) ? Number(busyObj.drawUntil) : 0,
+        jingleUntil: curNow + durMs
+      };
+      liveClient.publish(busyTopic, JSON.stringify(nextBusy), { qos: 0, retain: true });
       liveClient.publish(`pixo/live/${roomCode}/buzzer`, buzzerPayload, { qos: 0 });
       sent = true;
       setTimeout(() => {
         clearTimeout(timer);
         try { liveClient.end(true); } catch(e){}
         resolve();
-      }, 450);
+      }, 350);
+    };
+
+    liveClient.on('connect', () => {
+      liveClient.subscribe(busyTopic, { qos: 0 });
+      setTimeout(() => proceedWithBusy({ drawUntil: 0, jingleUntil: 0 }), 300);
+    });
+
+    liveClient.on('message', (topic, payload) => {
+      if (topic === busyTopic) {
+        try {
+          const parsed = JSON.parse(new TextDecoder().decode(payload));
+          proceedWithBusy(parsed);
+        } catch(e) {
+          proceedWithBusy({ drawUntil: 0, jingleUntil: 0 });
+        }
+      }
     });
 
     liveClient.on('error', () => {
@@ -4301,7 +4358,14 @@ async function sendLiveBuzzerMqtt(buzzerPayload, msgIt, msgEn) {
     });
   });
 
-  if (sent) {
+  if (blockedWaitSec > 0) {
+    showToast(
+      state.lang === 'it'
+        ? `Un altro Jingle è in riproduzione su Pixò! Attendi ${blockedWaitSec}s 🎵`
+        : `Another Jingle is playing on Pixò! Wait ${blockedWaitSec}s 🎵`,
+      "warning"
+    );
+  } else if (sent) {
     recordLiveSendAndPromptRose(msgIt, msgEn);
   } else {
     showToast(
@@ -4355,14 +4419,34 @@ async function sendLiveDrawingMqtt() {
     });
 
     let sent = false;
+    let blockedWaitSec = 0;
     await new Promise((resolve) => {
       const timer = setTimeout(() => {
         try { liveClient.end(true); } catch(e){}
         resolve();
       }, 5000);
 
-      liveClient.on('connect', () => {
-        const roomCode = getActiveLiveRoomCode();
+      const roomCode = getActiveLiveRoomCode();
+      const busyTopic = `pixo/live/${roomCode}/busy`;
+      let handled = false;
+
+      const proceedWithBusy = (busyObj) => {
+        if (handled) return;
+        handled = true;
+        const curNow = Date.now();
+        const drawUntil = (busyObj && busyObj.drawUntil) ? Number(busyObj.drawUntil) : 0;
+        if (curNow < drawUntil) {
+          blockedWaitSec = Math.max(1, Math.ceil((drawUntil - curNow) / 1000));
+          clearTimeout(timer);
+          try { liveClient.end(true); } catch(e){}
+          resolve();
+          return;
+        }
+        const nextBusy = {
+          drawUntil: curNow + 5000,
+          jingleUntil: (busyObj && busyObj.jingleUntil) ? Number(busyObj.jingleUntil) : 0
+        };
+        liveClient.publish(busyTopic, JSON.stringify(nextBusy), { qos: 0, retain: true });
         liveClient.publish(`pixo/live/${roomCode}/draw`, uint8Array, { qos: 0, retain: false });
         liveClient.publish(`pixo/live/${roomCode}/current`, uint8Array, { qos: 1, retain: true }, () => {
           sent = true;
@@ -4372,6 +4456,22 @@ async function sendLiveDrawingMqtt() {
             resolve();
           }, 250);
         });
+      };
+
+      liveClient.on('connect', () => {
+        liveClient.subscribe(busyTopic, { qos: 0 });
+        setTimeout(() => proceedWithBusy({ drawUntil: 0, jingleUntil: 0 }), 300);
+      });
+
+      liveClient.on('message', (topic, payload) => {
+        if (topic === busyTopic) {
+          try {
+            const parsed = JSON.parse(new TextDecoder().decode(payload));
+            proceedWithBusy(parsed);
+          } catch(e) {
+            proceedWithBusy({ drawUntil: 0, jingleUntil: 0 });
+          }
+        }
       });
 
       liveClient.on('error', (err) => {
@@ -4382,7 +4482,15 @@ async function sendLiveDrawingMqtt() {
       });
     });
 
-    if (sent) {
+    if (blockedWaitSec > 0) {
+      showToast(
+        state.lang === 'it'
+          ? `Un altro utente ha appena inviato un disegno! Attendi ${blockedWaitSec}s 🎨`
+          : `Another user just sent a drawing! Please wait ${blockedWaitSec}s 🎨`,
+        "warning"
+      );
+    } else if (sent) {
+      showStandbyOverlay(false);
       recordLiveSendAndPromptRose("Disegno inviato in diretta! 🚀", "Drawing sent live! 🚀");
     } else {
       showToast(
@@ -4402,13 +4510,15 @@ async function sendLiveDrawingMqtt() {
   }
 }
 
-async function fetchLiveScreen() {
-  showToast(
-    state.lang === 'it'
-      ? "Scaricamento schermata Pixò in corso... ⏳"
-      : "Downloading Pixò screen... ⏳",
-    "info"
-  );
+async function fetchLiveScreen(silent = false) {
+  if (!silent) {
+    showToast(
+      state.lang === 'it'
+        ? "Scaricamento schermata Pixò in corso... ⏳"
+        : "Downloading Pixò screen... ⏳",
+      "info"
+    );
+  }
 
   const roomCode = getActiveLiveRoomCode();
   const tempId = "PixoFetch_" + Math.random().toString(36).substr(2, 7);
@@ -4424,12 +4534,14 @@ async function fetchLiveScreen() {
   const timeout = setTimeout(() => {
     if (!received) {
       try { fetchClient.end(true); } catch(e){}
-      showToast(
-        state.lang === 'it'
-          ? "Nessuna schermata ricevuta (Pixò potrebbe essere spento o in standby)"
-          : "No screen received (Pixò might be off or in standby)",
-        "warning"
-      );
+      if (!silent) {
+        showToast(
+          state.lang === 'it'
+            ? "Nessuna schermata ricevuta (Pixò potrebbe essere spento o in standby)"
+            : "No screen received (Pixò might be off or in standby)",
+          "warning"
+        );
+      }
     }
   }, 4000);
 
@@ -4445,12 +4557,17 @@ async function fetchLiveScreen() {
 
     const text = new TextDecoder().decode(payload.slice(0, 5));
     if (text === "CLEAR" || text === "CLOCK") {
-      showToast(
-        state.lang === 'it'
-          ? "Pixò è attualmente in standby (faccina animata)"
-          : "Pixò is currently in standby (animated face)",
-        "info"
-      );
+      if (text === "CLEAR" && !state.userHasDrawnLocally) {
+        showStandbyOverlay(true);
+      }
+      if (!silent) {
+        showToast(
+          state.lang === 'it'
+            ? "Pixò è attualmente in standby (faccina animata)"
+            : "Pixò is currently in standby (animated face)",
+          "info"
+        );
+      }
       return;
     }
 
@@ -4465,21 +4582,25 @@ async function fetchLiveScreen() {
     }
 
     if (uint8.length >= 2 && uint8[0] === 0xFF && uint8[1] === 0xD8) {
+      showStandbyOverlay(false);
       const blob = new Blob([uint8], { type: 'image/jpeg' });
       const url = URL.createObjectURL(blob);
       const img = new Image();
       img.onload = () => {
+        showStandbyOverlay(false);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         saveState();
         updatePayloadPreview();
         URL.revokeObjectURL(url);
-        showToast(
-          state.lang === 'it'
-            ? "Schermata Pixò caricata sulla lavagna! 🎨"
-            : "Pixò screen loaded onto canvas! 🎨",
-          "success"
-        );
+        if (!silent) {
+          showToast(
+            state.lang === 'it'
+              ? "Schermata Pixò caricata sulla lavagna! 🎨"
+              : "Pixò screen loaded onto canvas! 🎨",
+            "success"
+          );
+        }
       };
       img.src = url;
     } else {
@@ -4675,11 +4796,9 @@ function initCanvas() {
 
 
 
-  // Mostra la faccina gialla iconica di Pixò all'avvio invece di uno schermo nero vuoto
-
-
-
-  renderStandbyFaceOnCanvas();
+  // All'avvio lascia la lavagna pulita e pronta: l'overlay "Pixò in standby"
+  // comparirà solo se il broker MQTT comunica effettivamente lo stato "CLEAR" / "STANDBY".
+  showStandbyOverlay(false);
 
 
 
@@ -14042,6 +14161,7 @@ function subscribeDeviceTopics() {
     state.liveRoomCode = getActiveLiveRoomCode();
     state.mqttClient.subscribe(`pixo/device/${state.deviceId}/live_config`, { qos: 1 });
     state.mqttClient.subscribe(`pixo/live/${state.liveRoomCode}/current`, { qos: 1 });
+    state.mqttClient.subscribe(`pixo/device/${state.deviceId}/current`, { qos: 0 });
 
     const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
     state.mqttClient.subscribe(keysDataTopic, { qos: 1 });
@@ -14484,8 +14604,14 @@ function connectMQTT() {
             }
           } else if (topic === statusTopic && !state.isGuestMode) {
             handleDeviceStatusSync(payload);
-          } else if (topic === `pixo/live/${getActiveLiveRoomCode()}/current` && (!state.isGuestMode || state.guestAuthorized !== false)) {
+          } else if ((topic === `pixo/live/${getActiveLiveRoomCode()}/current` || (topic.startsWith('pixo/live/') && topic.endsWith('/current'))) && (!state.isGuestMode || state.guestAuthorized !== false)) {
             handleCurrentDisplaySync(payload);
+          } else if (topic === currentTopic && !state.isGuestMode && !state.lastDisplayPayload) {
+            handleCurrentDisplaySync(payload);
+            if (payload && payload.length > 2 && payload[0] === 0xFF && payload[1] === 0xD8) {
+              const rCode = getActiveLiveRoomCode();
+              state.mqttClient.publish(`pixo/live/${rCode}/current`, payload, { qos: 1, retain: true });
+            }
 
 
 
@@ -17382,6 +17508,25 @@ function sendJingleToPixo() {
   if (!state.mqttConnected || !state.mqttClient) {
     showToast(state.lang === 'it' ? "Pixò non connesso!" : "Pixò not connected!", "error");
     return;
+  }
+
+  const now = Date.now();
+  if (state.jingleBusyUntil && now < state.jingleBusyUntil) {
+    const waitSec = Math.max(1, Math.ceil((state.jingleBusyUntil - now) / 1000));
+    showToast(
+      state.lang === 'it'
+        ? `Un Jingle è già in riproduzione su Pixò! Attendi ${waitSec}s 🎵`
+        : `A Jingle is already playing on Pixò! Wait ${waitSec}s 🎵`,
+      "warning"
+    );
+    return;
+  }
+
+  const durMs = calculateJingleDurationMs(payload);
+  state.jingleBusyUntil = now + durMs;
+  const rCode = getActiveLiveRoomCode();
+  if (rCode) {
+    state.mqttClient.publish(`pixo/live/${rCode}/busy`, JSON.stringify({ drawUntil: 0, jingleUntil: state.jingleBusyUntil }), { qos: 0, retain: true });
   }
 
   if (state.isGuestMode && state.guestKey) {
