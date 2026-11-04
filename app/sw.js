@@ -1,11 +1,13 @@
 // Service Worker per Pixò v2 PWA
-const CACHE_NAME = 'pixo-v2-cache-v68';
+const CACHE_NAME = 'pixo-v2-cache-v69';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
+  './pixo_face.png',
+  './pixo_badge.png',
   './icon.svg',
   './icon-192.png',
   './icon-512.png',
