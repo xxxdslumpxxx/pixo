@@ -4100,21 +4100,9 @@ function updateSettingsUI() {
 
 
     if (liveModeToggle) {
-
-
-
-      const isLiveActive = localStorage.getItem('pixo_live_enabled') === 'true';
-
-
-
+      const isLiveActive = localStorage.getItem('pixo_live_enabled') !== 'false';
       liveModeToggle.checked = isLiveActive;
-
-
-
       if (liveSettingsBox) liveSettingsBox.style.display = isLiveActive ? 'block' : 'none';
-
-
-
     }
 
 
@@ -4219,6 +4207,90 @@ function updateLiveShareLink() {
 
 
 
+function recordLiveSendAndPromptRose(msgIt, msgEn) {
+  state.liveSentCount = (state.liveSentCount || 0) + 1;
+  localStorage.setItem('pixo_live_sent_count', state.liveSentCount);
+  if (liveCreditsCount) liveCreditsCount.textContent = state.liveSentCount;
+
+  state.liveCooldownUntil = Date.now() + ((state.liveCooldownSec || 10) * 1000);
+  showToast(
+    state.lang === 'it'
+      ? `${msgIt} (#${state.liveSentCount})`
+      : `${msgEn} (#${state.liveSentCount})`,
+    "success"
+  );
+
+  // Ogni 3 invii totali (Disegni + Jingle + Beep: 3, 6, 9, 12...), mostra il gentile invito a donare una Rosa su TikTok!
+  if (state.liveSentCount > 0 && state.liveSentCount % 3 === 0) {
+    const bodyEl = document.getElementById('liveRosePromptBodyText');
+    if (bodyEl) {
+      bodyEl.textContent = t("liveRosePromptBody", { count: state.liveSentCount });
+    }
+    if (liveUnlockModal) {
+      liveUnlockModal.classList.remove('hidden');
+    }
+  }
+}
+
+async function sendLiveBuzzerMqtt(buzzerPayload, msgIt, msgEn) {
+  const now = Date.now();
+  if (now < state.liveCooldownUntil) {
+    const remainingSec = Math.ceil((state.liveCooldownUntil - now) / 1000);
+    showToast(
+      state.lang === 'it'
+        ? `Attendi ancora ${remainingSec}s prima di inviare! (Anti-spam diretta)`
+        : `Please wait ${remainingSec}s before sending again! (Live anti-spam)`,
+      "warning"
+    );
+    return;
+  }
+
+  const tempId = "PixoLiveBuz_" + Math.random().toString(36).substr(2, 7);
+  const liveClient = mqtt.connect(state.brokerUrl, {
+    clientId: tempId,
+    clean: true,
+    connectTimeout: 5000,
+    username: state.brokerUser,
+    password: state.brokerPass
+  });
+
+  let sent = false;
+  await new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      try { liveClient.end(true); } catch(e){}
+      resolve();
+    }, 5000);
+
+    liveClient.on('connect', () => {
+      const roomCode = state.liveRoom || state.liveRoomCode || localStorage.getItem('pixo_live_room_code') || 'PIX-LIVE';
+      liveClient.publish(`pixo/live/${roomCode}/buzzer`, buzzerPayload, { qos: 0 });
+      sent = true;
+      setTimeout(() => {
+        clearTimeout(timer);
+        try { liveClient.end(true); } catch(e){}
+        resolve();
+      }, 450);
+    });
+
+    liveClient.on('error', () => {
+      clearTimeout(timer);
+      try { liveClient.end(true); } catch(e){}
+      resolve();
+    });
+  });
+
+  if (sent) {
+    recordLiveSendAndPromptRose(msgIt, msgEn);
+  } else {
+    showToast(
+      state.lang === 'it'
+        ? "Invio non riuscito. Controlla la connessione e riprova!"
+        : "Send failed. Check your connection and try again!",
+      "error"
+    );
+  }
+}
+
 async function sendLiveDrawingMqtt() {
   const now = Date.now();
   if (now < state.liveCooldownUntil) {
@@ -4268,20 +4340,14 @@ async function sendLiveDrawingMqtt() {
       }, 5000);
 
       liveClient.on('connect', () => {
-        const roomCode = state.liveRoom || state.liveRoomCode || localStorage.getItem('pixo_live_room_code');
-        if (roomCode) {
-          liveClient.publish(`pixo/live/${roomCode}/draw`, uint8Array, { qos: 0 });
-        }
-        if (state.deviceId) {
-          liveClient.publish(`pixo/device/${state.deviceId}/1234/draw`, uint8Array, { qos: 0 });
-          liveClient.publish(`pixo/device/${state.deviceId}/current`, uint8Array, { qos: 0, retain: true });
-        }
+        const roomCode = state.liveRoom || state.liveRoomCode || localStorage.getItem('pixo_live_room_code') || 'PIX-LIVE';
+        liveClient.publish(`pixo/live/${roomCode}/draw`, uint8Array, { qos: 0 });
         sent = true;
         setTimeout(() => {
           clearTimeout(timer);
           try { liveClient.end(true); } catch(e){}
           resolve();
-        }, 400);
+        }, 500);
       });
 
       liveClient.on('error', (err) => {
@@ -4293,28 +4359,7 @@ async function sendLiveDrawingMqtt() {
     });
 
     if (sent) {
-      state.liveSentCount = (state.liveSentCount || 0) + 1;
-      localStorage.setItem('pixo_live_sent_count', state.liveSentCount);
-      if (liveCreditsCount) liveCreditsCount.textContent = state.liveSentCount;
-
-      state.liveCooldownUntil = Date.now() + (state.liveCooldownSec * 1000);
-      showToast(
-        state.lang === 'it'
-          ? `Disegno inviato in diretta! 🚀 (#${state.liveSentCount})`
-          : `Drawing sent live! 🚀 (#${state.liveSentCount})`,
-        "success"
-      );
-
-      // Ogni 3 disegni inviati (3, 6, 9, 12...), mostra il gentile invito a donare una Rosa su TikTok!
-      if (state.liveSentCount > 0 && state.liveSentCount % 3 === 0) {
-        const bodyEl = document.getElementById('liveRosePromptBodyText');
-        if (bodyEl) {
-          bodyEl.textContent = t("liveRosePromptBody", { count: state.liveSentCount });
-        }
-        if (liveUnlockModal) {
-          liveUnlockModal.classList.remove('hidden');
-        }
-      }
+      recordLiveSendAndPromptRose("Disegno inviato in diretta! 🚀", "Drawing sent live! 🚀");
     } else {
       showToast(
         state.lang === 'it'
@@ -4334,232 +4379,101 @@ async function sendLiveDrawingMqtt() {
 }
 
 async function fetchLiveScreen() {
+  showToast(
+    state.lang === 'it'
+      ? "Scaricamento schermata Pixò in corso... ⏳"
+      : "Downloading Pixò screen... ⏳",
+    "info"
+  );
 
-
-
-  if (!state.deviceId) return;
-
-
-
-  showToast("Scaricamento schermata Pixò in corso... ⏳", "info");
-
-
-
-
-
-
-
+  const roomCode = state.liveRoom || state.liveRoomCode || localStorage.getItem('pixo_live_room_code') || 'PIX-LIVE';
   const tempId = "PixoFetch_" + Math.random().toString(36).substr(2, 7);
-
-
-
   const fetchClient = mqtt.connect(state.brokerUrl, {
-
-
-
     clientId: tempId,
-
-
-
     clean: true,
-
-
-
     connectTimeout: 5000,
-
-
-
     username: state.brokerUser,
-
-
-
     password: state.brokerPass
-
-
-
   });
-
-
-
-
-
-
 
   let received = false;
-
-
-
   const timeout = setTimeout(() => {
-
-
-
     if (!received) {
-
-
-
       try { fetchClient.end(true); } catch(e){}
-
-
-
-      showToast("Nessuna schermata ricevuta (Pixò potrebbe essere spento o in standby)", "warning");
-
-
-
+      showToast(
+        state.lang === 'it'
+          ? "Nessuna schermata ricevuta (Pixò potrebbe essere spento o in standby)"
+          : "No screen received (Pixò might be off or in standby)",
+        "warning"
+      );
     }
-
-
-
   }, 4000);
 
-
-
-
-
-
-
   fetchClient.on('connect', () => {
-
-
-
-    fetchClient.subscribe(`pixo/device/${state.deviceId}/current`, { qos: 0 });
-
-
-
+    if (roomCode) {
+      fetchClient.subscribe(`pixo/live/${roomCode}/current`, { qos: 0 });
+    }
+    fetchClient.subscribe(`pixo/live/current`, { qos: 0 });
+    if (state.deviceId) {
+      fetchClient.subscribe(`pixo/device/${state.deviceId}/current`, { qos: 0 });
+    }
   });
-
-
-
-
-
-
 
   fetchClient.on('message', (topic, payload) => {
-
-
-
-    if (topic === `pixo/device/${state.deviceId}/current`) {
-
-
-
-      received = true;
-
-
-
-      clearTimeout(timeout);
-
-
-
-      try { fetchClient.end(true); } catch(e){}
-
-
-
-
-
-
-
-      const text = new TextDecoder().decode(payload.slice(0, 5));
-
-
-
-      if (text === "CLEAR") {
-
-
-
-        showToast("Pixò è attualmente in standby (faccina animata)", "info");
-
-
-
-        return;
-
-
-
-      }
-
-
-
-
-
-
-
-      const blob = new Blob([payload], { type: 'image/jpeg' });
-
-
-
-      const url = URL.createObjectURL(blob);
-
-
-
-      const img = new Image();
-
-
-
-      img.onload = () => {
-
-
-
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-
-
-        saveState();
-
-
-
-        updatePayloadPreview();
-
-
-
-        URL.revokeObjectURL(url);
-
-
-
-        showToast("Schermata Pixò caricata sulla lavagna! 🎨", "success");
-
-
-
-      };
-
-
-
-      img.src = url;
-
-
-
-    }
-
-
-
-  });
-
-
-
-
-
-
-
-  fetchClient.on('error', () => {
-
-
-
+    if (received || !payload || payload.length === 0) return;
+    received = true;
     clearTimeout(timeout);
-
-
-
     try { fetchClient.end(true); } catch(e){}
 
+    const text = new TextDecoder().decode(payload.slice(0, 5));
+    if (text === "CLEAR" || text === "CLOCK") {
+      showToast(
+        state.lang === 'it'
+          ? "Pixò è attualmente in standby (faccina animata)"
+          : "Pixò is currently in standby (animated face)",
+        "info"
+      );
+      return;
+    }
 
+    const uint8 = (payload instanceof Uint8Array)
+      ? new Uint8Array(payload.buffer, payload.byteOffset, payload.byteLength)
+      : new Uint8Array(payload);
 
+    if (uint8.length >= 7 && uint8[0] === 0x6B && uint8[1] === 0x4F && uint8[2] === 0x4B) {
+      uint8[0] = 0xFF;
+      uint8[1] = 0xD8;
+      uint8[2] = 0xFF;
+    }
+
+    if (uint8.length >= 2 && uint8[0] === 0xFF && uint8[1] === 0xD8) {
+      const blob = new Blob([uint8], { type: 'image/jpeg' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        saveState();
+        updatePayloadPreview();
+        URL.revokeObjectURL(url);
+        showToast(
+          state.lang === 'it'
+            ? "Schermata Pixò caricata sulla lavagna! 🎨"
+            : "Pixò screen loaded onto canvas! 🎨",
+          "success"
+        );
+      };
+      img.src = url;
+    } else {
+      showToast(
+        state.lang === 'it'
+          ? "Pixò è attualmente in standby"
+          : "Pixò is currently in standby",
+        "info"
+      );
+    }
   });
-
-
-
 }
-
-
-
-
-
-
 
 function buildGuestUrl(key) {
   const baseUrl = window.location.origin + window.location.pathname;
@@ -11426,22 +11340,22 @@ function setNotifSoundType(typeId) {
     card.classList.toggle('active', parseInt(card.getAttribute('data-sound')) === snd);
   });
 
-  // Riproduce anteprima sul telefono
-  playNotifSoundAudio(snd);
-
-  // Invia comando a Pixo
+  // Se Pixò è connesso, fa suonare SOLO il Pixò (senza coprirlo con l'altoparlante del telefono!)
   if (state.mqttConnected && state.mqttClient && state.deviceId) {
     state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, `BUZZER:SOUND:${snd}`, { qos: 0 });
+  } else {
+    playNotifSoundAudio(snd);
   }
 
-  showToast(`Tono notifica ${snd} impostato! 🔔`, "info");
+  showToast(state.lang === 'it' ? `Tono notifica ${snd} impostato! 🔔` : `Notification tone ${snd} set! 🔔`, "info");
 }
 
 function testCurrentNotifSound() {
   const current = state.notifSoundType || parseInt(localStorage.getItem('pixo_notif_sound_type')) || 1;
-  playNotifSoundAudio(current);
   if (state.mqttConnected && state.mqttClient && state.deviceId) {
     state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, `BUZZER:SOUND:${current}`, { qos: 0 });
+  } else {
+    playNotifSoundAudio(current);
   }
 }
 
@@ -14297,6 +14211,7 @@ function subscribeDeviceTopics() {
 
     sendBrightness(state.brightness);
     sendBuzzerVolume(state.buzzerVolume ?? 100, true);
+    updateLiveShareLink();
 
 
 
@@ -16069,10 +15984,11 @@ function sendSystemNotification(title, body) {
   }
 
   const notifIcon = new URL('pixo_face.png', window.location.href).href;
+  const badgeIcon = new URL('pixo_badge.png', window.location.href).href;
   const options = {
     body: body,
     icon: notifIcon,
-    badge: notifIcon,
+    badge: badgeIcon,
     vibrate: [200, 100, 200],
     tag: 'pixo-drawing-alert',
     renotify: true,
@@ -16437,9 +16353,11 @@ function handleCurrentDisplaySync(payload) {
 
 
 function loadCurrentDrawingFromDisplay() {
-
-
-
+  if (state.isLiveMode) {
+    if (galleryModal) galleryModal.classList.add('hidden');
+    fetchLiveScreen();
+    return;
+  }
   if (state.lastDisplayPayload && state.lastDisplayPayload[0] === 0xFF && state.lastDisplayPayload[1] === 0xD8) {
 
 
@@ -16725,14 +16643,12 @@ async function sendCanvasMqtt() {
 
 
       getTargetDeviceIds().forEach(id => {
-
-
-
         state.mqttClient.publish(`pixo/device/${id}/current`, uint8Array, { qos: 0, retain: true });
-
-
-
       });
+      state.mqttClient.publish(`pixo/live/current`, uint8Array, { qos: 0, retain: true });
+      if (state.liveRoomCode) {
+        state.mqttClient.publish(`pixo/live/${state.liveRoomCode}/current`, uint8Array, { qos: 0, retain: true });
+      }
 
 
 
@@ -17053,14 +16969,12 @@ async function sendStandbyCommand() {
 
 
     getTargetDeviceIds().forEach(id => {
-
-
-
       state.mqttClient.publish(`pixo/device/${id}/current`, clearCmd, { qos: 0, retain: true });
-
-
-
     });
+    state.mqttClient.publish(`pixo/live/current`, clearCmd, { qos: 0, retain: true });
+    if (state.liveRoomCode) {
+      state.mqttClient.publish(`pixo/live/${state.liveRoomCode}/current`, clearCmd, { qos: 0, retain: true });
+    }
 
 
 
@@ -17608,17 +17522,29 @@ function renderJingleSequence() {
 
 function sendJingleToPixo() {
   if (!state.jingleNotes || state.jingleNotes.length === 0) {
-    showToast("Aggiungi prima delle note al jingle!", "warning");
-    return;
-  }
-  if (!state.mqttConnected || !state.mqttClient || !state.deviceId) {
-    showToast("Pixò non connesso!", "error");
+    showToast(state.lang === 'it' ? "Aggiungi prima delle note al jingle!" : "Add some notes to the jingle first!", "warning");
     return;
   }
   const pairs = state.jingleNotes.map(n => Math.round(n.f) + ":" + n.d);
   const payload = "JINGLE:" + pairs.join(",");
-  state.mqttClient.publish("pixo/device/" + state.deviceId + "/buzzer", payload, { qos: 0 });
-  showToast("Jingle inviato a Pixò! 🚀🎵", "success");
+
+  if (state.isLiveMode) {
+    sendLiveBuzzerMqtt(payload, "Jingle inviato in diretta! 🎵", "Jingle sent live! 🎵");
+    return;
+  }
+
+  if (!state.mqttConnected || !state.mqttClient) {
+    showToast(state.lang === 'it' ? "Pixò non connesso!" : "Pixò not connected!", "error");
+    return;
+  }
+
+  if (state.isGuestMode && state.guestKey) {
+    state.mqttClient.publish(`pixo/friend/${state.guestKey}/buzzer`, payload, { qos: 0 });
+  }
+  if (state.deviceId) {
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, payload, { qos: 0 });
+  }
+  showToast(state.lang === 'it' ? "Jingle inviato a Pixò! 🚀🎵" : "Jingle sent to Pixò! 🚀🎵", "success");
 }
 
 // ==================== INIZIALIZZAZIONE EVENTI JINGLE ====================
@@ -17723,41 +17649,25 @@ window.sendJingleToPixo = sendJingleToPixo;
 
 
 function sendBeepToPixo() {
-
-
-
-  if (!state.mqttConnected || !state.mqttClient || !state.deviceId) {
-
-
-
-    showToast("Pixò non connesso", "error");
-
-
-
+  if (state.isLiveMode) {
+    playAudioClick();
+    sendLiveBuzzerMqtt("BEEP", "Beep inviato in diretta! 🔔", "Beep sent live! 🔔");
     return;
-
-
-
   }
 
-
+  if (!state.mqttConnected || !state.mqttClient) {
+    showToast(state.lang === 'it' ? "Pixò non connesso" : "Pixò not connected", "error");
+    return;
+  }
 
   playAudioClick();
-
-
-
-  playWebAudioJingle([{ f: 2400, d: 120 }]);
-
-
-
-  state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, "BEEP", { qos: 0 });
-
-
-
-  showToast("Beep inviato a Pixò! 🔔", "success");
-
-
-
+  if (state.isGuestMode && state.guestKey) {
+    state.mqttClient.publish(`pixo/friend/${state.guestKey}/buzzer`, "BEEP", { qos: 0 });
+  }
+  if (state.deviceId) {
+    state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, "BEEP", { qos: 0 });
+  }
+  showToast(state.lang === 'it' ? "Beep inviato a Pixò! 🔔" : "Beep sent to Pixò! 🔔", "success");
 }
 
 
@@ -20571,6 +20481,14 @@ function setupEventListeners() {
     buzzerVolumeSlider.addEventListener('input', (e) => {
       const val = parseInt(e.target.value, 10);
       sendBuzzerVolume(val, true);
+    });
+    buzzerVolumeSlider.addEventListener('change', (e) => {
+      const val = parseInt(e.target.value, 10);
+      sendBuzzerVolume(val, true);
+      if (val > 0 && state.mqttConnected && state.mqttClient && state.deviceId) {
+        const current = state.notifSoundType || parseInt(localStorage.getItem('pixo_notif_sound_type')) || 1;
+        state.mqttClient.publish(`pixo/device/${state.deviceId}/buzzer`, `BUZZER:SOUND:${current}`, { qos: 0 });
+      }
     });
   }
 
