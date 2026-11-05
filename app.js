@@ -12827,33 +12827,6 @@ function handleWifiStatusSync(payload) {
 
 
     } else if (data.ssid) {
-
-
-
-      state.deviceStatus = 'online';
-
-
-
-      updateDeviceStatusUI(true);
-
-
-
-      if (startupOfflineTimer) {
-
-
-
-        clearTimeout(startupOfflineTimer);
-
-
-
-        startupOfflineTimer = null;
-
-
-
-      }
-
-
-
       state.wifiSsid = data.ssid;
 
 
@@ -13207,41 +13180,6 @@ function handleOtaStatusSync(payload) {
 
 
     const data = JSON.parse(text);
-
-
-
-
-
-
-
-    state.deviceStatus = 'online';
-
-
-
-    updateDeviceStatusUI(true);
-
-
-
-    if (startupOfflineTimer) {
-
-
-
-      clearTimeout(startupOfflineTimer);
-
-
-
-      startupOfflineTimer = null;
-
-
-
-    }
-
-
-
-
-
-
-
     if (data.version) {
 
 
@@ -13431,41 +13369,6 @@ function handleDiagSync(payload) {
 
 
     const data = JSON.parse(text);
-
-
-
-
-
-
-
-    state.deviceStatus = 'online';
-
-
-
-    updateDeviceStatusUI(true);
-
-
-
-    if (startupOfflineTimer) {
-
-
-
-      clearTimeout(startupOfflineTimer);
-
-
-
-      startupOfflineTimer = null;
-
-
-
-    }
-
-
-
-
-
-
-
     if (data.fw_ver) {
 
 
@@ -14469,7 +14372,7 @@ function connectMQTT() {
 
 
 
-        state.mqttClient.on('message', (topic, payload) => {
+        state.mqttClient.on('message', (topic, payload, packet) => {
 
 
 
@@ -14594,10 +14497,13 @@ function connectMQTT() {
               setGuestAccessAuthorized(false, "Disegno rifiutato da Pixò: il link è stato revocato!");
             }
           } else if ((topic === statusTopic && !state.isGuestMode) || (topic.startsWith('pixo/live/') && topic.endsWith('/status'))) {
-            if (topic === statusTopic && state.deviceStatus === 'offline') {
-              // Se il topic LWT della stanza ha già segnalato offline, ignora il vecchio 'online' retained di pixo/device/<ID>/status
+            const activeRoom = getActiveLiveRoomCode();
+            if (topic.startsWith('pixo/live/') && topic !== `pixo/live/${activeRoom}/status`) {
+              // Ignora status di stanze diverse da quella attiva
+            } else if (topic === statusTopic && state.deviceStatus === 'offline' && packet && packet.retain) {
+              // Ignora vecchio retained su statusTopic se già offline
             } else {
-              handleDeviceStatusSync(payload);
+              handleDeviceStatusSync(payload, packet);
             }
           } else if ((topic === `pixo/live/${getActiveLiveRoomCode()}/current` || (topic.startsWith('pixo/live/') && topic.endsWith('/current'))) && (!state.isGuestMode || state.guestAuthorized !== false)) {
             handleCurrentDisplaySync(payload);
@@ -15010,114 +14916,75 @@ function updateDeviceStatusUI(isOnline) {
 
 
 
-function handleDeviceStatusSync(payload) {
+let deviceHeartbeatWatchdog = null;
+let lastSeenHeartbeatToken = null;
+let hasVerifiedLiveHeartbeat = false;
 
+function markDeviceOfflineNow() {
+  if (deviceHeartbeatWatchdog) {
+    clearTimeout(deviceHeartbeatWatchdog);
+    deviceHeartbeatWatchdog = null;
+  }
+  if (startupOfflineTimer) {
+    clearTimeout(startupOfflineTimer);
+    startupOfflineTimer = null;
+  }
+  hasVerifiedLiveHeartbeat = false;
+  lastSeenHeartbeatToken = null;
+  state.deviceStatus = 'offline';
+  updateDeviceStatusUI(false);
+  if (!hasShownOfflineAlert) {
+    hasShownOfflineAlert = true;
+    showToast(state.lang === 'it' ? "⚠️ Il Pixò è spento o non collegato" : "⚠️ Pixò is powered off or disconnected", "warning");
+  }
+}
 
-
-  const status = (typeof payload === 'string')
-
-
-
+function handleDeviceStatusSync(payload, packet) {
+  const raw = (typeof payload === 'string')
     ? payload.trim().toLowerCase()
-
-
-
     : new TextDecoder().decode(payload).trim().toLowerCase();
 
-
-
-
-
-
-
-  console.log(`[MQTT] Stato hardware Pixò ricevuto: ${status}`);
-
-
-
-
-
-
+  console.log(`[MQTT] Stato hardware Pixò ricevuto: ${raw} (retain=${Boolean(packet && packet.retain)})`);
 
   if (startupOfflineTimer) {
-
-
-
     clearTimeout(startupOfflineTimer);
-
-
-
     startupOfflineTimer = null;
-
-
-
   }
 
+  if (raw === 'offline' || raw.startsWith('offline')) {
+    markDeviceOfflineNow();
+    return;
+  }
 
+  if (raw === 'online' || raw.startsWith('online')) {
+    const isRetained = Boolean(packet && packet.retain);
+    // Se il primo messaggio è retained (potrebbe essere rimasto sul broker prima dello spegnimento improvviso),
+    // mostriamo "Verifica Pixò..." e attendiamo un secondo battito fresco entro 11 secondi prima di dare Online verde!
+    if (isRetained && !hasVerifiedLiveHeartbeat && lastSeenHeartbeatToken === null) {
+      lastSeenHeartbeatToken = raw;
+      if (deviceHeartbeatWatchdog) clearTimeout(deviceHeartbeatWatchdog);
+      deviceHeartbeatWatchdog = setTimeout(() => {
+        markDeviceOfflineNow();
+      }, 11000);
+      return;
+    }
 
-
-
-
-
-  if (status === 'online') {
-
-
-
+    hasVerifiedLiveHeartbeat = true;
+    lastSeenHeartbeatToken = raw;
     state.deviceStatus = 'online';
-
-
-
     updateDeviceStatusUI(true);
-
-
-
     if (hasShownOfflineAlert) {
-
-
-
-      showToast("🟢 Pixò è ora acceso e collegato!", "success");
-
-
-
+      showToast(state.lang === 'it' ? "🟢 Pixò è ora acceso e collegato!" : "🟢 Pixò is now online!", "success");
       hasShownOfflineAlert = false;
-
-
-
     }
 
-
-
-  } else if (status === 'offline') {
-
-
-
-    state.deviceStatus = 'offline';
-
-
-
-    updateDeviceStatusUI(false);
-
-
-
-    if (!hasShownOfflineAlert) {
-
-
-
-      hasShownOfflineAlert = true;
-
-
-
-      showToast("⚠️ Il Pixò è spento o non collegato", "warning");
-
-
-
-    }
-
-
-
+    // Arma il watchdog di 18 secondi: se il Pixò viene staccato e il LWT tarda per colpa del router,
+    // la mancanza del battito (inviato ogni 8s dall'ESP32) porta subito l'App e il Link Amici su Offline!
+    if (deviceHeartbeatWatchdog) clearTimeout(deviceHeartbeatWatchdog);
+    deviceHeartbeatWatchdog = setTimeout(() => {
+      markDeviceOfflineNow();
+    }, 18000);
   }
-
-
-
 }
 
 
@@ -15570,33 +15437,11 @@ function hideGuestSessionBusyOverlay() {
 
 
   if (state.mqttConnected && !state.guestSessionLocked) {
-
-
-
-    statusDot.className = "status-pulse status-dot online";
-
-
-
-    statusDot.title = "Connesso a Pixò Cloud";
-
-
-
-    if (deviceSubtitle) {
-
-
-
-      deviceSubtitle.textContent = "Online";
-
-
-
-      deviceSubtitle.style.color = "var(--accent-green)";
-
-
-
+    if (state.deviceStatus === 'online') {
+      updateDeviceStatusUI(true);
+    } else if (state.deviceStatus === 'offline') {
+      updateDeviceStatusUI(false);
     }
-
-
-
   }
 
 
@@ -16026,38 +15871,7 @@ function sendSystemNotification(title, body) {
 
 
 function handleCurrentDisplaySync(payload) {
-
-
-
   if (!payload || payload.length === 0) return;
-
-
-
-
-
-
-
-  state.deviceStatus = 'online';
-
-
-
-  updateDeviceStatusUI(true);
-
-
-
-  if (startupOfflineTimer) {
-
-
-
-    clearTimeout(startupOfflineTimer);
-
-
-
-    startupOfflineTimer = null;
-
-
-
-  }
 
 
 
