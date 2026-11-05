@@ -14139,6 +14139,7 @@ function subscribeDeviceTopics() {
     }
     if (state.liveRoom) {
       state.mqttClient.subscribe(`pixo/live/${state.liveRoom}/current`, { qos: 1 });
+      state.mqttClient.subscribe(`pixo/live/${state.liveRoom}/status`, { qos: 1 });
     }
 
     if (guestAuthTimeout) clearTimeout(guestAuthTimeout);
@@ -14157,10 +14158,11 @@ function subscribeDeviceTopics() {
     const statusTopic = `pixo/device/${state.deviceId}/status`;
     state.mqttClient.subscribe(statusTopic, { qos: 1 });
 
-    // Stanza Live isolata per questo Pixò (singola fonte di verità per lo schermo)
+    // Stanza Live isolata per questo Pixò (singola fonte di verità per lo schermo e LWT status)
     state.liveRoomCode = getActiveLiveRoomCode();
     state.mqttClient.subscribe(`pixo/device/${state.deviceId}/live_config`, { qos: 1 });
     state.mqttClient.subscribe(`pixo/live/${state.liveRoomCode}/current`, { qos: 1 });
+    state.mqttClient.subscribe(`pixo/live/${state.liveRoomCode}/status`, { qos: 1 });
     state.mqttClient.subscribe(`pixo/device/${state.deviceId}/current`, { qos: 0 });
 
     const keysDataTopic = `pixo/device/${state.deviceId}/access/keys_data`;
@@ -14396,31 +14398,18 @@ function connectMQTT() {
 
 
 
-          statusDot.className = "status-pulse status-dot online";
-
-
-
-          statusDot.title = "Connesso a Pixò Cloud";
-
-
-
-          if (deviceSubtitle) {
-
-
-
-            deviceSubtitle.textContent = "Online";
-
-
-
-            deviceSubtitle.style.color = "var(--accent-green)";
-
-
-
+          if (state.deviceStatus === 'online') {
+            updateDeviceStatusUI(true);
+          } else if (state.deviceStatus === 'offline') {
+            updateDeviceStatusUI(false);
+          } else {
+            statusDot.className = "status-pulse status-dot connecting";
+            statusDot.title = "Verifica stato Pixò...";
+            if (deviceSubtitle) {
+              deviceSubtitle.textContent = state.lang === 'it' ? "Verifica Pixò..." : "Checking Pixò...";
+              deviceSubtitle.style.color = "var(--text-secondary)";
+            }
           }
-
-
-
-          deviceOfflineBanner?.classList.add('hidden');
 
 
 
@@ -14545,11 +14534,13 @@ function connectMQTT() {
                 if (newRoom) {
                   if (state.liveRoom && state.liveRoom !== newRoom && state.mqttClient && state.mqttClient.connected) {
                     state.mqttClient.unsubscribe(`pixo/live/${state.liveRoom}/current`);
+                    state.mqttClient.unsubscribe(`pixo/live/${state.liveRoom}/status`);
                   }
                   state.liveRoom = newRoom;
                   state.liveRoomCode = newRoom;
                   if (state.mqttClient && state.mqttClient.connected) {
                     state.mqttClient.subscribe(`pixo/live/${newRoom}/current`, { qos: 1 });
+                    state.mqttClient.subscribe(`pixo/live/${newRoom}/status`, { qos: 1 });
                   }
                 }
               }
@@ -14559,8 +14550,6 @@ function connectMQTT() {
                 setGuestAccessAuthorized(false, state.lang === 'it' ? "Il proprietario ha temporaneamente disattivato l'accesso ospiti." : "The owner has temporarily disabled guest access.");
               } else if (meta.status === "ACTIVE") {
                 if (typeof meta.kidsMode === 'boolean') state.kidsModeEnabled = meta.kidsMode;
-                state.deviceStatus = 'online';
-                updateDeviceStatusUI(true);
                 setGuestAccessAuthorized(true);
               }
             } catch (e) {}
@@ -14573,12 +14562,14 @@ function connectMQTT() {
                 if (incomingRoom && incomingRoom !== state.liveRoomCode) {
                   if (state.liveRoomCode && state.mqttClient && state.mqttClient.connected) {
                     state.mqttClient.unsubscribe(`pixo/live/${state.liveRoomCode}/current`);
+                    state.mqttClient.unsubscribe(`pixo/live/${state.liveRoomCode}/status`);
                   }
                   state.liveRoomCode = incomingRoom;
                   localStorage.setItem('pixo_live_room_code_' + state.deviceId, incomingRoom);
                   localStorage.setItem('pixo_live_room_code', incomingRoom);
                   if (state.mqttClient && state.mqttClient.connected) {
                     state.mqttClient.subscribe(`pixo/live/${incomingRoom}/current`, { qos: 1 });
+                    state.mqttClient.subscribe(`pixo/live/${incomingRoom}/status`, { qos: 1 });
                   }
                   if (liveLinkInput) {
                     const baseUrl = window.location.origin + window.location.pathname;
@@ -14602,8 +14593,12 @@ function connectMQTT() {
             if (ack.startsWith("REJECTED")) {
               setGuestAccessAuthorized(false, "Disegno rifiutato da Pixò: il link è stato revocato!");
             }
-          } else if (topic === statusTopic && !state.isGuestMode) {
-            handleDeviceStatusSync(payload);
+          } else if ((topic === statusTopic && !state.isGuestMode) || (topic.startsWith('pixo/live/') && topic.endsWith('/status'))) {
+            if (topic === statusTopic && state.deviceStatus === 'offline') {
+              // Se il topic LWT della stanza ha già segnalato offline, ignora il vecchio 'online' retained di pixo/device/<ID>/status
+            } else {
+              handleDeviceStatusSync(payload);
+            }
           } else if ((topic === `pixo/live/${getActiveLiveRoomCode()}/current` || (topic.startsWith('pixo/live/') && topic.endsWith('/current'))) && (!state.isGuestMode || state.guestAuthorized !== false)) {
             handleCurrentDisplaySync(payload);
           } else if (topic === currentTopic && !state.isGuestMode && !state.lastDisplayPayload) {
@@ -15217,14 +15212,18 @@ function setGuestAccessAuthorized(authorized, reason) {
 
   if (authorized) {
     guestRevokedOverlay?.classList.add('hidden');
-    state.deviceStatus = 'online';
-    updateDeviceStatusUI(true);
-    if (startupOfflineTimer) {
-      clearTimeout(startupOfflineTimer);
-      startupOfflineTimer = null;
-    }
     if (state.mqttClient && state.mqttClient.connected && state.liveRoom) {
       state.mqttClient.subscribe(`pixo/live/${state.liveRoom}/current`, { qos: 1 });
+      state.mqttClient.subscribe(`pixo/live/${state.liveRoom}/status`, { qos: 1 });
+    }
+    if (state.deviceStatus !== 'online' && state.deviceStatus !== 'offline') {
+      if (startupOfflineTimer) clearTimeout(startupOfflineTimer);
+      startupOfflineTimer = setTimeout(() => {
+        if (state.deviceStatus !== 'online') {
+          state.deviceStatus = 'offline';
+          updateDeviceStatusUI(false);
+        }
+      }, 3500);
     }
   } else {
 
