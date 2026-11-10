@@ -113,7 +113,7 @@ if (btnDismissInstallModal) btnDismissInstallModal.onclick = () => installModal.
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=25', { scope: './' })
+    navigator.serviceWorker.register('/admin/sw.js?v=26', { scope: '/admin/' })
       .then(reg => {
         console.log('[Commander SW] Registrato con successo:', reg.scope);
         reg.update();
