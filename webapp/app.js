@@ -921,6 +921,16 @@ const TRANSLATIONS = {
     shareModalTitle: "Condivisione & Ospiti",
     newGuestNamePlaceholder: "Nome per il link (es. Marco)",
     createGuestKeyBtn: "+ Crea Link",
+    revokeAllGuestsBtn: "🗑️ Elimina Tutti",
+    revokeAllConfirmTitle: "Revocare tutti i link?",
+    revokeAllConfirmMsg: "⚠️ Vuoi davvero revocare ed eliminare TUTTI i link amico?\n\nTutti i link distribuiti (fino a 5) smetteranno immediatamente di funzionare.",
+    guestLimitReached: "⚠️ Limite massimo raggiunto (5/5). Revoca un link per crearne di nuovi.",
+    guestLimitReachedInput: "Limite 5/5: revoca un link per crearne altri",
+    copyLinkBtn: "📋 Copia Link",
+    shareLinkBtn: "📲 Condividi",
+    linkCopiedToast: "✅ Link copiato negli appunti!",
+    shareNotSupportedToast: "📋 Condivisione non supportata, link copiato!",
+    btnRevoke: "🗑️ Revoca",
     guestKeysEmpty: "Nessun link ospite attivo. Creane uno per farlo usare ai tuoi amici!",
     onboardingTitle: "Connetti il tuo Pixò",
     tabOnboardLogin: "🔑 Accedi con PIN",
@@ -1434,6 +1444,16 @@ const TRANSLATIONS = {
     shareModalTitle: "Sharing & Guests",
     newGuestNamePlaceholder: "Link name (e.g. Mark)",
     createGuestKeyBtn: "+ Create Link",
+    revokeAllGuestsBtn: "🗑️ Revoke All",
+    revokeAllConfirmTitle: "Revoke all links?",
+    revokeAllConfirmMsg: "⚠️ Really revoke and delete ALL guest links?\n\nAll distributed links (up to 5) will stop working immediately.",
+    guestLimitReached: "⚠️ Maximum limit reached (5/5). Revoke a link to create new ones.",
+    guestLimitReachedInput: "5/5 Limit: revoke a link to create more",
+    copyLinkBtn: "📋 Copy Link",
+    shareLinkBtn: "📲 Share",
+    linkCopiedToast: "✅ Link copied to clipboard!",
+    shareNotSupportedToast: "📋 Share not supported, link copied!",
+    btnRevoke: "🗑️ Revoke",
     guestKeysEmpty: "No active guest links. Create one to share with your friends!",
     onboardingTitle: "Connect your Pixò",
     tabOnboardLogin: "🔑 Login with PIN",
@@ -11852,575 +11872,275 @@ function sendGuestAccessConfig(enabled) {
 
 
 
+
 function renderGuestKeysList() {
-
-
-
   if (!guestKeysList) return;
-
-
-
   guestKeysList.innerHTML = '';
 
-
-
-
-
-
-
-  const count = state.guestKeys ? state.guestKeys.length : 0;
-
-
+  const MAX_GUEST_KEYS = 5;
+  const count = Array.isArray(state.guestKeys) ? state.guestKeys.length : 0;
 
   if (guestKeysCountBadge) {
-
-
-
+    guestKeysCountBadge.className = 'guest-keys-count-badge' + (count >= MAX_GUEST_KEYS ? ' limit-reached' : '');
     guestKeysCountBadge.textContent = state.lang === 'it'
-      ? `${count} ${count === 1 ? 'attivo' : 'attivi'}`
-      : `${count} active`;
-
-
-
+      ? `${count} / ${MAX_GUEST_KEYS} attivi`
+      : `${count} / ${MAX_GUEST_KEYS} active`;
   }
 
+  // Aggiorna stato input e pulsante creazione (limite 5)
+  if (createGuestKeyBtn) {
+    if (count >= MAX_GUEST_KEYS) {
+      createGuestKeyBtn.disabled = true;
+      createGuestKeyBtn.style.opacity = '0.45';
+      createGuestKeyBtn.style.cursor = 'not-allowed';
+      createGuestKeyBtn.title = state.lang === 'it'
+        ? "Limite massimo di 5 link raggiunto"
+        : "Maximum 5 links limit reached";
+    } else {
+      createGuestKeyBtn.disabled = false;
+      createGuestKeyBtn.style.opacity = '1';
+      createGuestKeyBtn.style.cursor = 'pointer';
+      createGuestKeyBtn.title = "";
+    }
+  }
 
+  if (newGuestNameInput) {
+    if (count >= MAX_GUEST_KEYS) {
+      newGuestNameInput.disabled = true;
+      newGuestNameInput.placeholder = state.lang === 'it'
+        ? "Limite 5/5: revoca un link per crearne altri"
+        : "5/5 Limit: revoke a link to create more";
+      newGuestNameInput.style.opacity = '0.6';
+    } else {
+      newGuestNameInput.disabled = false;
+      newGuestNameInput.placeholder = state.lang === 'it'
+        ? "Nome per il link (es. Marco)"
+        : "Link name (e.g. Mark)";
+      newGuestNameInput.style.opacity = '1';
+    }
+  }
 
-
-
-
+  // Tasto Elimina Tutti
+  if (revokeGuestsBtn) {
+    if (count > 0) {
+      revokeGuestsBtn.style.display = 'inline-flex';
+      revokeGuestsBtn.className = 'guest-revoke-all-btn';
+      revokeGuestsBtn.textContent = state.lang === 'it' ? '🗑️ Elimina Tutti' : '🗑️ Revoke All';
+    } else {
+      revokeGuestsBtn.style.display = 'none';
+    }
+  }
 
   if (count === 0) {
-
-
-
     if (guestKeysEmpty) guestKeysEmpty.style.display = 'flex';
-
-
-
     return;
-
-
-
   }
-
-
-
   if (guestKeysEmpty) guestKeysEmpty.style.display = 'none';
 
-
-
-
-
-
-
   state.guestKeys.forEach((item) => {
-
-
-
     const card = document.createElement('div');
-
-
-
     card.className = 'guest-key-card';
 
-
-
-
-
-
-
+    // 1. Header con Nome, Data e Pulsante Revoca
     const header = document.createElement('div');
-
-
-
     header.className = 'guest-card-header';
 
+    const titleGroup = document.createElement('div');
+    titleGroup.className = 'guest-card-title-group';
 
-
-
-
-
+    const iconSpan = document.createElement('span');
+    iconSpan.style.fontSize = '1.05rem';
+    iconSpan.textContent = '👤';
 
     const title = document.createElement('div');
-
-
-
     title.className = 'guest-card-title';
+    title.textContent = item.name || (state.lang === 'it' ? 'Ospite' : 'Guest');
 
-
-
-    title.innerHTML = `<span>👤</span> <span>${escapeHtml(item.name || 'Ospite')}</span>`;
-
-
-
-
-
-
-
-    const meta = document.createElement('div');
-
-
-
-    meta.className = 'guest-card-meta';
-
-
-
-
-
-
+    titleGroup.appendChild(iconSpan);
+    titleGroup.appendChild(title);
 
     if (item.created) {
-
-
-
       const d = new Date(item.created);
-
-
-
       const dateSpan = document.createElement('span');
-
-
-
       dateSpan.className = 'guest-card-date';
-
-
-
       dateSpan.textContent = d.toLocaleDateString(state.lang === 'it' ? 'it-IT' : 'en-US', { day: '2-digit', month: 'short' });
-
-
-
-      meta.appendChild(dateSpan);
-
-
-
+      titleGroup.appendChild(dateSpan);
     }
 
-
-
-
-
-
-
     const delBtn = document.createElement('button');
-
-
-
-    delBtn.className = 'guest-card-delete-btn';
-
-
-
+    delBtn.type = 'button';
+    delBtn.className = 'guest-card-revoke-btn';
     delBtn.title = state.lang === 'it' ? 'Revoca ed elimina questo link' : 'Revoke and delete this link';
-
-
-
     delBtn.innerHTML = state.lang === 'it' ? '🗑️ Revoca' : '🗑️ Revoke';
-
-
-
     delBtn.addEventListener('click', () => {
-
-
-
       deleteGuestKey(item.id, item.name);
-
-
-
     });
 
-
-
-    meta.appendChild(delBtn);
-
-
-
-
-
-
-
-    header.appendChild(title);
-
-
-
-    header.appendChild(meta);
-
-
-
-
-
-
-
-    const linkRow = document.createElement('div');
-
-
-
-    linkRow.className = 'guest-card-link-row';
-
-
-
-
-
-
-
-    const fullUrl = buildGuestUrl(item.key);
-
-
-
-    const linkInput = document.createElement('input');
-
-
-
-    linkInput.type = 'text';
-
-
-
-    linkInput.value = fullUrl;
-
-
-
-    linkInput.readOnly = true;
-
-
-
-
-
-
-
-    const copyBtn = document.createElement('button');
-
-
-
-    copyBtn.className = 'btn mini-btn';
-
-
-
-    copyBtn.innerHTML = state.lang === 'it' ? '📋 Copia' : '📋 Copy';
-
-
-
-    copyBtn.addEventListener('click', () => {
-
-
-
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-
-
-
-        navigator.clipboard.writeText(fullUrl).then(() => {
-
-
-
-          showToast(`Link per "${item.name}" copiato!`, 'success');
-
-
-
-        }).catch(() => {
-
-
-
-          linkInput.select();
-
-
-
-          document.execCommand('copy');
-
-
-
-          showToast(`Link per "${item.name}" copiato!`, 'success');
-
-
-
-        });
-
-
-
-      } else {
-
-
-
-        linkInput.select();
-
-
-
-        document.execCommand('copy');
-
-
-
-        showToast(`Link per "${item.name}" copiato!`, 'success');
-
-
-
-      }
-
-
-
-    });
-
-
-
-
-
-
-
-    linkRow.appendChild(linkInput);
-
-
-
-    linkRow.appendChild(copyBtn);
-
-
-
-
-
-
-
+    header.appendChild(titleGroup);
+    header.appendChild(delBtn);
     card.appendChild(header);
 
+    // 2. Link Box con URL formattato in monospace
+    const fullUrl = buildGuestUrl(item.key);
+    const linkBox = document.createElement('div');
+    linkBox.className = 'guest-card-link-box';
 
+    const linkInput = document.createElement('input');
+    linkInput.type = 'text';
+    linkInput.className = 'guest-card-url-input';
+    linkInput.value = fullUrl;
+    linkInput.readOnly = true;
+    linkInput.addEventListener('click', () => linkInput.select());
 
-    card.appendChild(linkRow);
+    linkBox.appendChild(linkInput);
+    card.appendChild(linkBox);
 
+    // 3. Actions Row: Copia + Condividi
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'guest-card-actions';
 
+    const copyBtn = document.createElement('button');
+    copyBtn.type = 'button';
+    copyBtn.className = 'guest-card-action-btn copy';
+    copyBtn.innerHTML = state.lang === 'it' ? '📋 Copia Link' : '📋 Copy Link';
+    copyBtn.addEventListener('click', async () => {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(fullUrl);
+        } else {
+          linkInput.select();
+          document.execCommand('copy');
+        }
+        showToast(state.lang === 'it' ? '✅ Link copiato negli appunti!' : '✅ Link copied to clipboard!', 'success');
+      } catch (err) {
+        linkInput.select();
+        document.execCommand('copy');
+        showToast(state.lang === 'it' ? 'Link copiato!' : 'Link copied!', 'success');
+      }
+    });
+
+    const shareBtnItem = document.createElement('button');
+    shareBtnItem.type = 'button';
+    shareBtnItem.className = 'guest-card-action-btn share';
+    shareBtnItem.innerHTML = state.lang === 'it' ? '📲 Condividi' : '📲 Share';
+    shareBtnItem.addEventListener('click', async () => {
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: `Pixò Canvas - ${item.name}`,
+            text: state.lang === 'it'
+              ? `Ciao! Disegna qualcosa sul mio schermo Pixò da questo link:`
+              : `Hi! Draw something on my Pixò display from this link:`,
+            url: fullUrl
+          });
+        } catch (err) {
+          // Annullato dall'utente
+        }
+      } else {
+        try {
+          await navigator.clipboard.writeText(fullUrl);
+          showToast(state.lang === 'it' ? '📋 Condivisione non supportata, link copiato!' : '📋 Share not supported, link copied!', 'info');
+        } catch(e) {
+          linkInput.select();
+          document.execCommand('copy');
+          showToast(state.lang === 'it' ? 'Link copiato!' : 'Link copied!', 'info');
+        }
+      }
+    });
+
+    actionsRow.appendChild(copyBtn);
+    actionsRow.appendChild(shareBtnItem);
+    card.appendChild(actionsRow);
 
     guestKeysList.appendChild(card);
-
-
-
   });
-
-
-
 }
 
-
-
-
-
-
-
 function addNewGuestKey(name) {
-
-
-
-  const cleanName = (name || '').trim();
-
-
-
-  if (!cleanName) {
-
-
-
-    showToast(state.lang === 'it' ? "Inserisci un nome per il link (es. Roberto)" : "Enter a name for the link", "warning");
-
-
-
-    if (newGuestNameInput) newGuestNameInput.focus();
-
-
-
+  const MAX_GUEST_KEYS = 5;
+  if (Array.isArray(state.guestKeys) && state.guestKeys.length >= MAX_GUEST_KEYS) {
+    showToast(
+      state.lang === 'it'
+        ? `⚠️ Limite massimo raggiunto (${MAX_GUEST_KEYS}/${MAX_GUEST_KEYS}). Revoca un link per crearne di nuovi.`
+        : `⚠️ Maximum limit reached (${MAX_GUEST_KEYS}/${MAX_GUEST_KEYS}). Revoke a link to create new ones.`,
+      "warning"
+    );
     return;
-
-
-
   }
 
-
-
-
-
-
+  const cleanName = (name || '').trim();
+  if (!cleanName) {
+    showToast(state.lang === 'it' ? "Inserisci un nome per il link (es. Marco)" : "Enter a name for the link (e.g. Mark)", "warning");
+    if (newGuestNameInput) newGuestNameInput.focus();
+    return;
+  }
 
   const token = generateRandomGuestKey();
-
-
-
   const newEntry = {
-
-
-
     id: 'k_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-
-
-
     name: cleanName,
-
-
-
     key: token,
-
-
-
     created: Date.now()
-
-
-
   };
-
-
-
-
-
-
 
   if (!Array.isArray(state.guestKeys)) {
     state.guestKeys = [];
   }
   state.guestKeys.unshift(newEntry);
-
-
-
   localStorage.setItem('pixo_guest_keys', JSON.stringify(state.guestKeys));
-
-
-
-
-
-
 
   if (newGuestNameInput) newGuestNameInput.value = '';
 
-
-
-
-
-
-
   syncGuestKeysToDevice();
-
-
-
   renderGuestKeysList();
-
-
-
-  showToast(state.lang === 'it' ? `Link creato per "${cleanName}"!` : `Link created for "${cleanName}"!`, "success");
-
-
-
+  showToast(state.lang === 'it' ? `✅ Link creato per "${cleanName}"!` : `✅ Link created for "${cleanName}"!`, "success");
 }
 
-
-
-
-
-
-
 function deleteGuestKey(id, name) {
-
-
-
+  const displayName = name || (state.lang === 'it' ? 'questo ospite' : 'this guest');
   const confirmMsg = state.lang === 'it'
-
-
-
-    ? `Vuoi revocare l'accesso per "${name}"?\nChi possiede questo link non potrà più inviare disegni a Pixò.`
-
-
-
-    : `Revoke access for "${name}"?\nAnyone with this link will no longer be able to send drawings to Pixò.`;
-
-
-
+    ? `Vuoi revocare l'accesso per "${displayName}"?\n\nChi possiede questo link non potrà più inviare disegni a Pixò.`
+    : `Revoke access for "${displayName}"?\n\nAnyone with this link will no longer be able to send drawings to Pixò.`;
   if (!confirm(confirmMsg)) return;
-
-
-
-
-
-
 
   const revokedItem = (state.guestKeys || []).find(k => k.id === id);
   if (revokedItem && revokedItem.key && state.mqttConnected && state.mqttClient) {
     state.mqttClient.publish(`pixo/friend/${revokedItem.key}/meta`, JSON.stringify({ status: "REVOKED" }), { qos: 1, retain: true });
+    state.mqttClient.publish(`pixo/friend/${revokedItem.key}/lock`, "FREE", { qos: 0, retain: true });
   }
   state.guestKeys = state.guestKeys.filter(k => k.id !== id);
-
-
-
   localStorage.setItem('pixo_guest_keys', JSON.stringify(state.guestKeys));
 
-
-
-
-
-
-
   syncGuestKeysToDevice();
-
-
-
   renderGuestKeysList();
-
-
-
-  showToast(state.lang === 'it' ? `Accesso per "${name}" revocato!` : `Access for "${name}" revoked!`, "success");
-
-
-
+  showToast(state.lang === 'it' ? `Accesso per "${displayName}" revocato!` : `Access for "${displayName}" revoked!`, "success");
 }
 
-
-
-
-
-
-
 function revokeAllGuestKeys() {
-
-
+  const count = Array.isArray(state.guestKeys) ? state.guestKeys.length : 0;
+  if (count === 0) return;
 
   const confirmMsg = state.lang === 'it'
-
-
-
-    ? "⚠️ Vuoi davvero revocare ed eliminare TUTTI i link ospite?\nTutti i link distribuiti smetteranno immediatamente di funzionare."
-
-
-
-    : "⚠️ Really revoke and delete ALL guest links?\nAll distributed links will stop working immediately.";
-
-
-
+    ? "⚠️ Vuoi davvero revocare ed eliminare TUTTI i link amico?\n\nTutti i link distribuiti (fino a 5) smetteranno immediatamente di funzionare."
+    : "⚠️ Really revoke and delete ALL guest links?\n\nAll distributed links (up to 5) will stop working immediately.";
   if (!confirm(confirmMsg)) return;
 
   if (Array.isArray(state.guestKeys) && state.mqttConnected && state.mqttClient) {
     state.guestKeys.forEach(item => {
       if (item && item.key) {
         state.mqttClient.publish(`pixo/friend/${item.key}/meta`, JSON.stringify({ status: "REVOKED" }), { qos: 1, retain: true });
+        state.mqttClient.publish(`pixo/friend/${item.key}/lock`, "FREE", { qos: 0, retain: true });
       }
     });
   }
+
   state.guestKeys = [];
-
-
-
   localStorage.setItem('pixo_guest_keys', JSON.stringify([]));
 
-
-
-
-
-
-
   syncGuestKeysToDevice();
-
-
-
   renderGuestKeysList();
-
-
-
-  showToast(state.lang === 'it' ? "Tutti i link ospite sono stati revocati!" : "All guest links revoked!", "success");
-
-
-
+  showToast(state.lang === 'it' ? "🗑️ Tutti i link amico sono stati revocati!" : "🗑️ All guest links have been revoked!", "info");
 }
-
-
-
-
-
-
 
 function syncGuestKeysToDevice(forcePublishData = true) {
 
