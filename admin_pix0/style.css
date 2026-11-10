@@ -715,3 +715,31 @@ input:focus {
 @keyframes slideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
 
 .hidden { display: none !important; }
+
+
+.dev-id-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dev-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -0.01em;
+}
+
+.dev-serial-badge {
+  font-size: 0.72rem;
+  font-family: monospace;
+  color: var(--cyan);
+  background: rgba(0, 210, 255, 0.08);
+  border: 1px solid rgba(0, 210, 255, 0.2);
+  padding: 1px 7px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+}
