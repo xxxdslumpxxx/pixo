@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0c10">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Commander">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Pixò Master Fleet Commander</title>
+  <script>
+    if (window.location.pathname === '/admin_pix0') {
+      window.location.replace('/admin_pix0/' + window.location.search + window.location.hash);
+    }
+  </script>
+  <link rel="manifest" href="manifest.json?v=27">
+  <link rel="icon" type="image/svg+xml" href="icon-commander.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css?v=27">
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+</head>
+<body>
+
+  <!-- SCHERMATA DI BLOCCO / ACCESSO MASTER -->
+  <div id="authOverlay" class="auth-overlay">
+    <div class="auth-card">
+      <div class="auth-icon">🛰️</div>
+      <h2>Pixò Fleet Commander</h2>
+      <p>Area Amministratore Riservata. Inserisci la Master Key per accedere al controllo flotta.</p>
+      
+      <div class="auth-input-group">
+        <input type="password" id="masterKeyInput" placeholder="Master Key..." autocomplete="off">
+        <button id="btnUnlock" class="btn primary">Sblocca</button>
+      </div>
+      <div id="authError" class="auth-error hidden">Master Key non valida. Riprova.</div>
+      <label class="remember-label">
+        <input type="checkbox" id="rememberAuth"> Resta connesso su questo dispositivo
+      </label>
+      <div style="margin-top: 16px; text-align: center;">
+        <button id="btnInstallAuth" class="btn primary mini" style="width:100%; border-radius:10px; padding:10px;">📲 Installa App Commander su Smartphone</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- INTERFACCIA PRINCIPALE ADMIN -->
+  <div id="adminApp" class="admin-app hidden">
+    <!-- Top Header Cockpit -->
+    <header class="admin-header">
+      <div class="header-brand">
+        <div class="brand-badge">MASTER</div>
+        <h1>Pixò Commander</h1>
+      </div>
+      <div class="header-actions">
+        <button id="btnInstallApp" class="btn primary mini" title="Installa PWA">📲 Installa</button>
+        <div id="cloudStatusBadge" class="status-badge connecting">
+          <span class="status-dot"></span>
+          <span id="cloudStatusText">Connessione...</span>
+        </div>
+        <button id="btnRefresh" class="btn secondary mini icon-only" title="Aggiorna Scansione">🔄</button>
+        <button id="btnLogout" class="btn secondary mini icon-only" title="Esci">🔒</button>
+      </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="cockpit-container">
+      
+      <!-- Quick Stats KPI Cards -->
+      <section class="kpi-grid">
+        <div class="kpi-card">
+          <span class="kpi-label">Dispositivi</span>
+          <span id="statTotal" class="kpi-value">0</span>
+          <span class="kpi-sub">Rilevati</span>
+        </div>
+        <div class="kpi-card online">
+          <span class="kpi-label">Online Adesso</span>
+          <span id="statOnline" class="kpi-value">0</span>
+          <span class="kpi-sub">Attivi</span>
+        </div>
+        <div class="kpi-card offline">
+          <span class="kpi-label">Offline / Standby</span>
+          <span id="statOffline" class="kpi-value">0</span>
+          <span class="kpi-sub">Non Connessi</span>
+        </div>
+        <div class="kpi-card info">
+          <span class="kpi-label">Client Attivi</span>
+          <span id="statClients" class="kpi-value">1</span>
+          <span class="kpi-sub">Pixò + Amici</span>
+        </div>
+      </section>
+
+      <!-- ACCORDION 1: Capienza Server & Connessioni Live -->
+      <section class="accordion-item" data-section="server-capacity">
+        <button class="accordion-trigger" aria-expanded="false">
+          <div class="trigger-left">
+            <span class="trigger-icon">🌐</span>
+            <span class="trigger-title">Capienza Server & Connessioni Live</span>
+          </div>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-content">
+          <div class="capacity-box">
+            <div class="capacity-stats-grid">
+              <div class="cap-stat">
+                <span class="cap-sub">Pixò Hardware Online</span>
+                <span id="capHwOnline" class="cap-val text-green">0</span>
+              </div>
+              <div class="cap-stat">
+                <span class="cap-sub">Sessioni Amici / Ospiti Attive</span>
+                <span id="capFriendsOnline" class="cap-val text-cyan">0</span>
+              </div>
+              <div class="cap-stat">
+                <span class="cap-sub">Pannelli Admin Connessi</span>
+                <span id="capAdminsOnline" class="cap-val text-yellow">1</span>
+              </div>
+              <div class="cap-stat">
+                <span class="cap-sub">Telemetrie Ricevute</span>
+                <span id="statMsgCount" class="cap-val">0</span>
+              </div>
+            </div>
+
+            <div class="capacity-meter">
+              <div class="meter-labels">
+                <span>Carico Broker Dedicato (Oracle Cloud Mosquitto)</span>
+                <span id="capacityLabel" class="meter-num">1 / 1024 (0.1%)</span>
+              </div>
+              <div class="progress-track">
+                <div id="capacityBar" class="progress-fill" style="width: 1%;"></div>
+              </div>
+              <p class="capacity-hint">Limite simultaneo del broker: <strong>1.024 connessioni stabili</strong>. Sei ampiamente all'interno della zona verde sicura.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ACCORDION 2: Azioni Globali su Tutta la Flotta -->
+      <section class="accordion-item" data-section="global-actions">
+        <button class="accordion-trigger" aria-expanded="false">
+          <div class="trigger-left">
+            <span class="trigger-icon">⚡</span>
+            <span class="trigger-title">Azioni Globali su Tutta la Flotta</span>
+          </div>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-content">
+          <div class="global-actions-card">
+            <div class="action-row ota-row">
+              <div class="ota-inputs">
+                <input type="text" id="globalOtaUrl" placeholder="https://github.com/.../firmware.bin" value="https://github.com/xxxdslumpxxx/pixo/releases/download/v1.3.6/firmware.bin">
+                <div class="ota-controls">
+                  <button id="btnCheckFw" class="btn secondary mini">🔍 Verifica</button>
+                  <span id="latestFwBadge" class="badge">Disp: v1.3.6</span>
+                  <span class="master-pin-badge">Master Key</span>
+                </div>
+              </div>
+              <button id="btnGlobalOta" class="btn danger full-width">
+                🚀 Aggiorna Flotta (<span id="otaTargetCount">0</span> obsoleti)
+              </button>
+              <p id="otaHelperText" class="helper-text">Nessun dispositivo attualmente online.</p>
+            </div>
+
+            <div class="action-grid-buttons">
+              <button id="btnGlobalStandby" class="btn secondary">
+                ✨ Standby Tutti
+              </button>
+              <button id="btnGlobalClock" class="btn secondary">
+                🕒 Orologio Tutti
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ACCORDION 3: Dispositivi Flotta Pixò -->
+      <section class="accordion-item active" data-section="device-fleet">
+        <button class="accordion-trigger" aria-expanded="true">
+          <div class="trigger-left">
+            <span class="trigger-icon">📱</span>
+            <span class="trigger-title">Dispositivi Flotta</span>
+            <span id="devicesBadgeCount" class="badge mini-badge">1</span>
+          </div>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-content">
+          <!-- Search & Filter Controls -->
+          <div class="fleet-controls">
+            <input type="search" id="searchInput" class="search-input" placeholder="Cerca ID, IP o Wi-Fi...">
+            <div class="filter-tabs">
+              <button class="filter-tab active" data-filter="all">Tutti (<span id="countAll">0</span>)</button>
+              <button class="filter-tab" data-filter="online">Online (<span id="countOnline">0</span>)</button>
+              <button class="filter-tab" data-filter="offline">Offline (<span id="countOffline">0</span>)</button>
+            </div>
+          </div>
+
+          <!-- Device Cards Container -->
+          <div id="deviceList" class="device-list">
+            <!-- Render dinamico da app.js -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ACCORDION 4: Live Telemetria Cloud -->
+      <section class="accordion-item" data-section="live-telemetry">
+        <button class="accordion-trigger" aria-expanded="false">
+          <div class="trigger-left">
+            <span class="trigger-icon">🛰️</span>
+            <span class="trigger-title">Live Telemetria Cloud</span>
+          </div>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-content">
+          <div class="telemetry-box">
+            <div class="telemetry-bar">
+              <span class="telemetry-status">📡 Flusso MQTT in Tempo Reale</span>
+              <div class="telemetry-actions">
+                <button id="btnClearLog" class="btn secondary mini">Pulisci</button>
+                <label class="auto-scroll-label"><input type="checkbox" id="chkAutoScroll" checked> Auto</label>
+              </div>
+            </div>
+            <pre id="logContainer" class="log-container"></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- ACCORDION 5: Sicurezza & Cambio Master Key -->
+      <section class="accordion-item" data-section="security-master">
+        <button class="accordion-trigger" aria-expanded="false">
+          <div class="trigger-left">
+            <span class="trigger-icon">🔒</span>
+            <span class="trigger-title">Sicurezza & Cambio Master Key</span>
+          </div>
+          <span class="chevron">▼</span>
+        </button>
+        <div class="accordion-content">
+          <div class="security-card">
+            <p class="sec-desc">Modifica la Master Key di accesso alla console Commander. La nuova chiave verrà memorizzata in modo persistente e cifrato.</p>
+            <form id="formChangeMasterKey" class="sec-form">
+              <div class="form-group">
+                <label>Vecchia Master Key</label>
+                <input type="password" id="inputOldMasterKey" placeholder="Inserisci Master Key attuale..." required>
+              </div>
+              <div class="form-group">
+                <label>Nuova Master Key (Minimo 8 caratteri)</label>
+                <input type="password" id="inputNewMasterKey" placeholder="Nuova Master Key..." required>
+              </div>
+              <div class="form-group">
+                <label>Conferma Nuova Master Key</label>
+                <input type="password" id="inputConfirmMasterKey" placeholder="Ripeti Nuova Master Key..." required>
+              </div>
+              <button type="submit" class="btn primary full-width">Aggiorna Master Key 🔑</button>
+              <div id="masterKeyFeedback" class="sec-feedback hidden"></div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODAL GUIDA INSTALLAZIONE PWA SU ANDROID / IOS -->
+  <div id="installModal" class="install-modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="brand-badge" style="background:#00e5ff; color:#000;">APP STANDALONE</div>
+        <button id="btnCloseInstallModal" class="btn-close" aria-label="Chiudi">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size:0.92rem; line-height:1.6; color:#e0e6ed;">
+        <p>Installa la WebApp Master come <strong>applicazione indipendente</strong> separata da Pixò:</p>
+        
+        <div style="background:#131722; padding:12px; border-radius:10px; margin:10px 0; border:1px solid #232936;">
+          <h4 style="color:#00e5ff; margin-bottom:4px; font-size:0.95rem;">🤖 Android (Chrome):</h4>
+          <ol style="margin-left:18px; padding-left:0; font-size:0.88rem;">
+            <li>Tocca i <strong>tre puntini (⋮)</strong> in alto a destra nel browser.</li>
+            <li>Seleziona <strong>"Installa app"</strong> (oppure <em>"Aggiungi a schermata Home"</em>).</li>
+            <li>Conferma premendo <strong>Installa</strong>. Troverai l'icona nera <strong>Commander</strong> separata!</li>
+          </ol>
+        </div>
+
+        <div style="background:#131722; padding:12px; border-radius:10px; margin:10px 0; border:1px solid #232936;">
+          <h4 style="color:#ffb703; margin-bottom:4px; font-size:0.95rem;">🍏 iPhone (Safari):</h4>
+          <ol style="margin-left:18px; padding-left:0; font-size:0.88rem;">
+            <li>Tocca il tasto <strong>Condividi</strong> (icona quadrato con freccia in su ⎋ in basso al centro).</li>
+            <li>Scorri il menu e tocca <strong>"Aggiungi alla schermata Home"</strong>.</li>
+            <li>Tocca <strong>Aggiungi</strong> in alto a destra.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="modal-footer" style="text-align:right; margin-top:14px;">
+        <button id="btnDismissInstallModal" class="btn primary mini" style="padding:8px 20px;">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST CONTAINER -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <script src="app.js?v=27"></script>
+</body>
+</html>
