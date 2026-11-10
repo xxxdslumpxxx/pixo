@@ -14029,6 +14029,36 @@ let hasShownConnectedToast = false;
 
 
 
+
+function syncDeviceNameToCloud(name) {
+  if (!state.mqttClient || !state.mqttClient.connected || !state.deviceId) return;
+  const payload = (name || '').trim();
+  if (!payload) return;
+  state.mqttClient.publish(`pixo/device/${state.deviceId}/name`, payload, { qos: 1, retain: true });
+  console.log(`[NAME SYNC] Sincronizzato nome su Cloud: ${payload}`);
+}
+
+function handleDeviceNameSync(payload) {
+  if (!payload || !payload.length) return;
+  const name = new TextDecoder().decode(payload).trim();
+  if (name && name !== state.deviceName) {
+    console.log(`[NAME SYNC] Ricevuto nuovo nome dal Cloud: "${name}"`);
+    state.deviceName = name;
+    localStorage.setItem('pixo_device_name', name);
+    const devInput = document.getElementById('deviceNameInput');
+    if (devInput && document.activeElement !== devInput) {
+      devInput.value = name;
+    }
+    if (deviceIdDisplay) {
+      if (state.isLiveMode) {
+        deviceIdDisplay.textContent = `${name} (🔴 Live)`;
+      } else {
+        deviceIdDisplay.textContent = name;
+      }
+    }
+  }
+}
+
 function subscribeDeviceTopics() {
   if (!state.mqttClient || !state.mqttClient.connected) return;
 
@@ -14108,6 +14138,12 @@ function subscribeDeviceTopics() {
 
 
     state.mqttClient.subscribe(diagTopic, { qos: 0 });
+
+    const nameTopic = `pixo/device/${state.deviceId}/name`;
+    state.mqttClient.subscribe(nameTopic, { qos: 1 });
+    if (state.deviceName && state.deviceName !== DEFAULT_CONFIG.defaultDeviceName) {
+      syncDeviceNameToCloud(state.deviceName);
+    }
 
 
 
