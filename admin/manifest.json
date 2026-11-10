@@ -1,11 +1,16 @@
 {
-  "id": "pixo-master-commander-app-v2",
+  "id": "/admin/",
   "name": "Pixò Commander",
   "short_name": "Commander",
   "description": "Console di Amministrazione Flotta Pixò",
-  "start_url": "./",
-  "scope": "./",
+  "start_url": "/admin/",
+  "scope": "/admin/",
   "display": "standalone",
+  "display_override": [
+    "standalone",
+    "fullscreen",
+    "minimal-ui"
+  ],
   "background_color": "#0a0c10",
   "theme_color": "#0a0c10",
   "orientation": "portrait-primary",
@@ -21,6 +26,12 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    },
+    {
+      "src": "icon-commander.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }
