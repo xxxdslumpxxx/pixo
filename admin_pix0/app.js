@@ -1,3 +1,12 @@
+function escapeHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // Pixò Master Fleet Commander - Standalone Admin Logic (v27)
 const DEFAULT_MASTER_KEY = "pixo_master_2026";
 
@@ -304,6 +313,7 @@ function connectMQTT() {
 
     // Sottoscrizione flotta e telemetria globale
     mqttClient.subscribe('pixo/device/+/status', { qos: 1 });
+    mqttClient.subscribe('pixo/device/+/name', { qos: 1 });
     mqttClient.subscribe('pixo/live/+/status', { qos: 1 });
     mqttClient.subscribe('pixo/device/+/wifi', { qos: 0 });
     mqttClient.subscribe('pixo/device/+/diag', { qos: 0 });
@@ -373,6 +383,7 @@ function handleIncomingMessage(topic, payload) {
       const pins = JSON.parse(localStorage.getItem('pixo_admin_device_pins') || '{}');
       devices[devId] = {
         id: devId,
+        name: '',
         status: 'online',
         lastSeen: Date.now(),
         ip: '',
@@ -390,7 +401,11 @@ function handleIncomingMessage(topic, payload) {
     const dev = devices[devId];
 
     try {
-      if (sub === 'status') {
+      if (sub === 'name') {
+        if (textPayload) {
+          dev.name = textPayload;
+        }
+      } else if (sub === 'status') {
         const isOnline = textPayload.toLowerCase().startsWith('online');
         const isOffline = textPayload.toLowerCase().startsWith('offline');
         if (isOnline) {
@@ -520,7 +535,7 @@ function renderDashboard() {
 
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
-    filtered = filtered.filter(d => d.id.toLowerCase().includes(q) || d.ip.includes(q) || d.ssid.toLowerCase().includes(q));
+    filtered = filtered.filter(d => d.id.toLowerCase().includes(q) || (d.name && d.name.toLowerCase().includes(q)) || d.ip.includes(q) || d.ssid.toLowerCase().includes(q));
   }
 
   // Render cards
@@ -543,7 +558,8 @@ function renderDashboard() {
       <div class="device-card ${isOnline ? 'online' : 'offline'}" data-id="${dev.id}">
         <div class="dev-header">
           <div class="dev-id-group">
-            <span class="dev-title">${dev.id}</span>
+            <span class="dev-title">🏷️ ${escapeHtml(dev.name || 'Pixò')}</span>
+            <small class="dev-serial-badge">📟 ${dev.id}</small>
           </div>
           <span class="dev-status-pill ${isOnline ? 'online' : 'offline'}">${statusText}</span>
         </div>
@@ -748,6 +764,7 @@ searchInput.oninput = (e) => {
 btnRefresh.onclick = () => {
   if (mqttClient && mqttClient.connected) {
     mqttClient.subscribe('pixo/device/+/status', { qos: 1 });
+    mqttClient.subscribe('pixo/device/+/name', { qos: 1 });
     mqttClient.subscribe('pixo/live/+/status', { qos: 1 });
     mqttClient.subscribe('pixo/device/+/wifi', { qos: 0 });
     mqttClient.subscribe('pixo/device/+/diag', { qos: 0 });
